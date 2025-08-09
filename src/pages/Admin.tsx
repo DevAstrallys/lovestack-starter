@@ -14,7 +14,7 @@ import {
   Building
 } from 'lucide-react';
 import { UsersManagement } from '@/components/admin/UsersManagement';
-import { BuildingsManagement } from '@/components/admin/BuildingsManagement';
+
 import { RolesPermissions } from '@/components/admin/RolesPermissions';
 import { SystemSettings } from '@/components/admin/SystemSettings';
 
@@ -64,20 +64,16 @@ export const Admin = () => {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Panel d'Administration</h2>
           <p className="text-muted-foreground">
-            Gérez les utilisateurs, bâtiments et permissions de la plateforme
+            Gérez les utilisateurs et permissions de la plateforme
           </p>
         </div>
 
         {/* Admin Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="users" className="flex items-center space-x-2">
               <Users className="h-4 w-4" />
               <span>Utilisateurs</span>
-            </TabsTrigger>
-            <TabsTrigger value="buildings" className="flex items-center space-x-2">
-              <Building2 className="h-4 w-4" />
-              <span>Bâtiments</span>
             </TabsTrigger>
             <TabsTrigger value="permissions" className="flex items-center space-x-2">
               <Shield className="h-4 w-4" />
@@ -91,10 +87,6 @@ export const Admin = () => {
 
           <TabsContent value="users">
             <UsersManagement />
-          </TabsContent>
-
-          <TabsContent value="buildings">
-            <BuildingsManagement />
           </TabsContent>
 
           <TabsContent value="permissions">

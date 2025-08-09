@@ -7,13 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Building2, 
   Plus, 
   Search, 
   Edit,
-  Users,
   MapPin,
   Calendar
 } from 'lucide-react';
@@ -41,7 +39,11 @@ interface BuildingForm {
   timezone: string;
 }
 
-export const BuildingsManagement = () => {
+interface BuildingsManagementProps {
+  onBuildingSelect: (buildingId: string) => void;
+}
+
+export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuildingSelect }) => {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,6 +156,11 @@ export const BuildingsManagement = () => {
     setIsEditDialogOpen(true);
   };
 
+  const handleSelectBuilding = (building: Building) => {
+    onBuildingSelect(building.id);
+    toast.success(`Bâtiment "${building.name}" sélectionné`);
+  };
+
   const filteredBuildings = buildings.filter(building => 
     building.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     building.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -171,7 +178,7 @@ export const BuildingsManagement = () => {
         <div>
           <h3 className="text-2xl font-bold">Gestion des Bâtiments</h3>
           <p className="text-muted-foreground">
-            Gérez les bâtiments de la plateforme
+            Créez et gérez vos bâtiments, puis sélectionnez-en un pour organiser ses lieux
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -185,7 +192,7 @@ export const BuildingsManagement = () => {
             <DialogHeader>
               <DialogTitle>Créer un nouveau bâtiment</DialogTitle>
               <DialogDescription>
-                Ajoutez un nouveau bâtiment à la plateforme
+                Ajoutez un nouveau bâtiment pour commencer à organiser ses lieux
               </DialogDescription>
             </DialogHeader>
             
@@ -308,27 +315,53 @@ export const BuildingsManagement = () => {
                 <span>Créé le {new Date(building.created_at).toLocaleDateString('fr-FR')}</span>
               </div>
               
-              <div className="flex space-x-2 pt-2">
+              <div className="flex flex-col space-y-2 pt-2">
                 <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => openEditDialog(building)}
+                  onClick={() => handleSelectBuilding(building)}
+                  className="w-full"
                 >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Modifier
+                  Sélectionner ce bâtiment
                 </Button>
-                <Button 
-                  variant={building.is_active ? "destructive" : "default"}
-                  size="sm"
-                  onClick={() => toggleBuildingStatus(building.id, building.is_active)}
-                >
-                  {building.is_active ? "Désactiver" : "Activer"}
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => openEditDialog(building)}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Modifier
+                  </Button>
+                  <Button 
+                    variant={building.is_active ? "destructive" : "default"}
+                    size="sm"
+                    onClick={() => toggleBuildingStatus(building.id, building.is_active)}
+                    className="flex-1"
+                  >
+                    {building.is_active ? "Désactiver" : "Activer"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {buildings.length === 0 && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">Aucun bâtiment créé</p>
+            <p className="text-muted-foreground mb-4">
+              Commencez par créer votre premier bâtiment pour organiser vos lieux
+            </p>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Créer mon premier bâtiment
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Building Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

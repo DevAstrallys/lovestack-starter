@@ -138,7 +138,7 @@ export const Dashboard = () => {
             Bienvenue, {user?.user_metadata?.full_name?.split(' ')[0] || 'Utilisateur'}
           </h2>
           <p className="text-muted-foreground">
-            Sélectionnez un module pour commencer à gérer votre immeuble
+            Sélectionnez un module pour commencer à gérer vos lieux et votre immeuble
           </p>
         </div>
 

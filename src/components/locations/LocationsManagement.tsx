@@ -7,6 +7,7 @@ import { LocationElements } from './LocationElements';
 import { LocationGroups } from './LocationGroups';
 import { LocationEnsembles } from './LocationEnsembles';
 import { TagsManagement } from './TagsManagement';
+import { BuildingsManagement } from './BuildingsManagement';
 
 export interface LocationTag {
   id: string;
@@ -110,36 +111,38 @@ export const LocationsManagement: React.FC = () => {
         <CardHeader>
           <CardTitle>Gestion des Lieux</CardTitle>
           <CardDescription>
-            Créez et gérez une hiérarchie flexible de lieux : éléments → groupements → ensembles
+            Créez et gérez vos bâtiments et organisez une hiérarchie flexible de lieux : éléments → groupements → ensembles
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Bâtiment</label>
-              <select
-                value={selectedBuilding}
-                onChange={(e) => setSelectedBuilding(e.target.value)}
-                className="w-full max-w-xs border border-input rounded-md px-3 py-2 bg-background"
-              >
-                {userBuildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.name}
-                  </option>
-                ))}
-              </select>
+          {selectedBuilding && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Bâtiment sélectionné</label>
+                <div className="p-3 bg-muted rounded-md">
+                  <p className="font-medium">{userBuildings.find(b => b.id === selectedBuilding)?.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Vous pouvez maintenant gérer les lieux de ce bâtiment
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="elements" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="buildings" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="buildings">Bâtiments</TabsTrigger>
           <TabsTrigger value="elements">Éléments</TabsTrigger>
           <TabsTrigger value="groupements">Groupements</TabsTrigger>
           <TabsTrigger value="ensembles">Ensembles</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="buildings" className="space-y-4">
+          <BuildingsManagement onBuildingSelect={setSelectedBuilding} />
+        </TabsContent>
 
         <TabsContent value="elements" className="space-y-4">
           <LocationElements buildingId={selectedBuilding} />

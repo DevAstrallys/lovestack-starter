@@ -112,14 +112,14 @@ export const LocationsManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {selectedBuilding && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestion des Lieux</CardTitle>
-            <CardDescription>
-              Créez et gérez vos lieux : éléments → groupements → ensembles
-            </CardDescription>
-          </CardHeader>
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestion des Lieux</CardTitle>
+          <CardDescription>
+            Créez et gérez vos lieux : éléments → groupements → ensembles
+          </CardDescription>
+        </CardHeader>
+        {selectedBuilding && (
           <CardContent>
             <div className="space-y-4">
               <div>
@@ -133,8 +133,8 @@ export const LocationsManagement: React.FC = () => {
               </div>
             </div>
           </CardContent>
-        </Card>
-      )}
+        )}
+      </Card>
 
       <Tabs defaultValue="elements" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">

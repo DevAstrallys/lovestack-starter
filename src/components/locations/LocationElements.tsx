@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { LocationTag, LocationElement } from './LocationsManagement';
+import { TagSelector } from './TagSelector';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Tag } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import type { LocationElement, LocationTag } from './LocationsManagement';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 
 interface LocationElementsProps {
   buildingId: string;
@@ -222,7 +223,15 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
 
       if (error) throw error;
 
-      setAvailableTags(prev => [...prev, data]);
+      const newTag: LocationTag = {
+        id: data.id,
+        name: data.name,
+        color: data.color,
+        building_id: data.building_id,
+        created_at: data.created_at
+      };
+
+      setAvailableTags(prev => [...prev, newTag]);
       
       toast({
         title: "Succès",

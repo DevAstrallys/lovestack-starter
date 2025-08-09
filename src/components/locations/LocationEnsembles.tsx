@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { LocationTag, LocationGroup, LocationEnsemble } from './LocationsManagement';
+import { TagSelector } from './TagSelector';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Edit, Trash2, Tag, Building } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import type { LocationEnsemble, LocationGroup, LocationTag } from './LocationsManagement';
+import { Plus, Edit, Trash2, Building } from 'lucide-react';
 
 interface LocationEnsemblesProps {
   buildingId: string;
@@ -257,6 +258,44 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
     }));
   };
 
+  const handleCreateTag = async (name: string, color: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('location_tags')
+        .insert({
+          name,
+          color,
+          building_id: buildingId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newTag: LocationTag = {
+        id: data.id,
+        name: data.name,
+        color: data.color,
+        building_id: data.building_id,
+        created_at: data.created_at
+      };
+
+      setAvailableTags(prev => [...prev, newTag]);
+      
+      toast({
+        title: "Succès",
+        description: "Tag créé avec succès",
+      });
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer le tag",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-4">Chargement des ensembles...</div>;
   }
@@ -322,22 +361,12 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
                   ))}
                 </div>
               </div>
-              <div>
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {availableTags.map(tag => (
-                    <Badge
-                      key={tag.id}
-                      variant={formData.selectedTags.includes(tag.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleTag(tag.id)}
-                    >
-                      <Tag className="h-3 w-3 mr-1" />
-                      {tag.name}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <TagSelector
+                availableTags={availableTags}
+                selectedTags={formData.selectedTags}
+                onTagToggle={toggleTag}
+                onTagCreate={handleCreateTag}
+              />
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Annuler

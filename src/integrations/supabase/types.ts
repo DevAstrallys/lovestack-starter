@@ -560,6 +560,299 @@ export type Database = {
           },
         ]
       }
+      location_element_tags: {
+        Row: {
+          element_id: string
+          tag_id: string
+        }
+        Insert: {
+          element_id: string
+          tag_id: string
+        }
+        Update: {
+          element_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_element_tags_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "location_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_element_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "location_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_elements: {
+        Row: {
+          building_id: string
+          created_at: string
+          description: string | null
+          id: string
+          location_data: Json | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          location_data?: Json | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          location_data?: Json | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_elements_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_ensemble_groups: {
+        Row: {
+          ensemble_id: string
+          group_id: string
+        }
+        Insert: {
+          ensemble_id: string
+          group_id: string
+        }
+        Update: {
+          ensemble_id?: string
+          group_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_ensemble_groups_ensemble_id_fkey"
+            columns: ["ensemble_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_ensemble_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_ensemble_tags: {
+        Row: {
+          ensemble_id: string
+          tag_id: string
+        }
+        Insert: {
+          ensemble_id: string
+          tag_id: string
+        }
+        Update: {
+          ensemble_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_ensemble_tags_ensemble_id_fkey"
+            columns: ["ensemble_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_ensemble_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "location_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_ensembles: {
+        Row: {
+          building_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_ensembles_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_group_elements: {
+        Row: {
+          element_id: string
+          group_id: string
+        }
+        Insert: {
+          element_id: string
+          group_id: string
+        }
+        Update: {
+          element_id?: string
+          group_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_group_elements_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "location_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_group_elements_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_group_tags: {
+        Row: {
+          group_id: string
+          tag_id: string
+        }
+        Insert: {
+          group_id: string
+          tag_id: string
+        }
+        Update: {
+          group_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_group_tags_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_group_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "location_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_groups: {
+        Row: {
+          building_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_groups_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_tags: {
+        Row: {
+          building_id: string
+          color: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_tags_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           block_id: string | null

@@ -261,7 +261,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
   const handleCreateTag = async (name: string, color: string) => {
     try {
       const { data, error } = await supabase
-        .from('location_tags')
+        .from('location_tags' as any)
         .insert({
           name,
           color,
@@ -273,11 +273,11 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
       if (error) throw error;
 
       const newTag: LocationTag = {
-        id: data.id,
-        name: data.name,
-        color: data.color,
-        building_id: data.building_id,
-        created_at: data.created_at
+        id: (data as any).id,
+        name: (data as any).name,
+        color: (data as any).color,
+        building_id: (data as any).building_id,
+        created_at: (data as any).created_at
       };
 
       setAvailableTags(prev => [...prev, newTag]);

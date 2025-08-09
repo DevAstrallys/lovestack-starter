@@ -57,6 +57,14 @@ const modules = [
     path: '/access'
   },
   {
+    id: 'admin',
+    name: 'Administration',
+    description: 'Panel d\'administration de la plateforme',
+    icon: Settings,
+    color: 'bg-gray-600',
+    path: '/admin'
+  },
+  {
     id: 'communication',
     name: 'Communication',
     description: 'Notifications et messages',
@@ -134,7 +142,11 @@ export const Dashboard = () => {
                 key={module.id} 
                 className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 group"
                 onClick={() => {
-                  toast.info(`Module ${module.name} - En développement`);
+                  if (module.id === 'admin') {
+                    window.location.href = '/admin';
+                  } else {
+                    toast.info(`Module ${module.name} - En développement`);
+                  }
                 }}
               >
                 <CardHeader className="pb-3">

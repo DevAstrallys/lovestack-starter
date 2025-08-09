@@ -10,12 +10,21 @@ import {
   Settings, 
   LogOut,
   Users,
-  MessageSquare
+  MessageSquare,
+  MapPin
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const modules = [
+  {
+    id: 'locations',
+    name: 'Gestion des Lieux',
+    description: 'Organiser la hiérarchie des lieux (éléments, groupements, ensembles)',
+    icon: MapPin,
+    color: 'bg-emerald-500',
+    path: '/locations'
+  },
   {
     id: 'ticketing',
     name: 'Gestion des Tickets',
@@ -144,6 +153,8 @@ export const Dashboard = () => {
                 onClick={() => {
                   if (module.id === 'admin') {
                     window.location.href = '/admin';
+                  } else if (module.id === 'locations') {
+                    window.location.href = '/locations';
                   } else {
                     toast.info(`Module ${module.name} - En développement`);
                   }

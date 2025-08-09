@@ -7,7 +7,7 @@ export const Locations: React.FC = () => {
     <div className="container mx-auto px-4 py-8">
       <NavigationHeader 
         title="Gestion des Lieux" 
-        description="Créez et gérez vos bâtiments et organisez vos lieux" 
+        description="Créez et gérez vos organisations et organisez vos lieux" 
       />
       <LocationsManagement />
     </div>

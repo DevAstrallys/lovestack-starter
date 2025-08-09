@@ -238,7 +238,7 @@ export const RolesPermissions = () => {
                               variant={role.is_platform_scope ? "default" : "secondary"}
                               className="text-xs mt-1"
                             >
-                              {role.is_platform_scope ? "Platform" : "Building"}
+                              {role.is_platform_scope ? "Platform" : "Organization"}
                             </Badge>
                           </div>
                         </TableHead>

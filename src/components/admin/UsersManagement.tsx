@@ -31,10 +31,10 @@ interface Profile {
 
 interface Membership {
   id: string;
-  building_id: string;
+  organization_id: string;
   role_id: string;
   is_active: boolean;
-  buildings: {
+  organizations: {
     name: string;
   };
   roles: {
@@ -49,7 +49,7 @@ interface UserWithMemberships extends Profile {
 
 export const UsersManagement = () => {
   const [users, setUsers] = useState<UserWithMemberships[]>([]);
-  const [buildings, setBuildings] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,7 +58,7 @@ export const UsersManagement = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchBuildings();
+    fetchOrganizations();
     fetchRoles();
   }, []);
 
@@ -70,10 +70,10 @@ export const UsersManagement = () => {
           *,
           memberships (
             id,
-            building_id,
+            organization_id,
             role_id,
             is_active,
-            buildings (name),
+            organizations (name),
             roles (code, label)
           )
         `)
@@ -89,17 +89,17 @@ export const UsersManagement = () => {
     }
   };
 
-  const fetchBuildings = async () => {
+  const fetchOrganizations = async () => {
     try {
       const { data, error } = await supabase
-        .from('buildings')
+        .from('organizations')
         .select('id, name')
         .eq('is_active', true);
       
       if (error) throw error;
-      setBuildings(data || []);
+      setOrganizations(data || []);
     } catch (error) {
-      console.error('Error fetching buildings:', error);
+      console.error('Error fetching organizations:', error);
     }
   };
 
@@ -126,13 +126,13 @@ export const UsersManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  const addMembership = async (userId: string, buildingId: string, roleId: string) => {
+  const addMembership = async (userId: string, organizationId: string, roleId: string) => {
     try {
       const { error } = await supabase
         .from('memberships')
         .insert({
           user_id: userId,
-          building_id: buildingId,
+          organization_id: organizationId,
           role_id: roleId,
           is_active: true
         });
@@ -176,7 +176,7 @@ export const UsersManagement = () => {
         <div>
           <h3 className="text-2xl font-bold">Gestion des Utilisateurs</h3>
           <p className="text-muted-foreground">
-            Gérez les utilisateurs et leurs accès aux bâtiments
+            Gérez les utilisateurs et leurs accès aux organisations
           </p>
         </div>
         <Button>
@@ -241,12 +241,12 @@ export const UsersManagement = () => {
                       {user.memberships?.length > 0 ? (
                         user.memberships.map((membership) => (
                           <div key={membership.id} className="flex items-center space-x-2">
-                            <Badge 
-                              variant={membership.is_active ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {membership.buildings.name}
-                            </Badge>
+                             <Badge 
+                               variant={membership.is_active ? "default" : "secondary"}
+                               className="text-xs"
+                             >
+                               {membership.organizations.name}
+                             </Badge>
                             <Badge variant="outline" className="text-xs">
                               {membership.roles.code}
                             </Badge>
@@ -296,10 +296,10 @@ export const UsersManagement = () => {
                     <div key={membership.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Building2 className="h-4 w-4" />
-                        <div>
-                          <p className="font-medium">{membership.buildings.name}</p>
-                          <p className="text-sm text-muted-foreground">Rôle: {membership.roles.code}</p>
-                        </div>
+                         <div>
+                           <p className="font-medium">{membership.organizations.name}</p>
+                           <p className="text-sm text-muted-foreground">Rôle: {membership.roles.code}</p>
+                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge variant={membership.is_active ? "default" : "secondary"}>
@@ -322,21 +322,21 @@ export const UsersManagement = () => {
               <div>
                 <h4 className="font-medium mb-3">Ajouter un membership</h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="building">Bâtiment</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un bâtiment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {buildings.map((building) => (
-                          <SelectItem key={building.id} value={building.id}>
-                            {building.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div>
+                     <Label htmlFor="organization">Organisation</Label>
+                     <Select>
+                       <SelectTrigger>
+                         <SelectValue placeholder="Sélectionner une organisation" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         {organizations.map((organization) => (
+                           <SelectItem key={organization.id} value={organization.id}>
+                             {organization.name}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
                   <div>
                     <Label htmlFor="role">Rôle</Label>
                     <Select>

@@ -14,10 +14,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, MapPin, Building } from 'lucide-react';
 
 interface LocationGroupsProps {
-  buildingId: string;
+  organizationId: string;
 }
 
-export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) => {
+export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }) => {
   const [groups, setGroups] = useState<LocationGroup[]>([]);
   const [availableElements, setAvailableElements] = useState<LocationElement[]>([]);
   const [availableTags, setAvailableTags] = useState<LocationTag[]>([]);
@@ -33,12 +33,12 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
   const { toast } = useToast();
 
   useEffect(() => {
-    if (buildingId) {
+    if (organizationId) {
       fetchGroups();
       fetchAvailableElements();
       fetchAvailableTags();
     }
-  }, [buildingId]);
+  }, [organizationId]);
 
   const fetchGroups = async () => {
     try {
@@ -53,7 +53,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
             location_tags (*)
           )
         `)
-        .eq('building_id', buildingId)
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
@@ -82,7 +82,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
       const { data, error } = await supabase
         .from('location_elements' as any)
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
@@ -97,7 +97,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
       const { data, error } = await supabase
         .from('location_tags' as any)
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
@@ -112,7 +112,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
       const groupData = {
         name: formData.name,
         description: formData.description || null,
-        building_id: buildingId
+        organization_id: organizationId
       };
 
       let groupId: string;
@@ -265,7 +265,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
         .insert({
           name,
           color,
-          building_id: buildingId
+          organization_id: organizationId
         })
         .select()
         .single();
@@ -276,7 +276,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
         id: (data as any).id,
         name: (data as any).name,
         color: (data as any).color,
-        building_id: (data as any).building_id,
+        organization_id: (data as any).organization_id,
         created_at: (data as any).created_at
       };
 
@@ -452,7 +452,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
       {groups.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
-            <p className="text-muted-foreground">Aucun groupement créé pour ce bâtiment.</p>
+            <p className="text-muted-foreground">Aucun groupement créé pour cette organisation.</p>
             <p className="text-sm text-muted-foreground mt-1">
               Cliquez sur "Nouveau" pour créer votre premier groupement.
             </p>

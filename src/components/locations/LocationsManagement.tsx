@@ -13,7 +13,7 @@ export interface LocationTag {
   id: string;
   name: string;
   color: string;
-  building_id: string;
+  organization_id: string;
   created_at: string;
 }
 
@@ -22,7 +22,7 @@ export interface LocationElement {
   name: string;
   description?: string;
   location_data?: any;
-  building_id: string;
+  organization_id: string;
   created_at: string;
   updated_at: string;
   tags?: LocationTag[];
@@ -32,7 +32,7 @@ export interface LocationGroup {
   id: string;
   name: string;
   description?: string;
-  building_id: string;
+  organization_id: string;
   created_at: string;
   updated_at: string;
   elements?: LocationElement[];
@@ -43,7 +43,7 @@ export interface LocationEnsemble {
   id: string;
   name: string;
   description?: string;
-  building_id: string;
+  organization_id: string;
   created_at: string;
   updated_at: string;
   groups?: LocationGroup[];
@@ -52,31 +52,31 @@ export interface LocationEnsemble {
 
 export const LocationsManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [userBuildings, setUserBuildings] = useState<any[]>([]);
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('');
+  const [userOrganizations, setUserOrganizations] = useState<any[]>([]);
+  const [selectedOrganization, setSelectedOrganization] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchUserBuildings();
+    fetchUserOrganizations();
   }, []);
 
-  const fetchUserBuildings = async () => {
+  const fetchUserOrganizations = async () => {
     try {
       const { data, error } = await supabase
-        .from('buildings')
+        .from('organizations')
         .select('id, name')
         .order('name');
 
       if (error) throw error;
-      setUserBuildings(data || []);
+      setUserOrganizations(data || []);
       if (data && data.length > 0) {
-        setSelectedBuilding(data[0].id);
+        setSelectedOrganization(data[0].id);
       }
     } catch (error) {
-      console.error('Error fetching buildings:', error);
+      console.error('Error fetching organizations:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les bâtiments",
+        description: "Impossible de charger les organisations",
         variant: "destructive",
       });
     } finally {
@@ -92,17 +92,17 @@ export const LocationsManagement: React.FC = () => {
     );
   }
 
-  if (!selectedBuilding && userBuildings.length === 0) {
+  if (!selectedOrganization && userOrganizations.length === 0) {
     return (
       <div className="space-y-6">
         <Card>
           <CardContent className="text-center py-12">
-            <h3 className="text-lg font-semibold mb-2">Aucun bâtiment disponible</h3>
+            <h3 className="text-lg font-semibold mb-2">Aucune organisation disponible</h3>
             <p className="text-muted-foreground mb-4">
-              Vous devez d'abord créer un bâtiment pour gérer vos lieux.
+              Vous devez d'abord créer une organisation pour gérer vos lieux.
             </p>
             <p className="text-sm text-muted-foreground">
-              Contactez votre administrateur pour créer un bâtiment.
+              Contactez votre administrateur pour créer une organisation.
             </p>
           </CardContent>
         </Card>
@@ -119,15 +119,15 @@ export const LocationsManagement: React.FC = () => {
             Créez et gérez vos lieux : éléments → groupements → ensembles
           </CardDescription>
         </CardHeader>
-        {selectedBuilding && (
+        {selectedOrganization && (
           <CardContent>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Bâtiment actuel</label>
+                <label className="block text-sm font-medium mb-2">Organisation actuelle</label>
                 <div className="p-3 bg-muted rounded-md">
-                  <p className="font-medium">{userBuildings.find(b => b.id === selectedBuilding)?.name}</p>
+                  <p className="font-medium">{userOrganizations.find(o => o.id === selectedOrganization)?.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Vous pouvez maintenant gérer les lieux de ce bâtiment
+                    Vous pouvez maintenant gérer les lieux de cette organisation
                   </p>
                 </div>
               </div>
@@ -146,48 +146,48 @@ export const LocationsManagement: React.FC = () => {
 
 
         <TabsContent value="elements" className="space-y-4">
-          {selectedBuilding ? (
-            <LocationElements buildingId={selectedBuilding} />
+          {selectedOrganization ? (
+            <LocationElements organizationId={selectedOrganization} />
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des éléments</p>
+                <p className="text-muted-foreground">Aucune organisation disponible pour créer des éléments</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="groupements" className="space-y-4">
-          {selectedBuilding ? (
-            <LocationGroups buildingId={selectedBuilding} />
+          {selectedOrganization ? (
+            <LocationGroups organizationId={selectedOrganization} />
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des groupements</p>
+                <p className="text-muted-foreground">Aucune organisation disponible pour créer des groupements</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="ensembles" className="space-y-4">
-          {selectedBuilding ? (
-            <LocationEnsembles buildingId={selectedBuilding} />
+          {selectedOrganization ? (
+            <LocationEnsembles organizationId={selectedOrganization} />
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des ensembles</p>
+                <p className="text-muted-foreground">Aucune organisation disponible pour créer des ensembles</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="tags" className="space-y-4">
-          {selectedBuilding ? (
-            <TagsManagement buildingId={selectedBuilding} />
+          {selectedOrganization ? (
+            <TagsManagement organizationId={selectedOrganization} />
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des tags</p>
+                <p className="text-muted-foreground">Aucune organisation disponible pour créer des tags</p>
               </CardContent>
             </Card>
           )}

@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { LocationTag } from './LocationsManagement';
 
 interface TagsManagementProps {
-  buildingId: string;
+  organizationId: string;
 }
 
 const PREDEFINED_COLORS = [
@@ -21,7 +21,7 @@ const PREDEFINED_COLORS = [
   '#ec4899', '#f43f5e'
 ];
 
-export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) => {
+export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }) => {
   const [tags, setTags] = useState<LocationTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -33,17 +33,17 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) =>
   const { toast } = useToast();
 
   useEffect(() => {
-    if (buildingId) {
+    if (organizationId) {
       fetchTags();
     }
-  }, [buildingId]);
+  }, [organizationId]);
 
   const fetchTags = async () => {
     try {
       const { data, error } = await supabase
         .from('location_tags' as any)
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
@@ -65,7 +65,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) =>
       const tagData = {
         name: formData.name,
         color: formData.color,
-        building_id: buildingId
+        organization_id: organizationId
       };
 
       if (editingTag) {
@@ -277,7 +277,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) =>
         <Card>
           <CardContent className="text-center py-8">
             <Palette className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Aucun tag créé pour ce bâtiment.</p>
+            <p className="text-muted-foreground">Aucun tag créé pour cette organisation.</p>
             <p className="text-sm text-muted-foreground mt-1">
               Cliquez sur "Nouveau Tag" pour créer votre premier tag.
             </p>

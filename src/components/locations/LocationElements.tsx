@@ -13,10 +13,10 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
 interface LocationElementsProps {
-  buildingId: string;
+  organizationId: string;
 }
 
-export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }) => {
+export const LocationElements: React.FC<LocationElementsProps> = ({ organizationId }) => {
   const [elements, setElements] = useState<LocationElement[]>([]);
   const [availableTags, setAvailableTags] = useState<LocationTag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,11 +31,11 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
   const { toast } = useToast();
 
   useEffect(() => {
-    if (buildingId) {
+    if (organizationId) {
       fetchElements();
       fetchAvailableTags();
     }
-  }, [buildingId]);
+  }, [organizationId]);
 
   const fetchElements = async () => {
     try {
@@ -47,7 +47,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
             location_tags (*)
           )
         `)
-        .eq('building_id', buildingId)
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
@@ -75,7 +75,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
       const { data, error } = await supabase
         .from('location_tags' as any)
         .select('*')
-        .eq('building_id', buildingId)
+        .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
@@ -91,7 +91,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
         name: formData.name,
         description: formData.description || null,
         location_data: formData.location_data ? JSON.parse(formData.location_data) : null,
-        building_id: buildingId
+        organization_id: organizationId
       };
 
       let elementId: string;
@@ -216,7 +216,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
         .insert({
           name,
           color,
-          building_id: buildingId
+          organization_id: organizationId
         })
         .select()
         .single();
@@ -227,7 +227,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
         id: (data as any).id,
         name: (data as any).name,
         color: (data as any).color,
-        building_id: (data as any).building_id,
+        organization_id: (data as any).organization_id,
         created_at: (data as any).created_at
       };
 
@@ -376,7 +376,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
       {elements.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
-            <p className="text-muted-foreground">Aucun élément créé pour ce bâtiment.</p>
+            <p className="text-muted-foreground">Aucun élément créé pour cette organisation.</p>
             <p className="text-sm text-muted-foreground mt-1">
               Cliquez sur "Nouveau" pour créer votre premier élément.
             </p>

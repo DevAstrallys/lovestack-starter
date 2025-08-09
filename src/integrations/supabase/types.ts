@@ -1420,10 +1420,6 @@ export type Database = {
         Args: { uid: string; bld: string; perm_code: string }
         Returns: boolean
       }
-      user_has_admin_access_to_building: {
-        Args: { user_uuid: string; target_building_id: string }
-        Returns: boolean
-      }
     }
     Enums: {
       ticket_priority: "low" | "medium" | "high" | "urgent"

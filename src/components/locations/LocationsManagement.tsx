@@ -92,22 +92,38 @@ export const LocationsManagement: React.FC = () => {
     );
   }
 
-  // Always show the interface with tabs, even without selected building
+  if (!selectedBuilding && userBuildings.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="text-center py-12">
+            <h3 className="text-lg font-semibold mb-2">Aucun bâtiment disponible</h3>
+            <p className="text-muted-foreground mb-4">
+              Vous devez d'abord créer un bâtiment pour gérer vos lieux.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Contactez votre administrateur pour créer un bâtiment.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestion des Lieux</CardTitle>
-          <CardDescription>
-            Créez et gérez vos bâtiments et organisez une hiérarchie flexible de lieux : éléments → groupements → ensembles
-          </CardDescription>
-        </CardHeader>
-        {selectedBuilding && (
+      {selectedBuilding && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestion des Lieux</CardTitle>
+            <CardDescription>
+              Créez et gérez vos lieux : éléments → groupements → ensembles
+            </CardDescription>
+          </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Bâtiment sélectionné</label>
+                <label className="block text-sm font-medium mb-2">Bâtiment actuel</label>
                 <div className="p-3 bg-muted rounded-md">
                   <p className="font-medium">{userBuildings.find(b => b.id === selectedBuilding)?.name}</p>
                   <p className="text-sm text-muted-foreground">
@@ -117,21 +133,17 @@ export const LocationsManagement: React.FC = () => {
               </div>
             </div>
           </CardContent>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      <Tabs defaultValue="buildings" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="buildings">Bâtiments</TabsTrigger>
+      <Tabs defaultValue="elements" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="elements">Éléments</TabsTrigger>
           <TabsTrigger value="groupements">Groupements</TabsTrigger>
           <TabsTrigger value="ensembles">Ensembles</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="buildings" className="space-y-4">
-          <BuildingsManagement onBuildingSelect={setSelectedBuilding} />
-        </TabsContent>
 
         <TabsContent value="elements" className="space-y-4">
           {selectedBuilding ? (
@@ -139,7 +151,7 @@ export const LocationsManagement: React.FC = () => {
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des éléments</p>
               </CardContent>
             </Card>
           )}
@@ -151,7 +163,7 @@ export const LocationsManagement: React.FC = () => {
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des groupements</p>
               </CardContent>
             </Card>
           )}
@@ -163,7 +175,7 @@ export const LocationsManagement: React.FC = () => {
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des ensembles</p>
               </CardContent>
             </Card>
           )}
@@ -175,7 +187,7 @@ export const LocationsManagement: React.FC = () => {
           ) : (
             <Card>
               <CardContent className="text-center py-8">
-                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+                <p className="text-muted-foreground">Aucun bâtiment disponible pour créer des tags</p>
               </CardContent>
             </Card>
           )}

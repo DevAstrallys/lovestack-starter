@@ -1406,6 +1406,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_context_covers: {
+        Args: {
+          membership_block_id: string
+          membership_entrance_id: string
+          membership_floor_id: string
+          membership_unit_id: string
+          ticket_location: Json
+        }
+        Returns: boolean
+      }
       fn_has_perm: {
         Args: { uid: string; bld: string; perm_code: string }
         Returns: boolean

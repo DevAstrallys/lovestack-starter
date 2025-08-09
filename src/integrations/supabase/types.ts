@@ -1406,16 +1406,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      fn_context_covers: {
-        Args: {
-          m_block: string
-          m_entrance: string
-          m_floor: string
-          m_unit: string
-          loc: Json
-        }
-        Returns: boolean
-      }
       fn_has_perm: {
         Args: { uid: string; bld: string; perm_code: string }
         Returns: boolean

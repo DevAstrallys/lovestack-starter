@@ -1,0 +1,38 @@
+-- Step 1: Drop policy that depends on the function
+DROP POLICY IF EXISTS tickets_select_scoped ON public.tickets;
+
+-- Step 2: Drop and recreate the function
+DROP FUNCTION IF EXISTS public.fn_context_covers(uuid,uuid,uuid,uuid,jsonb) CASCADE;
+
+-- Step 3: Enable RLS on all tables
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.building_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.building_modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.buildings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.channels_outbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.company_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.document_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.entrances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.equipment_contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.floors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications_prefs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.qr_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scheduled_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.survey_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.survey_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.surveys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.taxonomies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_followers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.units ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.webhooks ENABLE ROW LEVEL SECURITY;

@@ -208,6 +208,36 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
     }));
   };
 
+  const handleCreateTag = async (name: string, color: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('location_tags')
+        .insert({
+          name,
+          color,
+          building_id: buildingId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAvailableTags(prev => [...prev, data]);
+      
+      toast({
+        title: "Succès",
+        description: "Tag créé avec succès",
+      });
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer le tag",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-4">Chargement des éléments...</div>;
   }
@@ -266,22 +296,12 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
                   rows={3}
                 />
               </div>
-              <div>
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {availableTags.map(tag => (
-                    <Badge
-                      key={tag.id}
-                      variant={formData.selectedTags.includes(tag.id) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleTag(tag.id)}
-                    >
-                      <Tag className="h-3 w-3 mr-1" />
-                      {tag.name}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <TagSelector
+                availableTags={availableTags}
+                selectedTags={formData.selectedTags}
+                onTagToggle={toggleTag}
+                onTagCreate={handleCreateTag}
+              />
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Annuler

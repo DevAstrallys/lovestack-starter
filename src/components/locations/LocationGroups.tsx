@@ -257,6 +257,36 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
     }));
   };
 
+  const handleCreateTag = async (name: string, color: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('location_tags')
+        .insert({
+          name,
+          color,
+          building_id: buildingId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAvailableTags(prev => [...prev, data]);
+      
+      toast({
+        title: "Succès",
+        description: "Tag créé avec succès",
+      });
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer le tag",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-4">Chargement des groupements...</div>;
   }

@@ -32,10 +32,10 @@ export const Admin = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => window.history.back()}
+                onClick={() => window.location.href = '/'}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Retour
+                Accueil
               </Button>
               <div className="p-2 rounded-lg bg-primary text-primary-foreground">
                 <Shield className="h-6 w-6" />

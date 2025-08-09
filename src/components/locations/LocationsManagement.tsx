@@ -92,18 +92,7 @@ export const LocationsManagement: React.FC = () => {
     );
   }
 
-  if (!selectedBuilding) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestion des Lieux</CardTitle>
-          <CardDescription>
-            Aucun bâtiment disponible. Vous devez d'abord créer un bâtiment.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+  // Always show the interface with tabs, even without selected building
 
   return (
     <div className="space-y-6">
@@ -114,8 +103,8 @@ export const LocationsManagement: React.FC = () => {
             Créez et gérez vos bâtiments et organisez une hiérarchie flexible de lieux : éléments → groupements → ensembles
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {selectedBuilding && (
+        {selectedBuilding && (
+          <CardContent>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Bâtiment sélectionné</label>
@@ -127,8 +116,8 @@ export const LocationsManagement: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
-        </CardContent>
+          </CardContent>
+        )}
       </Card>
 
       <Tabs defaultValue="buildings" className="space-y-4">
@@ -145,19 +134,51 @@ export const LocationsManagement: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="elements" className="space-y-4">
-          <LocationElements buildingId={selectedBuilding} />
+          {selectedBuilding ? (
+            <LocationElements buildingId={selectedBuilding} />
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="groupements" className="space-y-4">
-          <LocationGroups buildingId={selectedBuilding} />
+          {selectedBuilding ? (
+            <LocationGroups buildingId={selectedBuilding} />
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="ensembles" className="space-y-4">
-          <LocationEnsembles buildingId={selectedBuilding} />
+          {selectedBuilding ? (
+            <LocationEnsembles buildingId={selectedBuilding} />
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="tags" className="space-y-4">
-          <TagsManagement buildingId={selectedBuilding} />
+          {selectedBuilding ? (
+            <TagsManagement buildingId={selectedBuilding} />
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">Veuillez d'abord créer et sélectionner un bâtiment</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -42,7 +42,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
   const fetchEnsembles = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_ensembles')
+        .from('location_ensembles' as any)
         .select(`
           *,
           location_ensemble_groups (
@@ -57,7 +57,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
 
       if (error) throw error;
 
-      const ensemblesWithRelations = (data || []).map(ensemble => ({
+      const ensemblesWithRelations = (data || []).map((ensemble: any) => ({
         ...ensemble,
         groups: ensemble.location_ensemble_groups?.map((eg: any) => eg.location_groups) || [],
         tags: ensemble.location_ensemble_tags?.map((et: any) => et.location_tags) || []
@@ -79,13 +79,13 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
   const fetchAvailableGroups = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_groups')
+        .from('location_groups' as any)
         .select('*')
         .eq('building_id', buildingId)
         .order('name');
 
       if (error) throw error;
-      setAvailableGroups(data || []);
+      setAvailableGroups((data as any) || []);
     } catch (error) {
       console.error('Error fetching groups:', error);
     }
@@ -94,13 +94,13 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
   const fetchAvailableTags = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_tags')
+        .from('location_tags' as any)
         .select('*')
         .eq('building_id', buildingId)
         .order('name');
 
       if (error) throw error;
-      setAvailableTags(data || []);
+      setAvailableTags((data as any) || []);
     } catch (error) {
       console.error('Error fetching tags:', error);
     }
@@ -118,7 +118,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
 
       if (editingEnsemble) {
         const { error } = await supabase
-          .from('location_ensembles')
+          .from('location_ensembles' as any)
           .update(ensembleData)
           .eq('id', editingEnsemble.id);
 
@@ -126,18 +126,18 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
         ensembleId = editingEnsemble.id;
       } else {
         const { data, error } = await supabase
-          .from('location_ensembles')
+          .from('location_ensembles' as any)
           .insert(ensembleData)
           .select()
           .single();
 
         if (error) throw error;
-        ensembleId = data.id;
+        ensembleId = (data as any).id;
       }
 
       // Update groups
       await supabase
-        .from('location_ensemble_groups')
+        .from('location_ensemble_groups' as any)
         .delete()
         .eq('ensemble_id', ensembleId);
 
@@ -148,7 +148,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
         }));
 
         const { error: groupError } = await supabase
-          .from('location_ensemble_groups')
+          .from('location_ensemble_groups' as any)
           .insert(groupInserts);
 
         if (groupError) throw groupError;
@@ -156,7 +156,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
 
       // Update tags
       await supabase
-        .from('location_ensemble_tags')
+        .from('location_ensemble_tags' as any)
         .delete()
         .eq('ensemble_id', ensembleId);
 
@@ -167,7 +167,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
         }));
 
         const { error: tagError } = await supabase
-          .from('location_ensemble_tags')
+          .from('location_ensemble_tags' as any)
           .insert(tagInserts);
 
         if (tagError) throw tagError;
@@ -207,7 +207,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ buildingId
 
     try {
       const { error } = await supabase
-        .from('location_ensembles')
+        .from('location_ensembles' as any)
         .delete()
         .eq('id', ensembleId);
 

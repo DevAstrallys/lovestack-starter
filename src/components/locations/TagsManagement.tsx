@@ -41,13 +41,13 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) =>
   const fetchTags = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_tags')
+        .from('location_tags' as any)
         .select('*')
         .eq('building_id', buildingId)
         .order('name');
 
       if (error) throw error;
-      setTags(data || []);
+      setTags((data as any) || []);
     } catch (error) {
       console.error('Error fetching tags:', error);
       toast({
@@ -70,14 +70,14 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) =>
 
       if (editingTag) {
         const { error } = await supabase
-          .from('location_tags')
+          .from('location_tags' as any)
           .update(tagData)
           .eq('id', editingTag.id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('location_tags')
+          .from('location_tags' as any)
           .insert(tagData);
 
         if (error) throw error;
@@ -115,7 +115,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ buildingId }) =>
 
     try {
       const { error } = await supabase
-        .from('location_tags')
+        .from('location_tags' as any)
         .delete()
         .eq('id', tagId);
 

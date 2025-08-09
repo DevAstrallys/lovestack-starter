@@ -39,7 +39,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
   const fetchElements = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_elements')
+        .from('location_elements' as any)
         .select(`
           *,
           location_element_tags (
@@ -51,7 +51,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
 
       if (error) throw error;
 
-      const elementsWithTags = (data || []).map(element => ({
+      const elementsWithTags = (data || []).map((element: any) => ({
         ...element,
         tags: element.location_element_tags?.map((et: any) => et.location_tags) || []
       }));
@@ -72,13 +72,13 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
   const fetchAvailableTags = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_tags')
+        .from('location_tags' as any)
         .select('*')
         .eq('building_id', buildingId)
         .order('name');
 
       if (error) throw error;
-      setAvailableTags(data || []);
+      setAvailableTags((data as any) || []);
     } catch (error) {
       console.error('Error fetching tags:', error);
     }
@@ -97,7 +97,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
 
       if (editingElement) {
         const { error } = await supabase
-          .from('location_elements')
+          .from('location_elements' as any)
           .update(elementData)
           .eq('id', editingElement.id);
 
@@ -105,18 +105,18 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
         elementId = editingElement.id;
       } else {
         const { data, error } = await supabase
-          .from('location_elements')
+          .from('location_elements' as any)
           .insert(elementData)
           .select()
           .single();
 
         if (error) throw error;
-        elementId = data.id;
+        elementId = (data as any).id;
       }
 
       // Update tags
       await supabase
-        .from('location_element_tags')
+        .from('location_element_tags' as any)
         .delete()
         .eq('element_id', elementId);
 
@@ -127,7 +127,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
         }));
 
         const { error: tagError } = await supabase
-          .from('location_element_tags')
+          .from('location_element_tags' as any)
           .insert(tagInserts);
 
         if (tagError) throw tagError;
@@ -167,7 +167,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ buildingId }
 
     try {
       const { error } = await supabase
-        .from('location_elements')
+        .from('location_elements' as any)
         .delete()
         .eq('id', elementId);
 

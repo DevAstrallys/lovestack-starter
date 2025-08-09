@@ -42,7 +42,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
   const fetchGroups = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_groups')
+        .from('location_groups' as any)
         .select(`
           *,
           location_group_elements (
@@ -57,7 +57,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
 
       if (error) throw error;
 
-      const groupsWithRelations = (data || []).map(group => ({
+      const groupsWithRelations = (data || []).map((group: any) => ({
         ...group,
         elements: group.location_group_elements?.map((ge: any) => ge.location_elements) || [],
         tags: group.location_group_tags?.map((gt: any) => gt.location_tags) || []
@@ -79,13 +79,13 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
   const fetchAvailableElements = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_elements')
+        .from('location_elements' as any)
         .select('*')
         .eq('building_id', buildingId)
         .order('name');
 
       if (error) throw error;
-      setAvailableElements(data || []);
+      setAvailableElements((data as any) || []);
     } catch (error) {
       console.error('Error fetching elements:', error);
     }
@@ -94,13 +94,13 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
   const fetchAvailableTags = async () => {
     try {
       const { data, error } = await supabase
-        .from('location_tags')
+        .from('location_tags' as any)
         .select('*')
         .eq('building_id', buildingId)
         .order('name');
 
       if (error) throw error;
-      setAvailableTags(data || []);
+      setAvailableTags((data as any) || []);
     } catch (error) {
       console.error('Error fetching tags:', error);
     }
@@ -118,7 +118,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
 
       if (editingGroup) {
         const { error } = await supabase
-          .from('location_groups')
+          .from('location_groups' as any)
           .update(groupData)
           .eq('id', editingGroup.id);
 
@@ -126,18 +126,18 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
         groupId = editingGroup.id;
       } else {
         const { data, error } = await supabase
-          .from('location_groups')
+          .from('location_groups' as any)
           .insert(groupData)
           .select()
           .single();
 
         if (error) throw error;
-        groupId = data.id;
+        groupId = (data as any).id;
       }
 
       // Update elements
       await supabase
-        .from('location_group_elements')
+        .from('location_group_elements' as any)
         .delete()
         .eq('group_id', groupId);
 
@@ -148,7 +148,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
         }));
 
         const { error: elementError } = await supabase
-          .from('location_group_elements')
+          .from('location_group_elements' as any)
           .insert(elementInserts);
 
         if (elementError) throw elementError;
@@ -156,7 +156,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
 
       // Update tags
       await supabase
-        .from('location_group_tags')
+        .from('location_group_tags' as any)
         .delete()
         .eq('group_id', groupId);
 
@@ -167,7 +167,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
         }));
 
         const { error: tagError } = await supabase
-          .from('location_group_tags')
+          .from('location_group_tags' as any)
           .insert(tagInserts);
 
         if (tagError) throw tagError;
@@ -207,7 +207,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ buildingId }) =>
 
     try {
       const { error } = await supabase
-        .from('location_groups')
+        .from('location_groups' as any)
         .delete()
         .eq('id', groupId);
 

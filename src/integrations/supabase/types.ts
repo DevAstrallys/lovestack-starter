@@ -52,38 +52,6 @@ export type Database = {
           },
         ]
       }
-      building_blocks: {
-        Row: {
-          building_id: string
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          building_id: string
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          building_id?: string
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "building_blocks_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       building_modules: {
         Row: {
           building_id: string
@@ -411,48 +379,6 @@ export type Database = {
           },
         ]
       }
-      entrances: {
-        Row: {
-          block_id: string | null
-          building_id: string
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          block_id?: string | null
-          building_id: string
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          block_id?: string | null
-          building_id?: string
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "entrances_block_id_fkey"
-            columns: ["block_id"]
-            isOneToOne: false
-            referencedRelation: "building_blocks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entrances_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       equipment: {
         Row: {
           building_id: string
@@ -518,48 +444,6 @@ export type Database = {
           },
         ]
       }
-      floors: {
-        Row: {
-          building_id: string
-          created_at: string
-          entrance_id: string | null
-          id: string
-          level: number
-          updated_at: string
-        }
-        Insert: {
-          building_id: string
-          created_at?: string
-          entrance_id?: string | null
-          id?: string
-          level: number
-          updated_at?: string
-        }
-        Update: {
-          building_id?: string
-          created_at?: string
-          entrance_id?: string | null
-          id?: string
-          level?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "floors_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "floors_entrance_id_fkey"
-            columns: ["entrance_id"]
-            isOneToOne: false
-            referencedRelation: "entrances"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       location_element_tags: {
         Row: {
           element_id: string
@@ -592,38 +476,38 @@ export type Database = {
       }
       location_elements: {
         Row: {
-          building_id: string
           created_at: string
           description: string | null
           id: string
           location_data: Json | null
           name: string
+          organization_id: string | null
           updated_at: string
         }
         Insert: {
-          building_id: string
           created_at?: string
           description?: string | null
           id?: string
           location_data?: Json | null
           name: string
+          organization_id?: string | null
           updated_at?: string
         }
         Update: {
-          building_id?: string
           created_at?: string
           description?: string | null
           id?: string
           location_data?: Json | null
           name?: string
+          organization_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "location_elements_building_id_fkey"
-            columns: ["building_id"]
+            foreignKeyName: "location_elements_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "buildings"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -690,35 +574,35 @@ export type Database = {
       }
       location_ensembles: {
         Row: {
-          building_id: string
           created_at: string
           description: string | null
           id: string
           name: string
+          organization_id: string | null
           updated_at: string
         }
         Insert: {
-          building_id: string
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          organization_id?: string | null
           updated_at?: string
         }
         Update: {
-          building_id?: string
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          organization_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "location_ensembles_building_id_fkey"
-            columns: ["building_id"]
+            foreignKeyName: "location_ensembles_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "buildings"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -785,132 +669,106 @@ export type Database = {
       }
       location_groups: {
         Row: {
-          building_id: string
           created_at: string
           description: string | null
           id: string
           name: string
+          organization_id: string | null
           updated_at: string
         }
         Insert: {
-          building_id: string
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          organization_id?: string | null
           updated_at?: string
         }
         Update: {
-          building_id?: string
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          organization_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "location_groups_building_id_fkey"
-            columns: ["building_id"]
+            foreignKeyName: "location_groups_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "buildings"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
       }
       location_tags: {
         Row: {
-          building_id: string
           color: string
           created_at: string
           id: string
           name: string
+          organization_id: string | null
           updated_at: string
         }
         Insert: {
-          building_id: string
           color?: string
           created_at?: string
           id?: string
           name: string
+          organization_id?: string | null
           updated_at?: string
         }
         Update: {
-          building_id?: string
           color?: string
           created_at?: string
           id?: string
           name?: string
+          organization_id?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "location_tags_building_id_fkey"
-            columns: ["building_id"]
+            foreignKeyName: "location_tags_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "buildings"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
       }
       memberships: {
         Row: {
-          block_id: string | null
-          building_id: string
           company_id: string | null
           created_at: string
-          entrance_id: string | null
-          floor_id: string | null
           id: string
           is_active: boolean
           meta: Json | null
+          organization_id: string | null
           role_id: string
-          unit_id: string | null
           user_id: string
         }
         Insert: {
-          block_id?: string | null
-          building_id: string
           company_id?: string | null
           created_at?: string
-          entrance_id?: string | null
-          floor_id?: string | null
           id?: string
           is_active?: boolean
           meta?: Json | null
+          organization_id?: string | null
           role_id: string
-          unit_id?: string | null
           user_id: string
         }
         Update: {
-          block_id?: string | null
-          building_id?: string
           company_id?: string | null
           created_at?: string
-          entrance_id?: string | null
-          floor_id?: string | null
           id?: string
           is_active?: boolean
           meta?: Json | null
+          organization_id?: string | null
           role_id?: string
-          unit_id?: string | null
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "memberships_block_id_fkey"
-            columns: ["block_id"]
-            isOneToOne: false
-            referencedRelation: "building_blocks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memberships_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "memberships_company_id_fkey"
             columns: ["company_id"]
@@ -919,17 +777,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "memberships_entrance_id_fkey"
-            columns: ["entrance_id"]
+            foreignKeyName: "memberships_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "entrances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memberships_floor_id_fkey"
-            columns: ["floor_id"]
-            isOneToOne: false
-            referencedRelation: "floors"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -937,13 +788,6 @@ export type Database = {
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memberships_unit_id_fkey"
-            columns: ["unit_id"]
-            isOneToOne: false
-            referencedRelation: "units"
             referencedColumns: ["id"]
           },
           {
@@ -1007,6 +851,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       permissions: {
         Row: {
@@ -1595,67 +1466,6 @@ export type Database = {
           },
         ]
       }
-      units: {
-        Row: {
-          area_m2: number | null
-          building_id: string
-          created_at: string
-          entrance_id: string | null
-          floor_id: string | null
-          id: string
-          is_private: boolean | null
-          lot_number: string | null
-          ref: string | null
-          updated_at: string
-        }
-        Insert: {
-          area_m2?: number | null
-          building_id: string
-          created_at?: string
-          entrance_id?: string | null
-          floor_id?: string | null
-          id?: string
-          is_private?: boolean | null
-          lot_number?: string | null
-          ref?: string | null
-          updated_at?: string
-        }
-        Update: {
-          area_m2?: number | null
-          building_id?: string
-          created_at?: string
-          entrance_id?: string | null
-          floor_id?: string | null
-          id?: string
-          is_private?: boolean | null
-          lot_number?: string | null
-          ref?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "units_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "units_entrance_id_fkey"
-            columns: ["entrance_id"]
-            isOneToOne: false
-            referencedRelation: "entrances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "units_floor_id_fkey"
-            columns: ["floor_id"]
-            isOneToOne: false
-            referencedRelation: "floors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       webhooks: {
         Row: {
           building_id: string | null
@@ -1707,6 +1517,10 @@ export type Database = {
           membership_unit_id: string
           ticket_location: Json
         }
+        Returns: boolean
+      }
+      fn_has_org_perm: {
+        Args: { uid: string; org_id: string; perm_code: string }
         Returns: boolean
       }
       fn_has_perm: {

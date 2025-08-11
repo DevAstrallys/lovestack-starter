@@ -58,12 +58,12 @@ const modules = [
     path: '/reports'
   },
   {
-    id: 'access_control',
-    name: 'Gestion des Accès',
+    id: 'users',
+    name: 'Gestion des Utilisateurs',
     description: 'Gérer les utilisateurs et leurs accès aux lieux',
     icon: Users,
     color: 'bg-red-500',
-    path: '/locations'
+    path: '/users'
   },
   {
     id: 'admin',
@@ -155,6 +155,8 @@ export const Dashboard = () => {
                     window.location.href = '/admin';
                   } else if (module.id === 'locations') {
                     window.location.href = '/locations';
+                  } else if (module.id === 'users') {
+                    window.location.href = '/users';
                   } else {
                     toast.info(`Module ${module.name} - En développement`);
                   }

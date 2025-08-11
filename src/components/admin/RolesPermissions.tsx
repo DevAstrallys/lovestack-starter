@@ -47,12 +47,15 @@ export const RolesPermissions = () => {
 
   const fetchData = async () => {
     try {
+      console.log('Fetching roles and permissions...');
+      
       // Fetch roles
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
         .order('code');
 
+      console.log('Roles data:', rolesData, 'Roles error:', rolesError);
       if (rolesError) throw rolesError;
 
       // Fetch permissions

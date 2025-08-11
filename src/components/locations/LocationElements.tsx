@@ -22,6 +22,8 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingElement, setEditingElement] = useState<LocationElement | null>(null);
+  const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
+  const [lastCreatedElement, setLastCreatedElement] = useState<{name: string, addressData: any} | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -146,12 +148,49 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
         if (tagError) throw tagError;
       }
 
+      // Générer automatiquement le QR code pour les nouveaux éléments
+      if (!editingElement) {
+        try {
+          const qrData = {
+            location_element_id: elementId,
+            display_label: `QR Code - ${formData.name}`,
+            target_slug: `element/${elementId}`,
+            location: {
+              description: formData.qrLocation || 'Localisation non spécifiée'
+            },
+            is_active: true
+          };
+
+          await supabase
+            .from('qr_codes' as any)
+            .insert(qrData);
+        } catch (qrError) {
+          console.error('Error auto-generating QR code:', qrError);
+        }
+      }
+
       toast({
         title: "Succès",
-        description: editingElement ? "Élément modifié" : "Élément créé",
+        description: editingElement ? "Élément modifié" : "Élément créé avec QR code généré",
       });
 
       setDialogOpen(false);
+      
+      // Pour les nouveaux éléments, proposer de créer d'autres éléments à la même adresse
+      if (!editingElement) {
+        setLastCreatedElement({
+          name: formData.name,
+          addressData: {
+            address: formData.address,
+            city: formData.city,
+            zipCode: formData.zipCode,
+            country: formData.country,
+            qrLocation: formData.qrLocation
+          }
+        });
+        setConfirmationDialogOpen(true);
+      }
+      
       resetForm();
       fetchElements();
     } catch (error) {
@@ -219,6 +258,26 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
       selectedTags: []
     });
     setEditingElement(null);
+  };
+
+  const handleCreateAnotherElement = () => {
+    if (lastCreatedElement) {
+      setFormData(prev => ({
+        ...prev,
+        ...lastCreatedElement.addressData,
+        name: '',
+        description: '',
+        selectedTags: []
+      }));
+      setConfirmationDialogOpen(false);
+      setDialogOpen(true);
+      setLastCreatedElement(null);
+    }
+  };
+
+  const handleFinishCreating = () => {
+    setConfirmationDialogOpen(false);
+    setLastCreatedElement(null);
   };
 
   const toggleTag = (tagId: string) => {
@@ -515,6 +574,28 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de confirmation pour créer d'autres éléments à la même adresse */}
+      <Dialog open={confirmationDialogOpen} onOpenChange={setConfirmationDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Élément créé avec succès!</DialogTitle>
+            <DialogDescription>
+              L'élément "{lastCreatedElement?.name}" a été créé et son QR code a été généré automatiquement.
+              <br />
+              Souhaitez-vous créer d'autres éléments à la même adresse?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={handleFinishCreating}>
+              Non, terminer
+            </Button>
+            <Button onClick={handleCreateAnotherElement}>
+              Oui, créer un autre élément
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

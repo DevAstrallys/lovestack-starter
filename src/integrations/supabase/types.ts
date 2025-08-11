@@ -702,6 +702,81 @@ export type Database = {
           },
         ]
       }
+      location_memberships: {
+        Row: {
+          created_at: string
+          element_id: string | null
+          ensemble_id: string | null
+          group_id: string | null
+          id: string
+          is_active: boolean
+          organization_id: string
+          role_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          element_id?: string | null
+          ensemble_id?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          role_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          element_id?: string | null
+          ensemble_id?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          role_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_memberships_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "location_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_memberships_ensemble_id_fkey"
+            columns: ["ensemble_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_memberships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_memberships_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       location_tags: {
         Row: {
           color: string
@@ -1528,6 +1603,16 @@ export type Database = {
           ticket_location: Json
         }
         Returns: boolean
+      }
+      fn_get_user_primary_role: {
+        Args: { uid: string; org_id: string }
+        Returns: {
+          role_code: string
+          role_name: string
+          location_type: string
+          location_name: string
+          location_id: string
+        }[]
       }
       fn_has_org_perm: {
         Args: { uid: string; org_id: string; perm_code: string }

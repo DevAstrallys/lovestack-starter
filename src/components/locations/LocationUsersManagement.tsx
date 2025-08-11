@@ -87,29 +87,81 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
   };
 
   const fetchUsers = async () => {
-    // Simulé pour l'instant - à implémenter avec la vraie structure de données
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        email: 'admin@example.com',
-        full_name: 'Administrateur Principal',
-        memberships: [
-          {
-            id: '1',
-            user_id: '1',
-            role_id: 'admin-role',
-            location_type: 'ensemble',
-            location_id: 'ens-1',
-            location_name: 'Ensemble Nord',
-            role_name: 'Administrateur',
-            role_code: 'admin',
-            is_active: true,
-            created_at: new Date().toISOString()
-          }
-        ]
-      }
-    ];
-    setUsers(mockUsers);
+    try {
+      // Récupérer les memberships avec les informations des rôles et lieux
+      const { data: memberships, error: membershipsError } = await supabase
+        .from('location_memberships')
+        .select(`
+          id,
+          user_id,
+          role_id,
+          element_id,
+          group_id,
+          ensemble_id,
+          is_active,
+          created_at,
+          roles(id, code, label),
+          location_elements(id, name),
+          location_groups(id, name),
+          location_ensembles(id, name)
+        `)
+        .eq('organization_id', organizationId);
+
+      if (membershipsError) throw membershipsError;
+
+      // Récupérer les profils des utilisateurs
+      const userIds = [...new Set(memberships?.map(m => m.user_id) || [])];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Grouper les memberships par utilisateur
+      const usersMap = new Map<string, User>();
+      
+      memberships?.forEach((membership: any) => {
+        const userId = membership.user_id;
+        const profile = profiles?.find(p => p.id === userId);
+        const locationName = membership.location_elements?.name || 
+                           membership.location_groups?.name || 
+                           membership.location_ensembles?.name || 'Lieu inconnu';
+        
+        const locationType = membership.element_id ? 'element' :
+                           membership.group_id ? 'group' :
+                           membership.ensemble_id ? 'ensemble' : 'element';
+
+        const userMembership: UserMembership = {
+          id: membership.id,
+          user_id: userId,
+          role_id: membership.role_id,
+          location_type: locationType as 'element' | 'group' | 'ensemble',
+          location_id: membership.element_id || membership.group_id || membership.ensemble_id || '',
+          location_name: locationName,
+          role_name: membership.roles?.label?.fr || membership.roles?.code || 'Rôle inconnu',
+          role_code: membership.roles?.code || '',
+          is_active: membership.is_active,
+          created_at: membership.created_at
+        };
+
+        if (!usersMap.has(userId)) {
+          usersMap.set(userId, {
+            id: userId,
+            email: `user${userId.slice(0, 8)}@example.com`, // Email temporaire
+            full_name: profile?.full_name || 'Utilisateur',
+            memberships: []
+          });
+        }
+
+        usersMap.get(userId)!.memberships.push(userMembership);
+      });
+
+      setUsers(Array.from(usersMap.values()));
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
   };
 
   const fetchElements = async () => {
@@ -163,7 +215,37 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
     }
 
     try {
-      // Logique d'ajout d'utilisateur à implémenter
+      // Pour l'instant, on utilise l'email comme identifiant unique
+      // Dans un vrai système, il faudrait d'abord vérifier l'existence de l'utilisateur
+      const userId = newUserEmail; // Temporaire
+
+      // Créer le membership
+      const membershipData: any = {
+        user_id: userId,
+        role_id: selectedRole,
+        organization_id: organizationId,
+        is_active: true
+      };
+
+      // Définir le type de lieu
+      switch (selectedLocationTypeDialog) {
+        case 'element':
+          membershipData.element_id = selectedLocation;
+          break;
+        case 'group':
+          membershipData.group_id = selectedLocation;
+          break;
+        case 'ensemble':
+          membershipData.ensemble_id = selectedLocation;
+          break;
+      }
+
+      const { error } = await supabase
+        .from('location_memberships')
+        .insert(membershipData);
+
+      if (error) throw error;
+
       toast({
         title: "Succès",
         description: "Utilisateur ajouté avec succès",

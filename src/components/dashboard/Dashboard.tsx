@@ -59,11 +59,11 @@ const modules = [
   },
   {
     id: 'access_control',
-    name: 'Contrôle d\'Accès',
-    description: 'Gérer les accès et permissions',
+    name: 'Gestion des Accès',
+    description: 'Gérer les utilisateurs et leurs accès aux lieux',
     icon: Users,
     color: 'bg-red-500',
-    path: '/access'
+    path: '/locations'
   },
   {
     id: 'admin',

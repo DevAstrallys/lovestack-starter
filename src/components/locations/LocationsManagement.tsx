@@ -8,6 +8,7 @@ import { LocationGroups } from './LocationGroups';
 import { LocationEnsembles } from './LocationEnsembles';
 import { TagsManagement } from './TagsManagement';
 import { BuildingsManagement } from './BuildingsManagement';
+import { LocationUsersManagement } from './LocationUsersManagement';
 
 export interface LocationTag {
   id: string;
@@ -137,10 +138,11 @@ export const LocationsManagement: React.FC = () => {
       </Card>
 
       <Tabs defaultValue="elements" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="elements">Éléments</TabsTrigger>
           <TabsTrigger value="groupements">Groupements</TabsTrigger>
           <TabsTrigger value="ensembles">Ensembles</TabsTrigger>
+          <TabsTrigger value="users">Utilisateurs</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
 
@@ -176,6 +178,18 @@ export const LocationsManagement: React.FC = () => {
             <Card>
               <CardContent className="text-center py-8">
                 <p className="text-muted-foreground">Aucune organisation disponible pour créer des ensembles</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-4">
+          {selectedOrganization ? (
+            <LocationUsersManagement organizationId={selectedOrganization} />
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">Aucune organisation disponible pour gérer les utilisateurs</p>
               </CardContent>
             </Card>
           )}

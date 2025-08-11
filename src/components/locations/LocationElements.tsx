@@ -381,7 +381,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
       element.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       element.tags?.some(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesTag = selectedTagFilter === '' || 
+    const matchesTag = selectedTagFilter === '' || selectedTagFilter === 'all' || 
       element.tags?.some(tag => tag.id === selectedTagFilter);
     
     return matchesSearch && matchesTag;
@@ -530,7 +530,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
               <SelectValue placeholder="Filtrer par tag" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les tags</SelectItem>
+              <SelectItem value="all">Tous les tags</SelectItem>
               {availableTags.map(tag => (
                 <SelectItem key={tag.id} value={tag.id}>
                   <div className="flex items-center space-x-2">

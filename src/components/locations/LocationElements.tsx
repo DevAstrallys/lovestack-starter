@@ -10,7 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, QrCode } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Edit, Trash2, QrCode, Search, Filter } from 'lucide-react';
 
 interface LocationElementsProps {
   organizationId: string;
@@ -24,6 +26,9 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
   const [editingElement, setEditingElement] = useState<LocationElement | null>(null);
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [lastCreatedElement, setLastCreatedElement] = useState<{name: string, addressData: any} | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTagFilter, setSelectedTagFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -369,6 +374,19 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
     }
   };
 
+  // Filtrage intelligent des éléments
+  const filteredElements = elements.filter(element => {
+    const matchesSearch = searchTerm === '' || 
+      element.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      element.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      element.tags?.some(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesTag = selectedTagFilter === '' || 
+      element.tags?.some(tag => tag.id === selectedTagFilter);
+    
+    return matchesSearch && matchesTag;
+  });
+
   if (loading) {
     return <div className="text-center py-4">Chargement des éléments...</div>;
   }
@@ -382,13 +400,23 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
             Les éléments sont les unités de base de votre hiérarchie de lieux
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center space-x-2">
+          <Select value={viewMode} onValueChange={(value: 'cards' | 'table') => setViewMode(value)}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="table">Tableau</SelectItem>
+              <SelectItem value="cards">Cartes</SelectItem>
+            </SelectContent>
+          </Select>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
@@ -481,10 +509,133 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {elements.map((element) => (
+      {/* Barre de recherche et filtres */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Rechercher par nom, description ou tag..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedTagFilter} onValueChange={setSelectedTagFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filtrer par tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Tous les tags</SelectItem>
+              {availableTags.map(tag => (
+                <SelectItem key={tag.id} value={tag.id}>
+                  <div className="flex items-center space-x-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    <span>{tag.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Vue tableau */}
+      {viewMode === 'table' ? (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Adresse</TableHead>
+                  <TableHead>Tags</TableHead>
+                  <TableHead>QR Location</TableHead>
+                  <TableHead>Date création</TableHead>
+                  <TableHead className="w-32">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredElements.map((element) => {
+                  const locationData = element.location_data as any;
+                  const address = [
+                    locationData?.address,
+                    locationData?.zipCode && locationData?.city ? `${locationData.zipCode} ${locationData.city}` : locationData?.city || locationData?.zipCode,
+                    locationData?.country && locationData.country !== 'France' ? locationData.country : null
+                  ].filter(Boolean).join(', ');
+
+                  return (
+                    <TableRow key={element.id}>
+                      <TableCell className="font-medium">{element.name}</TableCell>
+                      <TableCell className="max-w-xs truncate">{element.description || '-'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{address || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {element.tags?.slice(0, 2).map(tag => (
+                            <Badge key={tag.id} variant="secondary" className="text-xs">
+                              {tag.name}
+                            </Badge>
+                          ))}
+                          {element.tags && element.tags.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{element.tags.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {locationData?.qrLocation || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(element.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(element)}
+                            title="Modifier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleGenerateQRCode(element.id, element.name)}
+                            title="Générer QR Code"
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(element.id)}
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Vue cartes */
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredElements.map((element) => (
           <Card key={element.id}>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
@@ -561,10 +712,12 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {elements.length === 0 && (
+      {/* Messages d'état */}
+      {elements.length === 0 ? (
         <Card>
           <CardContent className="text-center py-8">
             <p className="text-muted-foreground">Aucun élément créé pour cette organisation.</p>
@@ -573,7 +726,16 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
             </p>
           </CardContent>
         </Card>
-      )}
+      ) : filteredElements.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="text-muted-foreground">Aucun élément ne correspond à vos critères de recherche.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Essayez de modifier votre recherche ou vos filtres.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Dialog de confirmation pour créer d'autres éléments à la même adresse */}
       <Dialog open={confirmationDialogOpen} onOpenChange={setConfirmationDialogOpen}>

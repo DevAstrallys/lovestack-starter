@@ -11,7 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Edit, Trash2, MapPin, Building } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Edit, Trash2, MapPin, Building, Search, LayoutGrid, TableIcon } from 'lucide-react';
 
 interface LocationGroupsProps {
   organizationId: string;
@@ -24,6 +26,9 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<LocationGroup | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTagFilter, setSelectedTagFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -296,6 +301,18 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
     }
   };
 
+  const filteredGroups = groups.filter(group => {
+    const matchesSearch = !searchTerm || 
+      group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      group.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      group.tags?.some(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesTag = selectedTagFilter === '' || selectedTagFilter === 'all' || 
+      group.tags?.some(tag => tag.id === selectedTagFilter);
+    
+    return matchesSearch && matchesTag;
+  });
+
   if (loading) {
     return <div className="text-center py-4">Chargement des groupements...</div>;
   }
@@ -380,8 +397,138 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {groups.map((group) => (
+      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Rechercher un groupement..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={selectedTagFilter} onValueChange={setSelectedTagFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrer par tag" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les tags</SelectItem>
+            {availableTags.map(tag => (
+              <SelectItem key={tag.id} value={tag.id}>
+                <div className="flex items-center space-x-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  <span>{tag.name}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+            className="rounded-r-none"
+          >
+            <TableIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'cards' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('cards')}
+            className="rounded-l-none"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === 'table' ? (
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Éléments</TableHead>
+                <TableHead>Tags</TableHead>
+                <TableHead>Créé le</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredGroups.map((group) => (
+                <TableRow key={group.id}>
+                  <TableCell className="font-medium">{group.name}</TableCell>
+                  <TableCell className="max-w-xs truncate">{group.description || '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {group.elements?.length || 0} élément(s)
+                    </div>
+                    {group.elements && group.elements.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {group.elements.slice(0, 2).map(element => (
+                          <Badge key={element.id} variant="outline" className="text-xs">
+                            {element.name}
+                          </Badge>
+                        ))}
+                        {group.elements.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{group.elements.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {group.tags && group.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {group.tags.slice(0, 2).map(tag => (
+                          <Badge key={tag.id} variant="secondary" className="text-xs">
+                            {tag.name}
+                          </Badge>
+                        ))}
+                        {group.tags.length > 2 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{group.tags.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(group.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(group)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(group.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredGroups.map((group) => (
           <Card key={group.id}>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
@@ -447,7 +594,16 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      )}
+
+      {filteredGroups.length === 0 && groups.length > 0 && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="text-muted-foreground">Aucun groupement ne correspond aux critères de recherche.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {groups.length === 0 && (
         <Card>

@@ -929,33 +929,43 @@ export type Database = {
       }
       qr_codes: {
         Row: {
-          building_id: string
+          building_id: string | null
           created_at: string
           display_label: string | null
           id: string
           is_active: boolean
           location: Json | null
+          location_element_id: string | null
           target_slug: string | null
         }
         Insert: {
-          building_id: string
+          building_id?: string | null
           created_at?: string
           display_label?: string | null
           id?: string
           is_active?: boolean
           location?: Json | null
+          location_element_id?: string | null
           target_slug?: string | null
         }
         Update: {
-          building_id?: string
+          building_id?: string | null
           created_at?: string
           display_label?: string | null
           id?: string
           is_active?: boolean
           location?: Json | null
+          location_element_id?: string | null
           target_slug?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_qr_codes_location_element"
+            columns: ["location_element_id"]
+            isOneToOne: false
+            referencedRelation: "location_elements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "qr_codes_building_id_fkey"
             columns: ["building_id"]

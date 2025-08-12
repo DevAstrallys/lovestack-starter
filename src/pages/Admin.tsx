@@ -14,13 +14,13 @@ import {
   Building
 } from 'lucide-react';
 import { UsersManagement } from '@/components/admin/UsersManagement';
-
+import { OrganizationsManagement } from '@/components/admin/OrganizationsManagement';
 import { RolesPermissions } from '@/components/admin/RolesPermissions';
 import { SystemSettings } from '@/components/admin/SystemSettings';
 
 export const Admin = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('organizations');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -70,7 +70,11 @@ export const Admin = () => {
 
         {/* Admin Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="organizations" className="flex items-center space-x-2">
+              <Building2 className="h-4 w-4" />
+              <span>Organisations</span>
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center space-x-2">
               <Users className="h-4 w-4" />
               <span>Utilisateurs</span>
@@ -84,6 +88,10 @@ export const Admin = () => {
               <span>Paramètres</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="organizations">
+            <OrganizationsManagement />
+          </TabsContent>
 
           <TabsContent value="users">
             <UsersManagement />

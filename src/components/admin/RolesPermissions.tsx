@@ -10,7 +10,9 @@ import {
   Key,
   Users,
   CheckSquare,
-  Square
+  Square,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,6 +22,11 @@ interface Role {
   label: any;
   is_platform_scope: boolean;
   created_at: string;
+  parent_id?: string;
+  is_active?: boolean;
+  sort_order?: number;
+  description?: string;
+  children?: Role[];
 }
 
 interface Permission {
@@ -40,22 +47,43 @@ export const RolesPermissions = () => {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedRoles, setExpandedRoles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  const buildRoleHierarchy = (roles: Role[]): Role[] => {
+    const roleMap = new Map<string, Role>();
+    const rootRoles: Role[] = [];
+
+    // First, create a map of all roles
+    roles.forEach(role => {
+      roleMap.set(role.id, { ...role, children: [] });
+    });
+
+    // Then, build the hierarchy
+    roles.forEach(role => {
+      const roleWithChildren = roleMap.get(role.id)!;
+      if (role.parent_id && roleMap.has(role.parent_id)) {
+        const parent = roleMap.get(role.parent_id)!;
+        parent.children!.push(roleWithChildren);
+      } else {
+        rootRoles.push(roleWithChildren);
+      }
+    });
+
+    return rootRoles.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  };
+
   const fetchData = async () => {
     try {
-      console.log('Fetching roles and permissions...');
-      
       // Fetch roles
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
         .order('code');
 
-      console.log('Roles data:', rolesData, 'Roles error:', rolesError);
       if (rolesError) throw rolesError;
 
       // Fetch permissions
@@ -78,7 +106,8 @@ export const RolesPermissions = () => {
 
       if (rpError) throw rpError;
 
-      setRoles(rolesData || []);
+      const hierarchicalRoles = buildRoleHierarchy(rolesData || []);
+      setRoles(hierarchicalRoles);
       setPermissions(permissionsData || []);
       setRolePermissions(rolePermissionsData || []);
     } catch (error) {
@@ -91,6 +120,18 @@ export const RolesPermissions = () => {
 
   const hasPermission = (roleId: string, permissionId: string) => {
     return rolePermissions.some(rp => rp.role_id === roleId && rp.permission_id === permissionId);
+  };
+
+  const toggleRoleExpansion = (roleId: string) => {
+    setExpandedRoles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(roleId)) {
+        newSet.delete(roleId);
+      } else {
+        newSet.add(roleId);
+      }
+      return newSet;
+    });
   };
 
   const toggleRolePermission = async (roleId: string, permissionId: string) => {
@@ -130,6 +171,77 @@ export const RolesPermissions = () => {
       .map(rp => rp.permissions);
   };
 
+  const renderRoleCard = (role: Role, level: number = 0) => {
+    const hasChildren = role.children && role.children.length > 0;
+    const isExpanded = expandedRoles.has(role.id);
+    const paddingLeft = level * 24;
+    const rolePermissionsList = getPermissionsByRole(role.id);
+
+    return (
+      <div key={role.id} className="space-y-2">
+        <Card className="relative" style={{ marginLeft: `${paddingLeft}px` }}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {hasChildren && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleRoleExpansion(role.id)}
+                    className="p-1 h-6 w-6"
+                  >
+                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </Button>
+                )}
+                <Shield className="h-5 w-5 text-primary" />
+                <div>
+                  <CardTitle className="text-lg">{role.code}</CardTitle>
+                  <CardDescription>
+                    {typeof role.label === 'object' ? role.label?.fr || role.code : role.label}
+                    {role.description && <span className="block text-xs mt-1">{role.description}</span>}
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex flex-col items-end space-y-1">
+                <Badge variant={role.is_platform_scope ? "default" : "secondary"}>
+                  {role.is_platform_scope ? "Plateforme" : "Organisation"}
+                </Badge>
+                {role.is_active === false && (
+                  <Badge variant="destructive">Archivé</Badge>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium mb-2">Permissions ({rolePermissionsList.length})</p>
+                <div className="space-y-1">
+                  {rolePermissionsList.slice(0, 3).map((permission) => (
+                    <Badge key={permission.id} variant="outline" className="text-xs">
+                      {permission.code}
+                    </Badge>
+                  ))}
+                  {rolePermissionsList.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{rolePermissionsList.length - 3} autres
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {hasChildren && isExpanded && (
+          <div className="space-y-2">
+            {role.children!.map(child => renderRoleCard(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return <div className="p-8 text-center">Chargement...</div>;
   }
@@ -152,50 +264,8 @@ export const RolesPermissions = () => {
         </TabsList>
 
         <TabsContent value="roles">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {roles.map((role) => {
-              const rolePermissions = getPermissionsByRole(role.id);
-              return (
-                <Card key={role.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Shield className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-lg">{role.code}</CardTitle>
-                      </div>
-                      <Badge variant={role.is_platform_scope ? "default" : "secondary"}>
-                        {role.is_platform_scope ? "Plateforme" : "Bâtiment"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium">Libellé</p>
-                        <p className="text-sm text-muted-foreground">
-                          {typeof role.label === 'object' ? role.label?.fr || role.code : role.label}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">Permissions ({rolePermissions.length})</p>
-                        <div className="space-y-1">
-                          {rolePermissions.slice(0, 3).map((permission) => (
-                            <Badge key={permission.id} variant="outline" className="text-xs">
-                              {permission.code}
-                            </Badge>
-                          ))}
-                          {rolePermissions.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{rolePermissions.length - 3} autres
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="space-y-4">
+            {roles.map((role) => renderRoleCard(role))}
           </div>
         </TabsContent>
 

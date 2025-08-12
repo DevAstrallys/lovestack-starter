@@ -814,6 +814,7 @@ export type Database = {
       }
       memberships: {
         Row: {
+          can_validate_user_requests: boolean
           company_id: string | null
           created_at: string
           id: string
@@ -824,6 +825,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          can_validate_user_requests?: boolean
           company_id?: string | null
           created_at?: string
           id?: string
@@ -834,6 +836,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          can_validate_user_requests?: boolean
           company_id?: string | null
           created_at?: string
           id?: string

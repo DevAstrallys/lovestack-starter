@@ -16,8 +16,10 @@ import {
   Trash2,
   Building2,
   Mail,
-  Phone
+  Phone,
+  UserCheck
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 interface Profile {
@@ -34,6 +36,7 @@ interface Membership {
   organization_id: string;
   role_id: string;
   is_active: boolean;
+  can_validate_user_requests: boolean;
   organizations: {
     name: string;
   };
@@ -55,6 +58,11 @@ export const UsersManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserWithMemberships | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [newMembershipForm, setNewMembershipForm] = useState({
+    organizationId: '',
+    roleId: '',
+    canValidateUserRequests: false
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -73,6 +81,7 @@ export const UsersManagement = () => {
             organization_id,
             role_id,
             is_active,
+            can_validate_user_requests,
             organizations (name),
             roles (code, label)
           )
@@ -126,15 +135,21 @@ export const UsersManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  const addMembership = async (userId: string, organizationId: string, roleId: string) => {
+  const addMembership = async () => {
+    if (!selectedUser || !newMembershipForm.organizationId || !newMembershipForm.roleId) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('memberships')
         .insert({
-          user_id: userId,
-          organization_id: organizationId,
-          role_id: roleId,
-          is_active: true
+          user_id: selectedUser.id,
+          organization_id: newMembershipForm.organizationId,
+          role_id: newMembershipForm.roleId,
+          is_active: true,
+          can_validate_user_requests: newMembershipForm.canValidateUserRequests
         });
 
       if (error) throw error;
@@ -142,6 +157,11 @@ export const UsersManagement = () => {
       toast.success('Membership ajouté avec succès');
       fetchUsers();
       setIsEditDialogOpen(false);
+      setNewMembershipForm({
+        organizationId: '',
+        roleId: '',
+        canValidateUserRequests: false
+      });
     } catch (error) {
       toast.error('Erreur lors de l\'ajout du membership');
       console.error('Error adding membership:', error);
@@ -240,17 +260,23 @@ export const UsersManagement = () => {
                     <div className="space-y-1">
                       {user.memberships?.length > 0 ? (
                         user.memberships.map((membership) => (
-                          <div key={membership.id} className="flex items-center space-x-2">
-                             <Badge 
-                               variant={membership.is_active ? "default" : "secondary"}
-                               className="text-xs"
-                             >
-                               {membership.organizations.name}
+                           <div key={membership.id} className="flex items-center space-x-2">
+                              <Badge 
+                                variant={membership.is_active ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {membership.organizations.name}
+                              </Badge>
+                             <Badge variant="outline" className="text-xs">
+                               {membership.roles.code}
                              </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {membership.roles.code}
-                            </Badge>
-                          </div>
+                             {membership.can_validate_user_requests && (
+                               <Badge variant="secondary" className="text-xs flex items-center">
+                                 <UserCheck className="h-3 w-3 mr-1" />
+                                 Validateur
+                               </Badge>
+                             )}
+                           </div>
                         ))
                       ) : (
                         <span className="text-muted-foreground text-sm">Aucun membership</span>
@@ -318,45 +344,68 @@ export const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* Add New Membership */}
-              <div>
-                <h4 className="font-medium mb-3">Ajouter un membership</h4>
-                <div className="grid grid-cols-2 gap-4">
+               {/* Add New Membership */}
+               <div>
+                 <h4 className="font-medium mb-3">Ajouter un membership</h4>
+                 <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <Label htmlFor="organization">Organisation</Label>
+                      <Select 
+                        value={newMembershipForm.organizationId} 
+                        onValueChange={(value) => setNewMembershipForm(prev => ({ ...prev, organizationId: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une organisation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {organizations.map((organization) => (
+                            <SelectItem key={organization.id} value={organization.id}>
+                              {organization.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                    <div>
-                     <Label htmlFor="organization">Organisation</Label>
-                     <Select>
+                     <Label htmlFor="role">Rôle</Label>
+                     <Select 
+                       value={newMembershipForm.roleId} 
+                       onValueChange={(value) => setNewMembershipForm(prev => ({ ...prev, roleId: value }))}
+                     >
                        <SelectTrigger>
-                         <SelectValue placeholder="Sélectionner une organisation" />
+                         <SelectValue placeholder="Sélectionner un rôle" />
                        </SelectTrigger>
                        <SelectContent>
-                         {organizations.map((organization) => (
-                           <SelectItem key={organization.id} value={organization.id}>
-                             {organization.name}
+                         {roles.map((role) => (
+                           <SelectItem key={role.id} value={role.id}>
+                             {role.code}
                            </SelectItem>
                          ))}
                        </SelectContent>
                      </Select>
                    </div>
-                  <div>
-                    <Label htmlFor="role">Rôle</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un rôle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.id} value={role.id}>
-                            {role.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button className="mt-3">
-                  Ajouter le membership
-                </Button>
-              </div>
+                 </div>
+                 
+                 <div className="flex items-center space-x-2 mb-4">
+                   <Checkbox 
+                     id="canValidateUserRequests"
+                     checked={newMembershipForm.canValidateUserRequests}
+                     onCheckedChange={(checked) => 
+                       setNewMembershipForm(prev => ({ 
+                         ...prev, 
+                         canValidateUserRequests: checked === true 
+                       }))
+                     }
+                   />
+                   <Label htmlFor="canValidateUserRequests" className="text-sm">
+                     Peut valider les demandes d'utilisateurs
+                   </Label>
+                 </div>
+                 
+                 <Button onClick={addMembership} className="mt-3">
+                   Ajouter le membership
+                 </Button>
+               </div>
             </div>
           )}
         </DialogContent>

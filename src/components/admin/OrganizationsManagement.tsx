@@ -23,6 +23,10 @@ interface Organization {
   id: string;
   name: string;
   description?: string;
+  address?: string;
+  zip_code?: string;
+  city?: string;
+  country?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -35,7 +39,11 @@ export const OrganizationsManagement = () => {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    address: '',
+    zip_code: '',
+    city: '',
+    country: 'FR'
   });
   const { toast } = useToast();
 
@@ -75,6 +83,10 @@ export const OrganizationsManagement = () => {
           .update({
             name: formData.name,
             description: formData.description,
+            address: formData.address,
+            zip_code: formData.zip_code,
+            city: formData.city,
+            country: formData.country,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingOrg.id);
@@ -91,7 +103,11 @@ export const OrganizationsManagement = () => {
           .from('organizations')
           .insert({
             name: formData.name,
-            description: formData.description
+            description: formData.description,
+            address: formData.address,
+            zip_code: formData.zip_code,
+            city: formData.city,
+            country: formData.country
           });
 
         if (error) throw error;
@@ -102,7 +118,7 @@ export const OrganizationsManagement = () => {
         });
       }
 
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', address: '', zip_code: '', city: '', country: 'FR' });
       setEditingOrg(null);
       setIsDialogOpen(false);
       fetchOrganizations();
@@ -120,7 +136,11 @@ export const OrganizationsManagement = () => {
     setEditingOrg(org);
     setFormData({
       name: org.name,
-      description: org.description || ''
+      description: org.description || '',
+      address: org.address || '',
+      zip_code: org.zip_code || '',
+      city: org.city || '',
+      country: org.country || 'FR'
     });
     setIsDialogOpen(true);
   };
@@ -154,7 +174,7 @@ export const OrganizationsManagement = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', address: '', zip_code: '', city: '', country: 'FR' });
     setEditingOrg(null);
   };
 
@@ -217,6 +237,44 @@ export const OrganizationsManagement = () => {
                         rows={3}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Adresse</Label>
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="123 rue de l'exemple"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="zip_code">Code postal</Label>
+                        <Input
+                          id="zip_code"
+                          value={formData.zip_code}
+                          onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                          placeholder="75001"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="city">Ville</Label>
+                        <Input
+                          id="city"
+                          value={formData.city}
+                          onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                          placeholder="Paris"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="country">Pays</Label>
+                      <Input
+                        id="country"
+                        value={formData.country}
+                        onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                        placeholder="FR"
+                      />
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button type="submit">
@@ -234,6 +292,7 @@ export const OrganizationsManagement = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Organisation</TableHead>
+                  <TableHead>Adresse</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Créée le</TableHead>
@@ -243,7 +302,7 @@ export const OrganizationsManagement = () => {
               <TableBody>
                 {organizations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Aucune organisation trouvée. Créez votre première organisation.
                     </TableCell>
                   </TableRow>
@@ -254,6 +313,21 @@ export const OrganizationsManagement = () => {
                         <div className="flex items-center space-x-2">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{org.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {org.address && (
+                            <div>{org.address}</div>
+                          )}
+                          {(org.zip_code || org.city) && (
+                            <div className="text-muted-foreground">
+                              {org.zip_code} {org.city}
+                            </div>
+                          )}
+                          {!org.address && !org.zip_code && !org.city && (
+                            <span className="text-muted-foreground">Aucune adresse</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

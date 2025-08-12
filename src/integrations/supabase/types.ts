@@ -929,28 +929,40 @@ export type Database = {
       }
       organizations: {
         Row: {
+          address: string | null
+          city: string | null
+          country: string | null
           created_at: string
           description: string | null
           id: string
           is_active: boolean
           name: string
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
           name: string
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
           name?: string
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -975,6 +987,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          communication_mode: string | null
           created_at: string
           full_name: string | null
           id: string
@@ -984,6 +997,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          communication_mode?: string | null
           created_at?: string
           full_name?: string | null
           id: string
@@ -993,6 +1007,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          communication_mode?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -1122,29 +1137,129 @@ export type Database = {
           },
         ]
       }
+      role_requests: {
+        Row: {
+          created_at: string
+          element_id: string | null
+          ensemble_id: string | null
+          group_id: string | null
+          id: string
+          message: string | null
+          organization_id: string
+          requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role_id: string
+          status: Database["public"]["Enums"]["role_request_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          element_id?: string | null
+          ensemble_id?: string | null
+          group_id?: string | null
+          id?: string
+          message?: string | null
+          organization_id: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_id: string
+          status?: Database["public"]["Enums"]["role_request_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          element_id?: string | null
+          ensemble_id?: string | null
+          group_id?: string | null
+          id?: string
+          message?: string | null
+          organization_id?: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_id?: string
+          status?: Database["public"]["Enums"]["role_request_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_requests_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "location_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_ensemble_id_fkey"
+            columns: ["ensemble_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_requests_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roles: {
         Row: {
           code: string
           created_at: string
+          description: string | null
           id: string
+          is_active: boolean
           is_platform_scope: boolean
           label: Json
+          parent_id: string | null
+          sort_order: number | null
         }
         Insert: {
           code: string
           created_at?: string
+          description?: string | null
           id?: string
+          is_active?: boolean
           is_platform_scope?: boolean
           label: Json
+          parent_id?: string | null
+          sort_order?: number | null
         }
         Update: {
           code?: string
           created_at?: string
+          description?: string | null
           id?: string
+          is_active?: boolean
           is_platform_scope?: boolean
           label?: Json
+          parent_id?: string | null
+          sort_order?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roles_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scheduled_reports: {
         Row: {
@@ -1624,6 +1739,7 @@ export type Database = {
       }
     }
     Enums: {
+      role_request_status: "pending" | "approved" | "rejected"
       ticket_priority: "low" | "medium" | "high" | "urgent"
       ticket_status:
         | "open"
@@ -1759,6 +1875,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      role_request_status: ["pending", "approved", "rejected"],
       ticket_priority: ["low", "medium", "high", "urgent"],
       ticket_status: [
         "open",

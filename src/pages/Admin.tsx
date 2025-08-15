@@ -20,6 +20,7 @@ import { RolesPermissions } from '@/components/admin/RolesPermissions';
 import { PermissionsManager } from '@/components/admin/PermissionsManager';
 import { SystemSettings } from '@/components/admin/SystemSettings';
 import { EmailTester } from '@/components/admin/EmailTester';
+import { EmailTemplatesManager } from '@/components/admin/EmailTemplatesManager';
 
 export const Admin = () => {
   const { user } = useAuth();
@@ -73,7 +74,7 @@ export const Admin = () => {
 
         {/* Admin Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="organizations" className="flex items-center space-x-2">
               <Building2 className="h-4 w-4" />
               <span>Organisations</span>
@@ -93,6 +94,10 @@ export const Admin = () => {
             <TabsTrigger value="email-test" className="flex items-center space-x-2">
               <Mail className="h-4 w-4" />
               <span>Test Email</span>
+            </TabsTrigger>
+            <TabsTrigger value="email-templates" className="flex items-center space-x-2">
+              <Mail className="h-4 w-4" />
+              <span>Templates</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center space-x-2">
               <Settings className="h-4 w-4" />
@@ -118,6 +123,10 @@ export const Admin = () => {
 
           <TabsContent value="email-test">
             <EmailTester />
+          </TabsContent>
+
+          <TabsContent value="email-templates">
+            <EmailTemplatesManager />
           </TabsContent>
 
           <TabsContent value="settings">

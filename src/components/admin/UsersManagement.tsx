@@ -33,13 +33,13 @@ interface Profile {
 
 interface Membership {
   id: string;
-  organization_id: string;
+  organization_id: string | null;
   role_id: string;
   is_active: boolean;
   can_validate_user_requests: boolean;
   organizations: {
     name: string;
-  };
+  } | null;
   roles: {
     code: string;
     label: any;
@@ -261,12 +261,12 @@ export const UsersManagement = () => {
                       {user.memberships?.length > 0 ? (
                         user.memberships.map((membership) => (
                            <div key={membership.id} className="flex items-center space-x-2">
-                              <Badge 
-                                variant={membership.is_active ? "default" : "secondary"}
-                                className="text-xs"
-                              >
-                                {membership.organizations.name}
-                              </Badge>
+                               <Badge 
+                                 variant={membership.is_active ? "default" : "secondary"}
+                                 className="text-xs"
+                               >
+                                 {membership.organizations?.name || 'Plateforme'}
+                               </Badge>
                              <Badge variant="outline" className="text-xs">
                                {membership.roles.code}
                              </Badge>
@@ -322,10 +322,10 @@ export const UsersManagement = () => {
                     <div key={membership.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Building2 className="h-4 w-4" />
-                         <div>
-                           <p className="font-medium">{membership.organizations.name}</p>
-                           <p className="text-sm text-muted-foreground">Rôle: {membership.roles.code}</p>
-                         </div>
+                          <div>
+                            <p className="font-medium">{membership.organizations?.name || 'Plateforme'}</p>
+                            <p className="text-sm text-muted-foreground">Rôle: {membership.roles.code}</p>
+                          </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge variant={membership.is_active ? "default" : "secondary"}>

@@ -350,7 +350,6 @@ export const PermissionsManager = () => {
                 <SelectValue placeholder="Choisir un rôle à configurer" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sélectionner un rôle</SelectItem>
                 {roles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>
                     <div className="flex items-center space-x-2">

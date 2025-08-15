@@ -11,13 +11,15 @@ import {
   Shield,
   Settings,
   UserPlus,
-  Building
+  Building,
+  Mail
 } from 'lucide-react';
 import { UsersManagement } from '@/components/admin/UsersManagement';
 import { OrganizationsManagement } from '@/components/admin/OrganizationsManagement';
 import { RolesPermissions } from '@/components/admin/RolesPermissions';
 import { PermissionsManager } from '@/components/admin/PermissionsManager';
 import { SystemSettings } from '@/components/admin/SystemSettings';
+import { EmailTester } from '@/components/admin/EmailTester';
 
 export const Admin = () => {
   const { user } = useAuth();
@@ -71,7 +73,7 @@ export const Admin = () => {
 
         {/* Admin Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="organizations" className="flex items-center space-x-2">
               <Building2 className="h-4 w-4" />
               <span>Organisations</span>
@@ -87,6 +89,10 @@ export const Admin = () => {
             <TabsTrigger value="permissions-manager" className="flex items-center space-x-2">
               <Settings className="h-4 w-4" />
               <span>Config Permissions</span>
+            </TabsTrigger>
+            <TabsTrigger value="email-test" className="flex items-center space-x-2">
+              <Mail className="h-4 w-4" />
+              <span>Test Email</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center space-x-2">
               <Settings className="h-4 w-4" />
@@ -108,6 +114,10 @@ export const Admin = () => {
 
           <TabsContent value="permissions-manager">
             <PermissionsManager />
+          </TabsContent>
+
+          <TabsContent value="email-test">
+            <EmailTester />
           </TabsContent>
 
           <TabsContent value="settings">

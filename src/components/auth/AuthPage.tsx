@@ -74,6 +74,31 @@ export const AuthPage = () => {
     }
   };
 
+  const handleMagicLink = async () => {
+    if (!email) {
+      toast.error('Veuillez entrer votre email');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success('Lien magique envoyé ! Vérifiez votre email.');
+    } catch (error: any) {
+      toast.error('Erreur: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <div className="w-full max-w-md">
@@ -132,6 +157,26 @@ export const AuthPage = () => {
                     Se connecter
                   </Button>
                 </form>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Ou</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={handleMagicLink}
+                  disabled={loading}
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Lien magique par email
+                </Button>
               </TabsContent>
 
               <TabsContent value="signup">
@@ -180,9 +225,18 @@ export const AuthPage = () => {
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          En vous connectant, vous acceptez nos conditions d'utilisation
-        </p>
+        <div className="text-center mt-6 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Comptes de test disponibles :
+          </p>
+          <div className="text-xs bg-muted p-2 rounded text-muted-foreground">
+            <p>Email: admin@test.com</p>
+            <p>Mot de passe: admin123!</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            En vous connectant, vous acceptez nos conditions d'utilisation
+          </p>
+        </div>
       </div>
     </div>
   );

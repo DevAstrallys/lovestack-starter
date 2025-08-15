@@ -16,6 +16,16 @@ export const AuthPage = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password || !fullName) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -33,15 +43,23 @@ export const AuthPage = () => {
       });
 
       if (error) {
+        console.error('Sign up error:', error);
         if (error.message.includes('already registered')) {
           toast.error('Cet email est déjà enregistré. Essayez de vous connecter.');
+        } else if (error.message.includes('Email address')) {
+          toast.error('Adresse email invalide');
         } else {
           toast.error(error.message);
         }
       } else {
         toast.success('Inscription réussie ! Vérifiez votre email pour confirmer votre compte.');
+        // Réinitialiser le formulaire
+        setEmail('');
+        setPassword('');
+        setFullName('');
       }
     } catch (error) {
+      console.error('Unexpected sign up error:', error);
       toast.error('Une erreur est survenue lors de l\'inscription');
     } finally {
       setLoading(false);
@@ -50,6 +68,11 @@ export const AuthPage = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -59,8 +82,11 @@ export const AuthPage = () => {
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         if (error.message.includes('Invalid login credentials')) {
           toast.error('Email ou mot de passe incorrect');
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Veuillez confirmer votre email avant de vous connecter');
         } else {
           toast.error(error.message);
         }
@@ -68,6 +94,7 @@ export const AuthPage = () => {
         toast.success('Connexion réussie !');
       }
     } catch (error) {
+      console.error('Unexpected sign in error:', error);
       toast.error('Une erreur est survenue lors de la connexion');
     } finally {
       setLoading(false);
@@ -89,11 +116,15 @@ export const AuthPage = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Magic link error:', error);
+        throw error;
+      }
       
       toast.success('Lien magique envoyé ! Vérifiez votre email.');
     } catch (error: any) {
-      toast.error('Erreur: ' + error.message);
+      console.error('Unexpected magic link error:', error);
+      toast.error('Erreur: ' + (error.message || 'Impossible d\'envoyer le lien magique'));
     } finally {
       setLoading(false);
     }

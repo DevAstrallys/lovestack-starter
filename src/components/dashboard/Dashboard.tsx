@@ -90,14 +90,19 @@ export const Dashboard = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('Attempting to sign out...');
       const { error } = await supabase.auth.signOut();
       if (error) {
-        toast.error('Erreur lors de la déconnexion');
+        console.error('Sign out error:', error);
+        toast.error('Erreur lors de la déconnexion: ' + error.message);
       } else {
+        console.log('Sign out successful');
         toast.success('Déconnexion réussie');
+        // Ne pas naviguer manuellement, laisser AuthContext gérer la redirection
       }
     } catch (error) {
-      toast.error('Une erreur est survenue');
+      console.error('Unexpected sign out error:', error);
+      toast.error('Une erreur est survenue lors de la déconnexion');
     }
   };
 

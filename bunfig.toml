@@ -1,0 +1,19 @@
+[install]
+# Increase timeout to handle slow networks
+timeout = "300s"
+
+# Use faster registry mirror if needed
+registry = "https://registry.npmjs.org/"
+
+# Enable parallel downloads
+parallel = true
+
+# Retry on failure
+retry = 3
+
+[install.scopes]
+# Configure any scoped packages if needed
+
+[run]
+# Enable shell mode for scripts
+shell = true

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -85,6 +86,7 @@ const modules = [
 
 export const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
@@ -152,11 +154,11 @@ export const Dashboard = () => {
                 className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 group"
                 onClick={() => {
                   if (module.id === 'admin') {
-                    window.location.href = '/admin';
+                    navigate('/admin');
                   } else if (module.id === 'locations') {
-                    window.location.href = '/locations';
+                    navigate('/locations');
                   } else if (module.id === 'users') {
-                    window.location.href = '/users';
+                    navigate('/users');
                   } else {
                     toast.info(`Module ${module.name} - En développement`);
                   }

@@ -126,11 +126,17 @@ export const PermissionsManager = () => {
         )
       },
       {
+        name: 'Création/Ajout',
+        icon: Plus,
+        permissions: permissions.filter(p => 
+          p.code.includes('.create')
+        )
+      },
+      {
         name: 'Écriture/Modification',
         icon: Edit,
         permissions: permissions.filter(p => 
           p.code.includes('.write') || 
-          p.code.includes('.create') || 
           p.code.includes('.update') || 
           p.code.includes('manage')
         )

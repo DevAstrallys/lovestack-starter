@@ -414,18 +414,75 @@ export const EmailTemplatesManager = () => {
               />
             </div>
 
-            {newTemplate.variables.length > 0 && (
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Variables détectées</Label>
-                <div className="flex flex-wrap gap-2">
-                  {newTemplate.variables.map((variable) => (
-                    <Badge key={variable} variant="outline">
-                      {variable}
-                    </Badge>
-                  ))}
+                <Label>Variables disponibles</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="p-3 border rounded-lg">
+                    <h4 className="font-medium mb-2">Variables utilisateur</h4>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><code className="bg-muted px-1 rounded">{'{{name}}'}</code> - Nom de l'utilisateur</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{email}}'}</code> - Email de l'utilisateur</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{assignedTo}}'}</code> - Utilisateur assigné</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <h4 className="font-medium mb-2">Variables organisation</h4>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><code className="bg-muted px-1 rounded">{'{{organizationName}}'}</code> - Nom de l'organisation</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{loginUrl}}'}</code> - URL de connexion</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <h4 className="font-medium mb-2">Variables notification</h4>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><code className="bg-muted px-1 rounded">{'{{title}}'}</code> - Titre de la notification</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{message}}'}</code> - Message principal</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{priority}}'}</code> - Niveau de priorité</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{priorityColor}}'}</code> - Couleur de priorité</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{priorityLabel}}'}</code> - Label de priorité</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <h4 className="font-medium mb-2">Variables ticket</h4>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><code className="bg-muted px-1 rounded">{'{{ticketNumber}}'}</code> - Numéro du ticket</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{status}}'}</code> - Statut du ticket</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{statusColor}}'}</code> - Couleur du statut</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{description}}'}</code> - Description du ticket</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{ticketUrl}}'}</code> - URL du ticket</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <h4 className="font-medium mb-2">Variables actions</h4>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><code className="bg-muted px-1 rounded">{'{{actionUrl}}'}</code> - URL d'action</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{actionText}}'}</code> - Texte du bouton</p>
+                    </div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <h4 className="font-medium mb-2">Variables conditionnelles</h4>
+                    <div className="space-y-1 text-muted-foreground">
+                      <p><code className="bg-muted px-1 rounded">{'{{#if variable}}'}</code> - Condition si</p>
+                      <p><code className="bg-muted px-1 rounded">{'{{/if}}'}</code> - Fin de condition</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+
+              {newTemplate.variables.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Variables détectées dans votre template</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {newTemplate.variables.map((variable) => (
+                      <Badge key={variable} variant="outline">
+                        {variable}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Button onClick={handleSaveTemplate} className="w-full">
               <Save className="h-4 w-4 mr-2" />

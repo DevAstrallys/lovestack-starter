@@ -31,79 +31,89 @@ export const Admin = () => {
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => window.location.href = '/'}
+                className="shrink-0"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Accueil
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Accueil</span>
               </Button>
               <div className="p-2 rounded-lg bg-primary text-primary-foreground">
-                <Shield className="h-6 w-6" />
+                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Administration</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-lg sm:text-xl font-bold">Administration</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Gestion de la plateforme
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary">Admin</Badge>
-              <div className="text-right">
-                <p className="text-sm font-medium">{user?.user_metadata?.full_name || user?.email}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+              <Badge variant="secondary" className="shrink-0">Admin</Badge>
+              <div className="text-right min-w-0 flex-1 sm:flex-initial">
+                <p className="text-xs sm:text-sm font-medium truncate">{user?.user_metadata?.full_name || user?.email}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 sm:py-8">
         {/* Admin Overview */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Panel d'Administration</h2>
-          <p className="text-muted-foreground">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Panel d'Administration</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gérez les utilisateurs et permissions de la plateforme
           </p>
         </div>
 
         {/* Admin Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="organizations" className="flex items-center space-x-2">
-              <Building2 className="h-4 w-4" />
-              <span>Organisations</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center space-x-2">
-              <Users className="h-4 w-4" />
-              <span>Utilisateurs</span>
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="flex items-center space-x-2">
-              <Shield className="h-4 w-4" />
-              <span>Rôles & Permissions</span>
-            </TabsTrigger>
-            <TabsTrigger value="permissions-manager" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span>Config Permissions</span>
-            </TabsTrigger>
-            <TabsTrigger value="email-test" className="flex items-center space-x-2">
-              <Mail className="h-4 w-4" />
-              <span>Test Email</span>
-            </TabsTrigger>
-            <TabsTrigger value="email-templates" className="flex items-center space-x-2">
-              <Mail className="h-4 w-4" />
-              <span>Templates</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span>Paramètres</span>
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <div className="w-full overflow-x-auto">
+            <TabsList className="grid w-full min-w-[800px] grid-cols-7 h-auto p-1">
+              <TabsTrigger value="organizations" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Organisations</span>
+                <span className="sm:hidden">Org.</span>
+              </TabsTrigger>
+              <TabsTrigger value="users" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Utilisateurs</span>
+                <span className="sm:hidden">Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="permissions" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Rôles & Permissions</span>
+                <span className="sm:hidden">Rôles</span>
+              </TabsTrigger>
+              <TabsTrigger value="permissions-manager" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Config Permissions</span>
+                <span className="sm:hidden">Config</span>
+              </TabsTrigger>
+              <TabsTrigger value="email-test" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Test Email</span>
+                <span className="sm:hidden">Test</span>
+              </TabsTrigger>
+              <TabsTrigger value="email-templates" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Templates</span>
+                <span className="sm:hidden">Tpl.</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Paramètres</span>
+                <span className="sm:hidden">Param.</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="organizations">
             <OrganizationsManagement />

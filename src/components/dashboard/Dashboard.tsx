@@ -111,46 +111,46 @@ export const Dashboard = () => {
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
               <div className="p-2 rounded-lg bg-primary text-primary-foreground">
-                <Building2 className="h-6 w-6" />
+                <Building2 className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">ASTRALINK</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-lg sm:text-xl font-bold">ASTRALINK</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Tableau de bord
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user?.user_metadata?.full_name || user?.email}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+              <div className="text-right min-w-0 flex-1 sm:flex-initial">
+                <p className="text-xs sm:text-sm font-medium truncate">{user?.user_metadata?.full_name || user?.email}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Déconnexion
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="shrink-0">
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Déconnexion</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 sm:py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">
             Bienvenue, {user?.user_metadata?.full_name?.split(' ')[0] || 'Utilisateur'}
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Sélectionnez un module pour commencer à gérer vos lieux et votre immeuble
           </p>
         </div>
 
         {/* Modules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {modules.map((module) => {
             const IconComponent = module.icon;
             return (
@@ -195,9 +195,9 @@ export const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-12">
-          <h3 className="text-xl font-semibold mb-4">Actions rapides</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-8 sm:mt-12">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4">Actions rapides</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card className="p-4">
               <div className="flex items-center space-x-3">
                 <Ticket className="h-5 w-5 text-blue-500" />

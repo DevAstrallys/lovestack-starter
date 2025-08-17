@@ -319,8 +319,8 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold">Groupements de Lieux</h3>
           <p className="text-sm text-muted-foreground">
             Les groupements permettent de rassembler plusieurs éléments
@@ -328,12 +328,12 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau
+            <Button onClick={resetForm} className="shrink-0">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Nouveau</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingGroup ? 'Modifier le groupement' : 'Créer un groupement'}

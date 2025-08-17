@@ -112,11 +112,11 @@ export const LocationsManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Gestion des Lieux</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Gestion des Lieux</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Créez et gérez vos lieux : éléments → groupements → ensembles
           </CardDescription>
         </CardHeader>
@@ -126,8 +126,8 @@ export const LocationsManagement: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium mb-2">Organisation actuelle</label>
                 <div className="p-3 bg-muted rounded-md">
-                  <p className="font-medium">{userOrganizations.find(o => o.id === selectedOrganization)?.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-sm sm:text-base">{userOrganizations.find(o => o.id === selectedOrganization)?.name}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Vous pouvez maintenant gérer les lieux de cette organisation
                   </p>
                 </div>
@@ -138,13 +138,27 @@ export const LocationsManagement: React.FC = () => {
       </Card>
 
       <Tabs defaultValue="elements" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="elements">Éléments</TabsTrigger>
-          <TabsTrigger value="groupements">Groupements</TabsTrigger>
-          <TabsTrigger value="ensembles">Ensembles</TabsTrigger>
-          <TabsTrigger value="users">Utilisateurs</TabsTrigger>
-          <TabsTrigger value="tags">Tags</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto">
+          <TabsList className="grid w-full min-w-[400px] grid-cols-5 h-auto p-1">
+            <TabsTrigger value="elements" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <span>Éléments</span>
+            </TabsTrigger>
+            <TabsTrigger value="groupements" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <span className="hidden sm:inline">Groupements</span>
+              <span className="sm:hidden">Groupe.</span>
+            </TabsTrigger>
+            <TabsTrigger value="ensembles" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <span>Ensembles</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <span className="hidden sm:inline">Utilisateurs</span>
+              <span className="sm:hidden">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="tags" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <span>Tags</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
 
         <TabsContent value="elements" className="space-y-4">

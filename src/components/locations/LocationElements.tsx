@@ -393,14 +393,14 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold">Éléments de Lieu</h3>
           <p className="text-sm text-muted-foreground">
             Les éléments sont les unités de base de votre hiérarchie de lieux
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={viewMode} onValueChange={(value: 'cards' | 'table') => setViewMode(value)}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -412,12 +412,12 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
           </Select>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau
+              <Button onClick={resetForm} className="shrink-0">
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Nouveau</span>
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingElement ? 'Modifier l\'élément' : 'Créer un élément'}
@@ -443,9 +443,10 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Description optionnelle"
+                  rows={3}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="address">Adresse</Label>
                   <Input

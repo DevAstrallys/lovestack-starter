@@ -172,23 +172,24 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-2xl font-bold">Gestion des Bâtiments</h3>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl sm:text-2xl font-bold">Gestion des Bâtiments</h3>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Créez et gérez vos bâtiments, puis sélectionnez-en un pour organiser ses lieux
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau bâtiment
+            <Button className="shrink-0">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Nouveau bâtiment</span>
+              <span className="sm:hidden">Nouveau</span>
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-full max-w-lg mx-4">
             <DialogHeader>
               <DialogTitle>Créer un nouveau bâtiment</DialogTitle>
               <DialogDescription>
@@ -214,10 +215,11 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Adresse complète"
+                  rows={3}
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="city">Ville</Label>
                   <Input
@@ -238,7 +240,7 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="country">Pays</Label>
                   <Input
@@ -268,8 +270,8 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        <div className="relative flex-1 max-w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder="Rechercher un bâtiment..."
@@ -281,7 +283,7 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
       </div>
 
       {/* Buildings Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredBuildings.map((building) => (
           <Card key={building.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
@@ -315,22 +317,23 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
                 <span>Créé le {new Date(building.created_at).toLocaleDateString('fr-FR')}</span>
               </div>
               
-              <div className="flex flex-col space-y-2 pt-2">
+              <div className="flex flex-col gap-2 pt-2">
                 <Button 
                   onClick={() => handleSelectBuilding(building)}
                   className="w-full"
+                  size="sm"
                 >
                   Sélectionner ce bâtiment
                 </Button>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => openEditDialog(building)}
                     className="flex-1"
                   >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Modifier
+                    <Edit className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Modifier</span>
                   </Button>
                   <Button 
                     variant={building.is_active ? "destructive" : "default"}
@@ -338,7 +341,7 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
                     onClick={() => toggleBuildingStatus(building.id, building.is_active)}
                     className="flex-1"
                   >
-                    {building.is_active ? "Désactiver" : "Activer"}
+                    <span className="text-xs">{building.is_active ? "Désactiver" : "Activer"}</span>
                   </Button>
                 </div>
               </div>
@@ -365,7 +368,7 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
 
       {/* Edit Building Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-full max-w-lg mx-4">
           <DialogHeader>
             <DialogTitle>Modifier le bâtiment</DialogTitle>
             <DialogDescription>
@@ -391,10 +394,11 @@ export const BuildingsManagement: React.FC<BuildingsManagementProps> = ({ onBuil
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Adresse complète"
+                rows={3}
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit-city">Ville</Label>
                 <Input

@@ -164,6 +164,8 @@ export const Dashboard = () => {
                     navigate('/locations');
                   } else if (module.id === 'users') {
                     navigate('/users');
+                  } else if (module.id === 'ticketing') {
+                    navigate('/tickets');
                   } else {
                     toast.info(`Module ${module.name} - En développement`);
                   }

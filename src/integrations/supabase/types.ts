@@ -444,6 +444,81 @@ export type Database = {
           },
         ]
       }
+      location_category_overrides: {
+        Row: {
+          category_id: string
+          enabled: boolean
+          id: string
+          location_id: string
+        }
+        Insert: {
+          category_id: string
+          enabled?: boolean
+          id?: string
+          location_id: string
+        }
+        Update: {
+          category_id?: string
+          enabled?: boolean
+          id?: string
+          location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_category_overrides_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_category_overrides_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_custom_objects: {
+        Row: {
+          category_id: string
+          custom_label: string
+          enabled: boolean
+          id: string
+          location_id: string
+        }
+        Insert: {
+          category_id: string
+          custom_label: string
+          enabled?: boolean
+          id?: string
+          location_id: string
+        }
+        Update: {
+          category_id?: string
+          custom_label?: string
+          enabled?: boolean
+          id?: string
+          location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_custom_objects_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_custom_objects_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       location_element_tags: {
         Row: {
           element_id: string
@@ -777,6 +852,42 @@ export type Database = {
           },
         ]
       }
+      location_object_overrides: {
+        Row: {
+          enabled: boolean
+          id: string
+          location_id: string
+          object_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: string
+          location_id: string
+          object_id: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: string
+          location_id?: string
+          object_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_object_overrides_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_object_overrides_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "tax_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       location_tags: {
         Row: {
           color: string
@@ -811,6 +922,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      locations: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       memberships: {
         Row: {
@@ -1428,6 +1560,82 @@ export type Database = {
           },
         ]
       }
+      tax_actions: {
+        Row: {
+          id: string
+          key: string
+          label: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          label: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          label?: string
+        }
+        Relationships: []
+      }
+      tax_categories: {
+        Row: {
+          action_id: string
+          id: string
+          key: string
+          label: string
+        }
+        Insert: {
+          action_id: string
+          id?: string
+          key: string
+          label: string
+        }
+        Update: {
+          action_id?: string
+          id?: string
+          key?: string
+          label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_categories_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "tax_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_objects: {
+        Row: {
+          category_id: string
+          id: string
+          key: string
+          label: string
+        }
+        Insert: {
+          category_id: string
+          id?: string
+          key: string
+          label: string
+        }
+        Update: {
+          category_id?: string
+          id?: string
+          key?: string
+          label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_objects_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       taxonomies: {
         Row: {
           code: string
@@ -1749,6 +1957,7 @@ export type Database = {
       }
     }
     Enums: {
+      initiality_enum: "initial" | "relance"
       role_request_status: "pending" | "approved" | "rejected"
       ticket_priority: "low" | "medium" | "high" | "urgent"
       ticket_status:
@@ -1885,6 +2094,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      initiality_enum: ["initial", "relance"],
       role_request_status: ["pending", "approved", "rejected"],
       ticket_priority: ["low", "medium", "high", "urgent"],
       ticket_status: [

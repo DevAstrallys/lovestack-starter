@@ -557,6 +557,7 @@ export type Database = {
           location_data: Json | null
           name: string
           organization_id: string | null
+          parent_id: string | null
           updated_at: string
         }
         Insert: {
@@ -566,6 +567,7 @@ export type Database = {
           location_data?: Json | null
           name: string
           organization_id?: string | null
+          parent_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -575,6 +577,7 @@ export type Database = {
           location_data?: Json | null
           name?: string
           organization_id?: string | null
+          parent_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -583,6 +586,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_elements_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -749,6 +759,7 @@ export type Database = {
           id: string
           name: string
           organization_id: string | null
+          parent_id: string | null
           updated_at: string
         }
         Insert: {
@@ -757,6 +768,7 @@ export type Database = {
           id?: string
           name: string
           organization_id?: string | null
+          parent_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -765,6 +777,7 @@ export type Database = {
           id?: string
           name?: string
           organization_id?: string | null
+          parent_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -773,6 +786,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_groups_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
             referencedColumns: ["id"]
           },
         ]
@@ -1159,9 +1179,11 @@ export type Database = {
           display_label: string | null
           id: string
           is_active: boolean
+          last_regenerated_at: string | null
           location: Json | null
           location_element_id: string | null
           target_slug: string | null
+          version: number | null
         }
         Insert: {
           building_id?: string | null
@@ -1169,9 +1191,11 @@ export type Database = {
           display_label?: string | null
           id?: string
           is_active?: boolean
+          last_regenerated_at?: string | null
           location?: Json | null
           location_element_id?: string | null
           target_slug?: string | null
+          version?: number | null
         }
         Update: {
           building_id?: string | null
@@ -1179,9 +1203,11 @@ export type Database = {
           display_label?: string | null
           id?: string
           is_active?: boolean
+          last_regenerated_at?: string | null
           location?: Json | null
           location_element_id?: string | null
           target_slug?: string | null
+          version?: number | null
         }
         Relationships: [
           {
@@ -1584,18 +1610,21 @@ export type Database = {
           id: string
           key: string
           label: string
+          label_i18n: Json | null
         }
         Insert: {
           action_id: string
           id?: string
           key: string
           label: string
+          label_i18n?: Json | null
         }
         Update: {
           action_id?: string
           id?: string
           key?: string
           label?: string
+          label_i18n?: Json | null
         }
         Relationships: [
           {
@@ -1613,18 +1642,21 @@ export type Database = {
           id: string
           key: string
           label: string
+          label_i18n: Json | null
         }
         Insert: {
           category_id: string
           id?: string
           key: string
           label: string
+          label_i18n?: Json | null
         }
         Update: {
           category_id?: string
           id?: string
           key?: string
           label?: string
+          label_i18n?: Json | null
         }
         Relationships: [
           {
@@ -1659,6 +1691,53 @@ export type Database = {
           label?: Json
         }
         Relationships: []
+      }
+      ticket_activities: {
+        Row: {
+          activity_type: string
+          actor_id: string | null
+          content: string | null
+          created_at: string | null
+          id: string
+          is_internal: boolean | null
+          metadata: Json | null
+          new_value: string | null
+          old_value: string | null
+          ticket_id: string
+        }
+        Insert: {
+          activity_type: string
+          actor_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          is_internal?: boolean | null
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          ticket_id: string
+        }
+        Update: {
+          activity_type?: string
+          actor_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          is_internal?: boolean | null
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_activities_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_attachments: {
         Row: {
@@ -1780,8 +1859,10 @@ export type Database = {
       tickets: {
         Row: {
           assigned_to: string | null
+          attachments: Json | null
           building_id: string
           category_code: string | null
+          category_id: string | null
           closed_at: string | null
           communication_mode: string | null
           created_at: string
@@ -1790,9 +1871,12 @@ export type Database = {
           duplicate_of: string | null
           first_response_at: string | null
           id: string
+          language: string | null
+          last_interaction_at: string | null
           location: Json | null
           meta: Json | null
           nature_code: string | null
+          object_id: string | null
           priority: Database["public"]["Enums"]["ticket_priority"] | null
           reporter_email: string | null
           reporter_name: string | null
@@ -1805,8 +1889,10 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          attachments?: Json | null
           building_id: string
           category_code?: string | null
+          category_id?: string | null
           closed_at?: string | null
           communication_mode?: string | null
           created_at?: string
@@ -1815,9 +1901,12 @@ export type Database = {
           duplicate_of?: string | null
           first_response_at?: string | null
           id?: string
+          language?: string | null
+          last_interaction_at?: string | null
           location?: Json | null
           meta?: Json | null
           nature_code?: string | null
+          object_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
           reporter_email?: string | null
           reporter_name?: string | null
@@ -1830,8 +1919,10 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          attachments?: Json | null
           building_id?: string
           category_code?: string | null
+          category_id?: string | null
           closed_at?: string | null
           communication_mode?: string | null
           created_at?: string
@@ -1840,9 +1931,12 @@ export type Database = {
           duplicate_of?: string | null
           first_response_at?: string | null
           id?: string
+          language?: string | null
+          last_interaction_at?: string | null
           location?: Json | null
           meta?: Json | null
           nature_code?: string | null
+          object_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
           reporter_email?: string | null
           reporter_name?: string | null
@@ -1869,6 +1963,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tickets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tickets_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1880,6 +1981,13 @@ export type Database = {
             columns: ["duplicate_of"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "tax_objects"
             referencedColumns: ["id"]
           },
         ]
@@ -1954,6 +2062,10 @@ export type Database = {
       fn_has_perm: {
         Args: { bld: string; perm_code: string; uid: string }
         Returns: boolean
+      }
+      regenerate_qr_code: {
+        Args: { qr_id: string }
+        Returns: string
       }
     }
     Enums: {

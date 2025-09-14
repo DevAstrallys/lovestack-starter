@@ -160,14 +160,14 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
         <div className="space-y-2">
           <Label className="text-xs font-medium">Lieu</Label>
           <Select 
-            value={filters.locationId || ''} 
-            onValueChange={(value) => handleFilterChange('locationId', value || undefined)}
+            value={filters.locationId || 'all'} 
+            onValueChange={(value) => handleFilterChange('locationId', value === 'all' ? undefined : value)}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Sélectionner un lieu" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les lieux</SelectItem>
+              <SelectItem value="all">Tous les lieux</SelectItem>
               {locations.map((location) => (
                 <SelectItem key={location.id} value={location.id}>
                   {location.name}
@@ -181,15 +181,15 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
         <div className="space-y-2">
           <Label className="text-xs font-medium">Catégorie</Label>
           <Select 
-            value={filters.categoryId || ''} 
-            onValueChange={(value) => handleFilterChange('categoryId', value || undefined)}
+            value={filters.categoryId || 'all'} 
+            onValueChange={(value) => handleFilterChange('categoryId', value === 'all' ? undefined : value)}
             disabled={!filters.locationId}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Sélectionner une catégorie" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Toutes les catégories</SelectItem>
+              <SelectItem value="all">Toutes les catégories</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.label}
@@ -203,15 +203,15 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
         <div className="space-y-2">
           <Label className="text-xs font-medium">Objet</Label>
           <Select 
-            value={filters.objectId || ''} 
-            onValueChange={(value) => handleFilterChange('objectId', value || undefined)}
+            value={filters.objectId || 'all'} 
+            onValueChange={(value) => handleFilterChange('objectId', value === 'all' ? undefined : value)}
             disabled={!filters.categoryId}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Sélectionner un objet" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les objets</SelectItem>
+              <SelectItem value="all">Tous les objets</SelectItem>
               {objects.map((object) => (
                 <SelectItem key={object.id} value={object.id}>
                   {object.label}
@@ -225,14 +225,14 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
         <div className="space-y-2">
           <Label className="text-xs font-medium">Dernière interaction</Label>
           <Select 
-            value={filters.lastInteractionDays?.toString() || ''} 
-            onValueChange={(value) => handleFilterChange('lastInteractionDays', value ? parseInt(value) : undefined)}
+            value={filters.lastInteractionDays?.toString() || 'all'} 
+            onValueChange={(value) => handleFilterChange('lastInteractionDays', value === 'all' ? undefined : (value ? parseInt(value) : undefined))}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Toutes les dates" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Toutes les dates</SelectItem>
+              <SelectItem value="all">Toutes les dates</SelectItem>
               <SelectItem value="1">Dernières 24h</SelectItem>
               <SelectItem value="3">3 derniers jours</SelectItem>
               <SelectItem value="7">7 derniers jours</SelectItem>

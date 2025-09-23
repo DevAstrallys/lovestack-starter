@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { 
   ArrowLeft,
   Users, 
@@ -24,6 +26,7 @@ import { EmailTemplatesManager } from '@/components/admin/EmailTemplatesManager'
 
 export const Admin = () => {
   const { user } = useAuth();
+  const { selectedOrganization, isplatformAdmin } = useOrganization();
   const [activeTab, setActiveTab] = useState('organizations');
 
   return (
@@ -49,6 +52,7 @@ export const Admin = () => {
                 <h1 className="text-lg sm:text-xl font-bold">Administration</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Gestion de la plateforme
+                  {selectedOrganization && ` - ${selectedOrganization.name}`}
                 </p>
               </div>
             </div>
@@ -65,11 +69,27 @@ export const Admin = () => {
       </header>
 
       <main className="container mx-auto px-4 py-4 sm:py-8">
+        {/* Organization Selector for Platform Admins */}
+        {isplatformAdmin && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Sélection d'Organisation</CardTitle>
+              <CardDescription>
+                Choisissez l'organisation à administrer
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OrganizationSelector />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Admin Overview */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold mb-2">Panel d'Administration</h2>
           <p className="text-sm sm:text-base text-muted-foreground">
             Gérez les utilisateurs et permissions de la plateforme
+            {selectedOrganization && ` pour ${selectedOrganization.name}`}
           </p>
         </div>
 

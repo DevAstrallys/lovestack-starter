@@ -20,6 +20,7 @@ export interface TicketFilters {
   objectId?: string;
   assignedTo?: string;
   createdBy?: string;
+  organizationId?: string;
   dateRange?: {
     start: string;
     end: string;
@@ -89,6 +90,22 @@ export function useTickets(filters: TicketFilters = {}) {
 
       if (filters.search) {
         query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+      }
+
+      // Organization filtering - filter by buildings belonging to the organization
+      if (filters.organizationId) {
+        const { data: orgBuildings } = await supabase
+          .from('buildings')
+          .select('id')
+          .eq('organization_id', filters.organizationId);
+        
+        if (orgBuildings?.length) {
+          const buildingIds = orgBuildings.map(b => b.id);
+          query = query.in('building_id', buildingIds);
+        } else {
+          // No buildings for this organization, return empty result
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+        }
       }
 
       // Location filtering based on hierarchy

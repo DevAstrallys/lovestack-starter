@@ -135,7 +135,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
           .from('location_ensembles' as any)
           .insert(ensembleData)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         ensembleId = (data as any).id;
@@ -273,7 +273,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
           organization_id: organizationId
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

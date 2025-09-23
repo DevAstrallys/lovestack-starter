@@ -128,7 +128,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
           .from('location_elements' as any)
           .insert(elementData)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         elementId = (data as any).id;
@@ -304,7 +304,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
           organization_id: organizationId
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -351,7 +351,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
         .from('qr_codes' as any)
         .insert(qrData)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

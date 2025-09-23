@@ -135,7 +135,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
           .from('location_groups' as any)
           .insert(groupData)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         groupId = (data as any).id;
@@ -273,7 +273,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
           organization_id: organizationId
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

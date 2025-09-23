@@ -196,7 +196,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
           phone: data.phone,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
 

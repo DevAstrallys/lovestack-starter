@@ -154,17 +154,19 @@ export function useQRCodeBySlug(slug: string) {
           .select('*')
           .eq('target_slug', slug)
           .eq('is_active', true)
-          .single();
+          .maybeSingle();
 
         if (fetchError) {
-          if (fetchError.code === 'PGRST116') {
-            setError('QR code non trouvé ou inactif');
-          } else {
-            throw fetchError;
-          }
-        } else {
-          setQRCode(data);
+          setError(fetchError.message);
+          return;
         }
+
+        if (!data) {
+          setError('QR code non trouvé ou inactif');
+          return;
+        }
+
+        setQRCode(data);
       } catch (err) {
         console.error('Error loading QR code by slug:', err);
         setError(err instanceof Error ? err.message : 'Erreur lors du chargement du QR code');

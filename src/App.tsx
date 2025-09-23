@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RoleViewProvider } from "@/contexts/RoleViewContext";
+import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import Index from "./pages/Index";
 import { Admin } from "./pages/Admin";
 import { Locations } from "./pages/Locations";
@@ -17,23 +18,25 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <RoleViewProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/locations" element={<Locations />} />
-              <Route path="/users" element={<Users />} />
-              <Route path="/tickets" element={<Tickets />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </RoleViewProvider>
+      <OrganizationProvider>
+        <RoleViewProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/locations" element={<Locations />} />
+                <Route path="/users" element={<Users />} />
+                <Route path="/tickets" element={<Tickets />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </RoleViewProvider>
+      </OrganizationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

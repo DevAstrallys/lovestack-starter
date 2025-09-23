@@ -7,6 +7,7 @@ import { LocationEnsembles } from './LocationEnsembles';
 import { TagsManagement } from './TagsManagement';
 import { BuildingsManagement } from './BuildingsManagement';
 import { LocationUsersManagement } from './LocationUsersManagement';
+import { QRCodeLocationManager } from './QRCodeLocationManager';
 import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { AlertCircle } from 'lucide-react';
@@ -125,7 +126,7 @@ export const LocationsManagement: React.FC = () => {
 
       <Tabs defaultValue="elements" className="space-y-4">
         <div className="w-full overflow-x-auto">
-          <TabsList className="grid w-full min-w-[400px] grid-cols-5 h-auto p-1">
+          <TabsList className="grid w-full min-w-[480px] grid-cols-6 h-auto p-1">
             <TabsTrigger value="elements" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
               <span>Éléments</span>
             </TabsTrigger>
@@ -135,6 +136,10 @@ export const LocationsManagement: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="ensembles" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
               <span>Ensembles</span>
+            </TabsTrigger>
+            <TabsTrigger value="qrcodes" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <span className="hidden sm:inline">QR Codes</span>
+              <span className="sm:hidden">QR</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
               <span className="hidden sm:inline">Utilisateurs</span>
@@ -156,6 +161,10 @@ export const LocationsManagement: React.FC = () => {
 
         <TabsContent value="ensembles" className="space-y-4">
           <LocationEnsembles organizationId={selectedOrganization.id} />
+        </TabsContent>
+
+        <TabsContent value="qrcodes" className="space-y-4">
+          <QRCodeLocationManager organizationId={selectedOrganization.id} />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">

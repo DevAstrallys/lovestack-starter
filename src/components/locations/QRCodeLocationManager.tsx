@@ -11,6 +11,7 @@ import { QrCode, Plus, FileText, Download, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { QRCodeTemplates } from './QRCodeTemplates';
+import { QRCodeFormConfig } from './QRCodeFormConfig';
 import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
 
 interface QRCodeLocationManagerProps {
@@ -37,6 +38,7 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
   const [ensembles, setEnsembles] = useState<LocationEnsemble[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [configQRCode, setConfigQRCode] = useState<QRCodeWithLocation | null>(null);
   
   const [newQRData, setNewQRData] = useState({
     display_label: '',
@@ -89,11 +91,18 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
     try {
       // Récupérer tous les QR codes liés aux éléments de l'organisation
       const elementIds = elements.map(e => e.id);
+      const groupIds = groups.map(g => g.id);  
+      const ensembleIds = ensembles.map(e => e.id);
       
       const { data: qrData, error } = await supabase
         .from('qr_codes')
-        .select('*')
-        .in('location_element_id', elementIds)
+        .select(`
+          *,
+          location_elements(name),
+          location_groups(name),
+          location_ensembles(name)
+        `)
+        .or(`location_element_id.in.(${elementIds.join(',')}),location_group_id.in.(${groupIds.join(',')}),location_ensemble_id.in.(${ensembleIds.join(',')})`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -108,6 +117,18 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
           if (element) {
             location_type = 'element';
             location_name = element.name;
+          }
+        } else if (qr.location_group_id) {
+          const group = groups.find(g => g.id === qr.location_group_id);
+          if (group) {
+            location_type = 'group';
+            location_name = group.name;
+          }
+        } else if (qr.location_ensemble_id) {
+          const ensemble = ensembles.find(e => e.id === qr.location_ensemble_id);
+          if (ensemble) {
+            location_type = 'ensemble';
+            location_name = ensemble.name;
           }
         }
 
@@ -138,12 +159,24 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
       // Générer un slug unique
       const slug = `${newQRData.location_type}-${newQRData.location_id}-${Date.now()}`;
       
-      // Désactiver les anciens QR codes pour ce lieu
+      // Désactiver les anciens QR codes pour ce lieu selon le type
       if (newQRData.location_type === 'element') {
         await supabase
           .from('qr_codes')
           .update({ is_active: false })
           .eq('location_element_id', newQRData.location_id)
+          .eq('is_active', true);
+      } else if (newQRData.location_type === 'group') {
+        await supabase
+          .from('qr_codes')
+          .update({ is_active: false })
+          .eq('location_group_id', newQRData.location_id)
+          .eq('is_active', true);
+      } else if (newQRData.location_type === 'ensemble') {
+        await supabase
+          .from('qr_codes')
+          .update({ is_active: false })
+          .eq('location_ensemble_id', newQRData.location_id)
           .eq('is_active', true);
       }
 
@@ -153,11 +186,23 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
         target_slug: slug,
         version: 1,
         is_active: true,
-        last_regenerated_at: new Date().toISOString()
+        organization_id: organizationId,
+        last_regenerated_at: new Date().toISOString(),
+        form_config: {
+          action: '',
+          category: '',
+          object: '',
+          title_template: '[{initiality}] - [{action}] - [{category}] - [{object}]'
+        }
       };
 
+      // Associer le QR code au bon type de lieu
       if (newQRData.location_type === 'element') {
         qrCodeData.location_element_id = newQRData.location_id;
+      } else if (newQRData.location_type === 'group') {
+        qrCodeData.location_group_id = newQRData.location_id;
+      } else if (newQRData.location_type === 'ensemble') {
+        qrCodeData.location_ensemble_id = newQRData.location_id;
       }
 
       const { error } = await supabase
@@ -344,7 +389,14 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            // Naviguer vers le formulaire de ticket pour ce QR code
+                            window.open(`/ticket-form/${qr.target_slug}`, '_blank');
+                          }}
+                        >
                           <FileText className="h-4 w-4 mr-2" />
                           Formulaire
                         </Button>
@@ -352,7 +404,11 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
                           <Download className="h-4 w-4 mr-2" />
                           Template
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setConfigQRCode(qr)}
+                        >
                           <Settings className="h-4 w-4" />
                         </Button>
                       </div>
@@ -368,6 +424,15 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
           <QRCodeTemplates organizationId={organizationId} />
         </TabsContent>
       </Tabs>
+
+      {configQRCode && (
+        <QRCodeFormConfig
+          qrCode={configQRCode}
+          isOpen={!!configQRCode}
+          onClose={() => setConfigQRCode(null)}
+          onUpdate={loadData}
+        />
+      )}
     </div>
   );
 }

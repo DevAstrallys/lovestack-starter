@@ -5,13 +5,21 @@ export interface QRCode {
   id: string;
   building_id: string | null;
   location_element_id: string | null;
-  location: any;
+  location_group_id: string | null;
+  location_ensemble_id: string | null;
+  organization_id: string | null;
   display_label: string | null;
   target_slug: string | null;
   version: number;
   is_active: boolean;
   last_regenerated_at: string;
   created_at: string;
+  form_config: any;
+  created_by: string | null;
+  // Relations
+  location_elements?: { name: string };
+  location_groups?: { name: string };
+  location_ensembles?: { name: string };
 }
 
 export function useQRCodes(locationElementId?: string, buildingId?: string) {
@@ -25,7 +33,15 @@ export function useQRCodes(locationElementId?: string, buildingId?: string) {
       setLoading(true);
       setError(null);
 
-      let query = supabase.from('qr_codes').select('*').order('version', { ascending: false });
+      let query = supabase
+        .from('qr_codes')
+        .select(`
+          *,
+          location_elements(name),
+          location_groups(name), 
+          location_ensembles(name)
+        `)
+        .order('version', { ascending: false });
 
       if (locationElementId) {
         query = query.eq('location_element_id', locationElementId);

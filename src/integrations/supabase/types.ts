@@ -1187,36 +1187,51 @@ export type Database = {
         Row: {
           building_id: string | null
           created_at: string
+          created_by: string | null
           display_label: string | null
+          form_config: Json | null
           id: string
           is_active: boolean
           last_regenerated_at: string | null
           location: Json | null
           location_element_id: string | null
+          location_ensemble_id: string | null
+          location_group_id: string | null
+          organization_id: string | null
           target_slug: string | null
           version: number | null
         }
         Insert: {
           building_id?: string | null
           created_at?: string
+          created_by?: string | null
           display_label?: string | null
+          form_config?: Json | null
           id?: string
           is_active?: boolean
           last_regenerated_at?: string | null
           location?: Json | null
           location_element_id?: string | null
+          location_ensemble_id?: string | null
+          location_group_id?: string | null
+          organization_id?: string | null
           target_slug?: string | null
           version?: number | null
         }
         Update: {
           building_id?: string | null
           created_at?: string
+          created_by?: string | null
           display_label?: string | null
+          form_config?: Json | null
           id?: string
           is_active?: boolean
           last_regenerated_at?: string | null
           location?: Json | null
           location_element_id?: string | null
+          location_ensemble_id?: string | null
+          location_group_id?: string | null
+          organization_id?: string | null
           target_slug?: string | null
           version?: number | null
         }
@@ -1233,6 +1248,27 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_codes_location_ensemble_id_fkey"
+            columns: ["location_ensemble_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_codes_location_group_id_fkey"
+            columns: ["location_group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

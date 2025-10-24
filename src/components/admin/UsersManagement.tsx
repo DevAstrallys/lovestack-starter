@@ -21,8 +21,6 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { InviteUserDialog } from '@/components/locations/InviteUserDialog';
-import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface Profile {
   id: string;
@@ -53,7 +51,6 @@ interface UserWithMemberships extends Profile {
 }
 
 export const UsersManagement = () => {
-  const { selectedOrganization } = useOrganization();
   const [users, setUsers] = useState<UserWithMemberships[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
@@ -61,7 +58,6 @@ export const UsersManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserWithMemberships | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [newMembershipForm, setNewMembershipForm] = useState({
     organizationId: '',
     roleId: '',
@@ -203,7 +199,7 @@ export const UsersManagement = () => {
             Gérez les utilisateurs et leurs accès aux organisations
           </p>
         </div>
-        <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!selectedOrganization}>
+        <Button>
           <UserPlus className="h-4 w-4 mr-2" />
           Inviter un utilisateur
         </Button>
@@ -414,16 +410,6 @@ export const UsersManagement = () => {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Invite User Dialog */}
-      {selectedOrganization && (
-        <InviteUserDialog
-          isOpen={isInviteDialogOpen}
-          onClose={() => setIsInviteDialogOpen(false)}
-          organizationId={selectedOrganization.id}
-          onSuccess={fetchUsers}
-        />
-      )}
     </div>
   );
 };

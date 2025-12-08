@@ -2110,10 +2110,7 @@ export type Database = {
         Args: { bld: string; perm_code: string; uid: string }
         Returns: boolean
       }
-      regenerate_qr_code: {
-        Args: { qr_id: string }
-        Returns: string
-      }
+      regenerate_qr_code: { Args: { qr_id: string }; Returns: string }
     }
     Enums: {
       initiality_enum: "initial" | "relance"

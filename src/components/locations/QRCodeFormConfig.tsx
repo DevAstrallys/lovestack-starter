@@ -154,14 +154,14 @@ export function QRCodeFormConfig({ qrCode, isOpen, onClose, onUpdate }: QRCodeFo
                 <div className="space-y-2">
                   <Label>Action par défaut</Label>
                   <Select 
-                    value={formConfig.action} 
-                    onValueChange={(value) => setFormConfig(prev => ({ ...prev, action: value }))}
+                    value={formConfig.action || "__none__"} 
+                    onValueChange={(value) => setFormConfig(prev => ({ ...prev, action: value === "__none__" ? "" : value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Aucune" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Aucune sélection</SelectItem>
+                      <SelectItem value="__none__">Aucune sélection</SelectItem>
                       {formConfig.actions_list.map(action => (
                         <SelectItem key={action} value={action}>
                           {action}
@@ -174,14 +174,14 @@ export function QRCodeFormConfig({ qrCode, isOpen, onClose, onUpdate }: QRCodeFo
                 <div className="space-y-2">
                   <Label>Catégorie par défaut</Label>
                   <Select 
-                    value={formConfig.category} 
-                    onValueChange={(value) => setFormConfig(prev => ({ ...prev, category: value }))}
+                    value={formConfig.category || "__none__"} 
+                    onValueChange={(value) => setFormConfig(prev => ({ ...prev, category: value === "__none__" ? "" : value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Aucune" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Aucune sélection</SelectItem>
+                      <SelectItem value="__none__">Aucune sélection</SelectItem>
                       {formConfig.categories_list.map(category => (
                         <SelectItem key={category} value={category}>
                           {category}
@@ -194,14 +194,14 @@ export function QRCodeFormConfig({ qrCode, isOpen, onClose, onUpdate }: QRCodeFo
                 <div className="space-y-2">
                   <Label>Objet par défaut</Label>
                   <Select 
-                    value={formConfig.object} 
-                    onValueChange={(value) => setFormConfig(prev => ({ ...prev, object: value }))}
+                    value={formConfig.object || "__none__"} 
+                    onValueChange={(value) => setFormConfig(prev => ({ ...prev, object: value === "__none__" ? "" : value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Aucun" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Aucune sélection</SelectItem>
+                      <SelectItem value="__none__">Aucune sélection</SelectItem>
                       {formConfig.objects_list.map(object => (
                         <SelectItem key={object} value={object}>
                           {object}

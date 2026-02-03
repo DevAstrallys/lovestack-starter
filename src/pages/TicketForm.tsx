@@ -162,10 +162,21 @@ export function TicketForm() {
       
     } catch (err) {
       console.error('Error creating ticket:', err);
-      const message = err instanceof Error ? err.message : 'Impossible de créer le ticket';
+
+      // Supabase peut renvoyer un objet d'erreur (PostgrestError) qui n'est pas une instance d'Error
+      const anyErr = err as any;
+      const message =
+        (anyErr?.message as string | undefined) ||
+        (err instanceof Error ? err.message : undefined) ||
+        'Impossible de créer le ticket';
+      const details = (anyErr?.details as string | undefined) || (anyErr?.hint as string | undefined);
+      const code = (anyErr?.code as string | undefined);
+
       toast({
         title: 'Erreur',
-        description: message,
+        description: [message, code ? `Code: ${code}` : null, details ? `Détails: ${details}` : null]
+          .filter(Boolean)
+          .join(' — '),
         variant: 'destructive'
       });
     } finally {

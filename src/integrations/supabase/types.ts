@@ -1907,7 +1907,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           attachments: Json | null
-          building_id: string
+          building_id: string | null
           category_code: string | null
           category_id: string | null
           closed_at: string | null
@@ -1937,7 +1937,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           attachments?: Json | null
-          building_id: string
+          building_id?: string | null
           category_code?: string | null
           category_id?: string | null
           closed_at?: string | null
@@ -1967,7 +1967,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           attachments?: Json | null
-          building_id?: string
+          building_id?: string | null
           category_code?: string | null
           category_id?: string | null
           closed_at?: string | null

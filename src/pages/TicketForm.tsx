@@ -119,26 +119,29 @@ export function TicketForm() {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
-        status: 'open' as keyof typeof TICKET_STATUSES,
-        building_id: qrCode?.building_id,
-        organization_id: qrCode?.organization_id,
-        initiality: formData.initiality,
-        action: formData.action,
-        category: formData.category,
-        object: formData.object,
+        status: 'open' as const,
+        building_id: qrCode?.building_id || null,
+        source: 'qr_code',
+        category_code: formData.category || null,
+        nature_code: formData.action || null,
+        reporter_name: formData.contact_name || null,
+        reporter_email: formData.contact_email || null,
+        reporter_phone: formData.contact_phone || null,
         location: {
           type: qrCode?.location_element_id ? 'element' : 
                 qrCode?.location_group_id ? 'group' : 
                 qrCode?.location_ensemble_id ? 'ensemble' : null,
-          id: qrCode?.location_element_id || qrCode?.location_group_id || qrCode?.location_ensemble_id,
-          name: qrCode?.location_elements?.name || qrCode?.location_groups?.name || qrCode?.location_ensembles?.name
+          element_id: qrCode?.location_element_id || null,
+          group_id: qrCode?.location_group_id || null,
+          ensemble_id: qrCode?.location_ensemble_id || null,
+          name: qrCode?.location_elements?.name || qrCode?.location_groups?.name || qrCode?.location_ensembles?.name || null
         },
-        contact_info: {
-          name: formData.contact_name,
-          email: formData.contact_email,
-          phone: formData.contact_phone
-        },
-        qr_code_id: qrCode?.id
+        meta: {
+          qr_code_id: qrCode?.id,
+          organization_id: qrCode?.organization_id,
+          initiality: formData.initiality,
+          object: formData.object
+        }
       };
 
       const { error } = await supabase

@@ -114,12 +114,20 @@ export function TicketForm() {
 
     try {
       setSubmitting(true);
+
+      // Ensure RLS passes: tickets insert policy requires created_by = auth.uid()
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!userData?.user) {
+        throw new Error("Vous devez être connecté pour créer un ticket");
+      }
       
       const ticketData = {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
         status: 'open' as const,
+        created_by: userData.user.id,
         building_id: qrCode?.building_id || null,
         source: 'qr_code',
         category_code: formData.category || null,
@@ -158,9 +166,10 @@ export function TicketForm() {
       
     } catch (err) {
       console.error('Error creating ticket:', err);
+      const message = err instanceof Error ? err.message : 'Impossible de créer le ticket';
       toast({
         title: 'Erreur',
-        description: 'Impossible de créer le ticket',
+        description: message,
         variant: 'destructive'
       });
     } finally {

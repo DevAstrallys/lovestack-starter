@@ -1905,6 +1905,7 @@ export type Database = {
       }
       tickets: {
         Row: {
+          action_code: string | null
           assigned_to: string | null
           attachments: Json | null
           building_id: string | null
@@ -1917,7 +1918,9 @@ export type Database = {
           description: string | null
           duplicate_of: string | null
           first_response_at: string | null
+          follow_up_of_id: string | null
           id: string
+          initiality: string | null
           language: string | null
           last_interaction_at: string | null
           location: Json | null
@@ -1925,6 +1928,7 @@ export type Database = {
           nature_code: string | null
           object_id: string | null
           priority: Database["public"]["Enums"]["ticket_priority"] | null
+          relance_index: number | null
           reporter_email: string | null
           reporter_name: string | null
           reporter_phone: string | null
@@ -1935,6 +1939,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          action_code?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           building_id?: string | null
@@ -1947,7 +1952,9 @@ export type Database = {
           description?: string | null
           duplicate_of?: string | null
           first_response_at?: string | null
+          follow_up_of_id?: string | null
           id?: string
+          initiality?: string | null
           language?: string | null
           last_interaction_at?: string | null
           location?: Json | null
@@ -1955,6 +1962,7 @@ export type Database = {
           nature_code?: string | null
           object_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
+          relance_index?: number | null
           reporter_email?: string | null
           reporter_name?: string | null
           reporter_phone?: string | null
@@ -1965,6 +1973,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          action_code?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           building_id?: string | null
@@ -1977,7 +1986,9 @@ export type Database = {
           description?: string | null
           duplicate_of?: string | null
           first_response_at?: string | null
+          follow_up_of_id?: string | null
           id?: string
+          initiality?: string | null
           language?: string | null
           last_interaction_at?: string | null
           location?: Json | null
@@ -1985,6 +1996,7 @@ export type Database = {
           nature_code?: string | null
           object_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
+          relance_index?: number | null
           reporter_email?: string | null
           reporter_name?: string | null
           reporter_phone?: string | null
@@ -2026,6 +2038,13 @@ export type Database = {
           {
             foreignKeyName: "tickets_duplicate_of_fkey"
             columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_follow_up_of_id_fkey"
+            columns: ["follow_up_of_id"]
             isOneToOne: false
             referencedRelation: "tickets"
             referencedColumns: ["id"]

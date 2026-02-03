@@ -115,19 +115,15 @@ export function TicketForm() {
     try {
       setSubmitting(true);
 
-      // Ensure RLS passes: tickets insert policy requires created_by = auth.uid()
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!userData?.user) {
-        throw new Error("Vous devez être connecté pour créer un ticket");
-      }
+      // Get user if logged in (optional - QR tickets can be anonymous)
+      const { data: userData } = await supabase.auth.getUser();
       
       const ticketData = {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
         status: 'open' as const,
-        created_by: userData.user.id,
+        created_by: userData?.user?.id || null,
         building_id: qrCode?.building_id || null,
         source: 'qr_code',
         category_code: formData.category || null,

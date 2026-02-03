@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { QrCode, Plus, FileText, Download, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { QRCodeTemplates } from './QRCodeTemplates';
 import { QRCodeFormConfig } from './QRCodeFormConfig';
 import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
@@ -48,6 +49,7 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
   });
 
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadData();
@@ -187,6 +189,7 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
         version: 1,
         is_active: true,
         organization_id: organizationId,
+        created_by: user?.id,
         last_regenerated_at: new Date().toISOString(),
         form_config: {
           action: '',

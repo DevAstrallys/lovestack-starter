@@ -41,6 +41,9 @@ export function useTickets(filters: TicketFilters = {}) {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Serialize filters to avoid infinite re-renders when object reference changes
+  const filtersKey = JSON.stringify(filters);
+
   const loadTickets = useCallback(async (page = 0, limit = 20) => {
     try {
       setLoading(true);
@@ -204,7 +207,8 @@ export function useTickets(filters: TicketFilters = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey]);
 
   const createTicket = async (ticketData: Database['public']['Tables']['tickets']['Insert']) => {
     const { data, error: createError } = await supabase

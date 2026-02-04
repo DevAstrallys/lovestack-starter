@@ -32,7 +32,8 @@ export const Tickets = () => {
     );
   }
 
-  if (!selectedOrganization) {
+  // Pour les non-admins sans organisation sélectionnée, afficher un message
+  if (!selectedOrganization && !isplatformAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <NavigationHeader 
@@ -45,15 +46,8 @@ export const Tickets = () => {
               <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Aucune organisation sélectionnée</h3>
               <p className="text-muted-foreground mb-4">
-                {isplatformAdmin 
-                  ? "Sélectionnez une organisation pour voir ses tickets." 
-                  : "Vous devez être assigné à une organisation pour voir les tickets."}
+                Vous devez être assigné à une organisation pour voir les tickets.
               </p>
-              {isplatformAdmin && (
-                <div className="flex justify-center mt-6">
-                  <OrganizationSelector />
-                </div>
-              )}
             </CardContent>
           </Card>
         </main>
@@ -77,7 +71,7 @@ export const Tickets = () => {
   return (
     <div className="min-h-screen bg-background">
       <NavigationHeader 
-        title={`Gestion des Tickets - ${selectedOrganization.name}`}
+        title={`Gestion des Tickets${selectedOrganization ? ` - ${selectedOrganization.name}` : ' - Toutes les organisations'}`}
         description={`${totalCount} ticket${totalCount !== 1 ? 's' : ''} trouvé${totalCount !== 1 ? 's' : ''}`}
       />
       

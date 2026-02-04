@@ -92,19 +92,28 @@ export function useTickets(filters: TicketFilters = {}) {
         query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
       }
 
-      // Organization filtering - filter by buildings belonging to the organization
+      // Organization filtering
+      // IMPORTANT: QR-created tickets can have building_id NULL; in that case the org is stored in meta.organization_id.
       if (filters.organizationId) {
         const { data: orgBuildings } = await supabase
           .from('buildings')
           .select('id')
           .eq('organization_id', filters.organizationId);
-        
-        if (orgBuildings?.length) {
-          const buildingIds = orgBuildings.map(b => b.id);
-          query = query.in('building_id', buildingIds);
+
+        const buildingIds = (orgBuildings || []).map(b => b.id);
+
+        if (buildingIds.length > 0) {
+          // Include tickets for the organization's buildings OR QR tickets tagged with the organization in meta
+          // PostgREST filter syntax supports JSON path access via ->>
+          query = query.or(
+            `building_id.in.(${buildingIds.join(',')}),and(source.eq.qr_code,meta->>organization_id.eq.${filters.organizationId})`
+          );
         } else {
-          // No buildings for this organization, return empty result
-          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+          // No buildings for this organization: still include QR-created tickets for that organization
+          query = query
+            .eq('source', 'qr_code')
+            // JSONB contains match (meta has organization_id as a string)
+            .contains('meta', { organization_id: filters.organizationId });
         }
       }
 

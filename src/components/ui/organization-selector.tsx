@@ -56,7 +56,7 @@ export function OrganizationSelector() {
             <span className="truncate">
               {selectedOrganization 
                 ? selectedOrganization.name 
-                : "Sélectionner une organisation..."
+                : "Toutes les organisations"
               }
             </span>
           </div>
@@ -69,6 +69,28 @@ export function OrganizationSelector() {
           <CommandList>
             <CommandEmpty>Aucune organisation trouvée.</CommandEmpty>
             <CommandGroup>
+              {/* Option "Toutes les organisations" pour les super admins */}
+              <CommandItem
+                key="all"
+                value="Toutes les organisations"
+                onSelect={() => {
+                  setSelectedOrganization(null);
+                  setOpen(false);
+                }}
+              >
+                <Check
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    selectedOrganization === null ? "opacity-100" : "opacity-0"
+                  )}
+                />
+                <div className="flex flex-col">
+                  <span className="font-medium">Toutes les organisations</span>
+                  <span className="text-sm text-muted-foreground">
+                    Voir tous les tickets
+                  </span>
+                </div>
+              </CommandItem>
               {organizations.map((org) => (
                 <CommandItem
                   key={org.id}

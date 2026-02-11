@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { buildTicketTitle, TICKET_PRIORITIES, TICKET_STATUSES } from '@/utils/ticketUtils';
 import { TicketFormStep } from '@/components/tickets/TicketFormStep';
+import { MediaUpload, UploadedFile } from '@/components/tickets/MediaUpload';
 
 export function TicketForm() {
   const { slug } = useParams();
@@ -36,6 +37,8 @@ export function TicketForm() {
     contact_email: '',
     contact_phone: ''
   });
+
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   useEffect(() => {
     const loadQRCode = async () => {
@@ -140,6 +143,7 @@ export function TicketForm() {
           ensemble_id: qrCode?.location_ensemble_id || null,
           name: qrCode?.location_elements?.name || qrCode?.location_groups?.name || qrCode?.location_ensembles?.name || null
         },
+        attachments: uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
         meta: {
           qr_code_id: qrCode?.id,
           organization_id: qrCode?.organization_id,
@@ -353,6 +357,11 @@ export function TicketForm() {
                 rows={4}
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Pièces jointes (photo, audio, vidéo)</Label>
+              <MediaUpload files={uploadedFiles} onFilesChange={setUploadedFiles} />
             </div>
           </TicketFormStep>
 

@@ -7,17 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FileText, Plus, Download, Edit, Eye } from 'lucide-react';
+import { FileText, Plus, Download, Edit, Eye, QrCode, Link } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import QRCodeLib from 'qrcode';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-interface QRCodeTemplatesProps {
-  organizationId: string;
-}
-
-interface Template {
+export interface Template {
   id: string;
   name: string;
   format: 'A4' | 'A5' | 'A6' | 'A7';
@@ -27,7 +23,25 @@ interface Template {
   secondaryColor: string;
   emergencyNumbers: string;
   footerText: string;
+  linkedQRCodeId?: string | null;
   customCSS?: string;
+}
+
+interface QRCodeItem {
+  id: string;
+  display_label: string | null;
+  target_slug: string | null;
+  is_active: boolean;
+  location_name?: string | null;
+  location_type?: string | null;
+}
+
+interface QRCodeTemplatesProps {
+  organizationId: string;
+  qrCodes?: QRCodeItem[];
+  /** When set, opens directly in download mode for a specific QR + template */
+  initialQRCodeId?: string | null;
+  onClose?: () => void;
 }
 
 const defaultTemplates: Template[] = [
@@ -55,13 +69,14 @@ const defaultTemplates: Template[] = [
   }
 ];
 
-export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
+export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId, onClose }: QRCodeTemplatesProps) {
   const [templates, setTemplates] = useState<Template[]>(defaultTemplates);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [previewQRCode, setPreviewQRCode] = useState<string>('');
+  const [selectedQRCodeId, setSelectedQRCodeId] = useState<string>(initialQRCodeId || '');
   
   const [newTemplate, setNewTemplate] = useState<Partial<Template>>({
     name: '',
@@ -81,6 +96,19 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
     A5: { width: 148, height: 210, pixels: { width: 559, height: 794 } },
     A6: { width: 105, height: 148, pixels: { width: 397, height: 559 } },
     A7: { width: 74, height: 105, pixels: { width: 280, height: 397 } }
+  };
+
+  const getQRCodeURL = (qrCodeId?: string): string => {
+    const qr = qrCodes.find(q => q.id === qrCodeId);
+    if (qr?.target_slug) {
+      return `${window.location.origin}/ticket-form/${qr.target_slug}`;
+    }
+    return `${window.location.origin}/qr/sample`;
+  };
+
+  const getSelectedQRLabel = (qrCodeId?: string): string | null => {
+    const qr = qrCodes.find(q => q.id === qrCodeId);
+    return qr ? (qr.display_label || qr.location_name || 'QR Code') : null;
   };
 
   const generateQRCode = async (url: string): Promise<string> => {
@@ -140,18 +168,21 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
     });
   };
 
-  const handlePreview = async (template: Template) => {
+  const handlePreview = async (template: Template, qrCodeId?: string) => {
     setPreviewTemplate(template);
-    const sampleURL = `${window.location.origin}/qr/sample-${template.id}`;
-    const qrCode = await generateQRCode(sampleURL);
+    const qrId = qrCodeId || selectedQRCodeId;
+    setSelectedQRCodeId(qrId);
+    const url = getQRCodeURL(qrId);
+    const qrCode = await generateQRCode(url);
     setPreviewQRCode(qrCode);
     setIsPreviewOpen(true);
   };
 
-  const handleDownloadPDF = async (template: Template, qrCodeURL?: string) => {
+  const handleDownloadPDF = async (template: Template, qrCodeId?: string) => {
     try {
-      const sampleURL = qrCodeURL || `${window.location.origin}/qr/sample-${template.id}`;
-      const qrCodeDataURL = await generateQRCode(sampleURL);
+      const qrId = qrCodeId || selectedQRCodeId;
+      const url = getQRCodeURL(qrId);
+      const qrCodeDataURL = await generateQRCode(url);
       
       const format = formatSizes[template.format];
       const pdf = new jsPDF({
@@ -160,10 +191,8 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
         format: [format.width, format.height]
       });
 
-      // Créer le contenu HTML du template
       const templateHTML = createTemplateHTML(template, qrCodeDataURL);
       
-      // Créer un élément temporaire pour le rendu
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = templateHTML;
       tempDiv.style.width = `${format.pixels.width}px`;
@@ -172,7 +201,6 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
       tempDiv.style.left = '-9999px';
       document.body.appendChild(tempDiv);
 
-      // Capturer avec html2canvas
       const canvas = await html2canvas(tempDiv, {
         width: format.pixels.width,
         height: format.pixels.height,
@@ -181,12 +209,14 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
 
       document.body.removeChild(tempDiv);
 
-      // Ajouter l'image au PDF
       const imgData = canvas.toDataURL('image/png');
       pdf.addImage(imgData, 'PNG', 0, 0, format.width, format.height);
 
-      // Télécharger le PDF
-      pdf.save(`template-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.format}.pdf`);
+      const qrLabel = getSelectedQRLabel(qrId);
+      const fileName = qrLabel
+        ? `template-${template.name.toLowerCase().replace(/\s+/g, '-')}-${qrLabel.toLowerCase().replace(/\s+/g, '-')}-${template.format}.pdf`
+        : `template-${template.name.toLowerCase().replace(/\s+/g, '-')}-${template.format}.pdf`;
+      pdf.save(fileName);
 
       toast({
         title: 'PDF généré',
@@ -323,6 +353,8 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
       </div>
     `;
   };
+
+  const activeQRCodes = qrCodes.filter(qr => qr.is_active);
 
   return (
     <div className="space-y-6">
@@ -481,6 +513,43 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
         </CardHeader>
         
         <CardContent>
+          {/* QR Code selector */}
+          {activeQRCodes.length > 0 && (
+            <div className="mb-6 p-4 border rounded-lg bg-muted/30">
+              <div className="flex items-center gap-2 mb-2">
+                <Link className="h-4 w-4 text-muted-foreground" />
+                <Label className="font-semibold">QR Code à intégrer dans le template</Label>
+              </div>
+              <Select
+                value={selectedQRCodeId || '__none__'}
+                onValueChange={(value) => setSelectedQRCodeId(value === '__none__' ? '' : value)}
+              >
+                <SelectTrigger className="max-w-md">
+                  <SelectValue placeholder="Sélectionner un QR Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Aucun (aperçu avec QR exemple)</SelectItem>
+                  {activeQRCodes.map(qr => (
+                    <SelectItem key={qr.id} value={qr.id}>
+                      <div className="flex items-center gap-2">
+                        <QrCode className="h-3 w-3" />
+                        {qr.display_label || qr.location_name || 'QR Code'}
+                        {qr.location_type && (
+                          <span className="text-muted-foreground text-xs">({qr.location_type})</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedQRCodeId && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Le QR code sélectionné sera intégré dans l'aperçu et le PDF téléchargé.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((template) => (
               <Card key={template.id} className="border-2 hover:border-primary/50 transition-colors">
@@ -536,8 +605,48 @@ export function QRCodeTemplates({ organizationId }: QRCodeTemplatesProps) {
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Aperçu - {previewTemplate?.name}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              Aperçu - {previewTemplate?.name}
+              {selectedQRCodeId && (
+                <Badge variant="secondary" className="ml-2">
+                  <QrCode className="h-3 w-3 mr-1" />
+                  {getSelectedQRLabel(selectedQRCodeId)}
+                </Badge>
+              )}
+            </DialogTitle>
           </DialogHeader>
+
+          {/* QR Code selector in preview */}
+          {activeQRCodes.length > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <Label className="text-sm whitespace-nowrap">QR Code :</Label>
+              <Select
+                value={selectedQRCodeId || '__none__'}
+                onValueChange={async (value) => {
+                  const qrId = value === '__none__' ? '' : value;
+                  setSelectedQRCodeId(qrId);
+                  if (previewTemplate) {
+                    const url = getQRCodeURL(qrId);
+                    const qr = await generateQRCode(url);
+                    setPreviewQRCode(qr);
+                  }
+                }}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue placeholder="Sélectionner un QR Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">QR Code exemple</SelectItem>
+                  {activeQRCodes.map(qr => (
+                    <SelectItem key={qr.id} value={qr.id}>
+                      {qr.display_label || qr.location_name || 'QR Code'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {previewTemplate && (
             <div className="bg-white border rounded-lg overflow-hidden">
               <div 

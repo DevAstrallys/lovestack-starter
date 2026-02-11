@@ -40,6 +40,8 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [configQRCode, setConfigQRCode] = useState<QRCodeWithLocation | null>(null);
+  const [activeTab, setActiveTab] = useState('list');
+  const [templateQRCodeId, setTemplateQRCodeId] = useState<string | null>(null);
   
   const [newQRData, setNewQRData] = useState({
     display_label: '',
@@ -352,7 +354,7 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="list" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="list" className="flex items-center gap-2">
             <QrCode className="h-4 w-4" />
@@ -403,7 +405,14 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
                           <FileText className="h-4 w-4 mr-2" />
                           Formulaire
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setTemplateQRCodeId(qr.id);
+                            setActiveTab('templates');
+                          }}
+                        >
                           <Download className="h-4 w-4 mr-2" />
                           Template
                         </Button>
@@ -424,7 +433,18 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
-          <QRCodeTemplates organizationId={organizationId} />
+          <QRCodeTemplates 
+            organizationId={organizationId} 
+            qrCodes={qrCodes.map(qr => ({
+              id: qr.id,
+              display_label: qr.display_label,
+              target_slug: qr.target_slug,
+              is_active: qr.is_active,
+              location_name: qr.location_name,
+              location_type: qr.location_type
+            }))}
+            initialQRCodeId={templateQRCodeId}
+          />
         </TabsContent>
       </Tabs>
 

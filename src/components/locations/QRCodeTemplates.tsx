@@ -77,6 +77,7 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [previewQRCode, setPreviewQRCode] = useState<string>('');
   const [selectedQRCodeId, setSelectedQRCodeId] = useState<string>(initialQRCodeId || '');
+  const [baseUrl, setBaseUrl] = useState<string>('');
 
   // Sync when initialQRCodeId prop changes (e.g. user clicks "Template" on a QR code)
   useEffect(() => {
@@ -105,12 +106,17 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
     A7: { width: 74, height: 105, pixels: { width: 280, height: 397 } }
   };
 
+  const getEffectiveBaseUrl = (): string => {
+    if (baseUrl.trim()) return baseUrl.trim().replace(/\/$/, '');
+    return window.location.origin;
+  };
+
   const getQRCodeURL = (qrCodeId?: string): string => {
     const qr = qrCodes.find(q => q.id === qrCodeId);
     if (qr?.target_slug) {
-      return `${window.location.origin}/ticket-form/${qr.target_slug}`;
+      return `${getEffectiveBaseUrl()}/ticket-form/${qr.target_slug}`;
     }
-    return `${window.location.origin}/qr/sample`;
+    return `${getEffectiveBaseUrl()}/qr/sample`;
   };
 
   const getSelectedQRLabel = (qrCodeId?: string): string | null => {
@@ -522,38 +528,56 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
         <CardContent>
           {/* QR Code selector */}
           {activeQRCodes.length > 0 && (
-            <div className="mb-6 p-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2 mb-2">
-                <Link className="h-4 w-4 text-muted-foreground" />
-                <Label className="font-semibold">QR Code à intégrer dans le template</Label>
+            <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Link className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-semibold">QR Code à intégrer dans le template</Label>
+                </div>
+                <Select
+                  value={selectedQRCodeId || '__none__'}
+                  onValueChange={(value) => setSelectedQRCodeId(value === '__none__' ? '' : value)}
+                >
+                  <SelectTrigger className="max-w-md">
+                    <SelectValue placeholder="Sélectionner un QR Code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Aucun (aperçu avec QR exemple)</SelectItem>
+                    {activeQRCodes.map(qr => (
+                      <SelectItem key={qr.id} value={qr.id}>
+                        <div className="flex items-center gap-2">
+                          <QrCode className="h-3 w-3" />
+                          {qr.display_label || qr.location_name || 'QR Code'}
+                          {qr.location_type && (
+                            <span className="text-muted-foreground text-xs">({qr.location_type})</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedQRCodeId && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Le QR code sélectionné sera intégré dans l'aperçu et le PDF téléchargé.
+                  </p>
+                )}
               </div>
-              <Select
-                value={selectedQRCodeId || '__none__'}
-                onValueChange={(value) => setSelectedQRCodeId(value === '__none__' ? '' : value)}
-              >
-                <SelectTrigger className="max-w-md">
-                  <SelectValue placeholder="Sélectionner un QR Code" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Aucun (aperçu avec QR exemple)</SelectItem>
-                  {activeQRCodes.map(qr => (
-                    <SelectItem key={qr.id} value={qr.id}>
-                      <div className="flex items-center gap-2">
-                        <QrCode className="h-3 w-3" />
-                        {qr.display_label || qr.location_name || 'QR Code'}
-                        {qr.location_type && (
-                          <span className="text-muted-foreground text-xs">({qr.location_type})</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedQRCodeId && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Le QR code sélectionné sera intégré dans l'aperçu et le PDF téléchargé.
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Link className="h-4 w-4" />
+                  URL de base (pour le QR code scanné)
+                </Label>
+                <Input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={`${window.location.origin} (par défaut)`}
+                  className="max-w-md"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Publiez votre app puis collez ici l'URL publiée pour que les QR codes fonctionnent une fois scannés.
                 </p>
-              )}
+              </div>
             </div>
           )}
 

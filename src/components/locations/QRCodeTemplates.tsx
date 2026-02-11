@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +77,13 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [previewQRCode, setPreviewQRCode] = useState<string>('');
   const [selectedQRCodeId, setSelectedQRCodeId] = useState<string>(initialQRCodeId || '');
+
+  // Sync when initialQRCodeId prop changes (e.g. user clicks "Template" on a QR code)
+  useEffect(() => {
+    if (initialQRCodeId) {
+      setSelectedQRCodeId(initialQRCodeId);
+    }
+  }, [initialQRCodeId]);
   
   const [newTemplate, setNewTemplate] = useState<Partial<Template>>({
     name: '',

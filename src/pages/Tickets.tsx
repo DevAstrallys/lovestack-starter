@@ -5,6 +5,7 @@ import { Plus, AlertCircle } from 'lucide-react';
 import { TicketCreateForm } from '@/components/tickets/TicketCreateForm';
 import { TicketsList } from '@/components/tickets/TicketsList';
 import { TicketFilters } from '@/components/tickets/TicketFilters';
+import { TicketDetailDialog } from '@/components/tickets/TicketDetailDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { OrganizationSelector } from '@/components/ui/organization-selector';
@@ -65,7 +66,6 @@ export const Tickets = () => {
 
   const handleTicketClick = (ticket: Ticket) => {
     setSelectedTicket(ticket);
-    // TODO: Open ticket detail dialog or navigate to ticket detail page
   };
 
   return (
@@ -136,6 +136,12 @@ export const Tickets = () => {
           </div>
         </div>
       </main>
+
+      <TicketDetailDialog
+        ticket={selectedTicket}
+        open={!!selectedTicket}
+        onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
+      />
     </div>
   );
 };

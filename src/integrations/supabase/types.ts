@@ -340,6 +340,13 @@ export type Database = {
             referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "document_links_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documents: {
@@ -1784,6 +1791,13 @@ export type Database = {
             referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ticket_activities_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ticket_attachments: {
@@ -1820,6 +1834,13 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
             referencedColumns: ["id"]
           },
           {
@@ -1871,6 +1892,13 @@ export type Database = {
             referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ticket_events_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ticket_followers: {
@@ -1892,6 +1920,13 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_followers_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2043,10 +2078,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tickets_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tickets_follow_up_of_id_fkey"
             columns: ["follow_up_of_id"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_follow_up_of_id_fkey"
+            columns: ["follow_up_of_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2098,7 +2147,234 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      qr_codes_public: {
+        Row: {
+          display_label: string | null
+          form_config: Json | null
+          id: string | null
+          is_active: boolean | null
+          location: Json | null
+          location_element_id: string | null
+          location_ensemble_id: string | null
+          location_group_id: string | null
+          organization_id: string | null
+          target_slug: string | null
+        }
+        Insert: {
+          display_label?: string | null
+          form_config?: Json | null
+          id?: string | null
+          is_active?: boolean | null
+          location?: Json | null
+          location_element_id?: string | null
+          location_ensemble_id?: string | null
+          location_group_id?: string | null
+          organization_id?: string | null
+          target_slug?: string | null
+        }
+        Update: {
+          display_label?: string | null
+          form_config?: Json | null
+          id?: string | null
+          is_active?: boolean | null
+          location?: Json | null
+          location_element_id?: string | null
+          location_ensemble_id?: string | null
+          location_group_id?: string | null
+          organization_id?: string | null
+          target_slug?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_qr_codes_location_element"
+            columns: ["location_element_id"]
+            isOneToOne: false
+            referencedRelation: "location_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_codes_location_ensemble_id_fkey"
+            columns: ["location_ensemble_id"]
+            isOneToOne: false
+            referencedRelation: "location_ensembles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_codes_location_group_id_fkey"
+            columns: ["location_group_id"]
+            isOneToOne: false
+            referencedRelation: "location_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qr_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets_safe: {
+        Row: {
+          action_code: string | null
+          assigned_to: string | null
+          attachments: Json | null
+          building_id: string | null
+          category_code: string | null
+          category_id: string | null
+          closed_at: string | null
+          communication_mode: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          duplicate_of: string | null
+          first_response_at: string | null
+          follow_up_of_id: string | null
+          id: string | null
+          initiality: string | null
+          language: string | null
+          last_interaction_at: string | null
+          location: Json | null
+          meta: Json | null
+          nature_code: string | null
+          object_id: string | null
+          priority: Database["public"]["Enums"]["ticket_priority"] | null
+          relance_index: number | null
+          sla_due_at: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["ticket_status"] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_code?: string | null
+          assigned_to?: string | null
+          attachments?: Json | null
+          building_id?: string | null
+          category_code?: string | null
+          category_id?: string | null
+          closed_at?: string | null
+          communication_mode?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duplicate_of?: string | null
+          first_response_at?: string | null
+          follow_up_of_id?: string | null
+          id?: string | null
+          initiality?: string | null
+          language?: string | null
+          last_interaction_at?: string | null
+          location?: Json | null
+          meta?: Json | null
+          nature_code?: string | null
+          object_id?: string | null
+          priority?: Database["public"]["Enums"]["ticket_priority"] | null
+          relance_index?: number | null
+          sla_due_at?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_code?: string | null
+          assigned_to?: string | null
+          attachments?: Json | null
+          building_id?: string | null
+          category_code?: string | null
+          category_id?: string | null
+          closed_at?: string | null
+          communication_mode?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duplicate_of?: string | null
+          first_response_at?: string | null
+          follow_up_of_id?: string | null
+          id?: string | null
+          initiality?: string | null
+          language?: string | null
+          last_interaction_at?: string | null
+          location?: Json | null
+          meta?: Json | null
+          nature_code?: string | null
+          object_id?: string | null
+          priority?: Database["public"]["Enums"]["ticket_priority"] | null
+          relance_index?: number | null
+          sla_due_at?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_follow_up_of_id_fkey"
+            columns: ["follow_up_of_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_follow_up_of_id_fkey"
+            columns: ["follow_up_of_id"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "tax_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       fn_context_covers: {

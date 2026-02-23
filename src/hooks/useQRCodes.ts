@@ -165,8 +165,9 @@ export function useQRCodeBySlug(slug: string) {
         setLoading(true);
         setError(null);
 
+        // Use the restricted public view (excludes created_by, building_id)
         const { data, error: fetchError } = await supabase
-          .from('qr_codes')
+          .from('qr_codes_public' as any)
           .select('*')
           .eq('target_slug', slug)
           .eq('is_active', true)
@@ -182,7 +183,7 @@ export function useQRCodeBySlug(slug: string) {
           return;
         }
 
-        setQRCode(data);
+        setQRCode(data as unknown as QRCode);
       } catch (err) {
         console.error('Error loading QR code by slug:', err);
         setError(err instanceof Error ? err.message : 'Erreur lors du chargement du QR code');

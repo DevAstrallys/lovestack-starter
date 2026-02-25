@@ -8,6 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0';
 import { WelcomeEmail } from './_templates/welcome.tsx';
 import { NotificationEmail } from './_templates/notification.tsx';
 import { TicketEmail } from './_templates/ticket.tsx';
+import { ReplyEmail } from './_templates/reply.tsx';
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
 
@@ -17,10 +18,11 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  template: 'welcome' | 'notification' | 'ticket';
+  template: 'welcome' | 'notification' | 'ticket' | 'reply';
   to: string[];
   data: any;
   from?: string;
+  replyTo?: string;
 }
 
 const supabase = createClient(
@@ -35,7 +37,7 @@ serve(async (req) => {
   }
 
   try {
-    const { template, to, data, from = 'Votre App <onboarding@resend.dev>' }: EmailRequest = await req.json();
+    const { template, to, data, from = 'Votre App <onboarding@resend.dev>', replyTo }: EmailRequest = await req.json();
 
     console.log(`Sending ${template} email to:`, to);
 
@@ -56,17 +58,24 @@ serve(async (req) => {
         html = await renderAsync(React.createElement(TicketEmail, data));
         subject = `Ticket #${data.ticketNumber} - ${data.status}`;
         break;
+      case 'reply':
+        html = await renderAsync(React.createElement(ReplyEmail, data));
+        subject = `Re: ${data.ticketTitle}`;
+        break;
       default:
         throw new Error(`Template non supporté: ${template}`);
     }
 
     // Send email
-    const { data: emailData, error } = await resend.emails.send({
+    const sendOptions: any = {
       from,
       to,
       subject,
       html,
-    });
+    };
+    if (replyTo) sendOptions.reply_to = replyTo;
+
+    const { data: emailData, error } = await resend.emails.send(sendOptions);
 
     if (error) {
       console.error('Erreur Resend:', error);

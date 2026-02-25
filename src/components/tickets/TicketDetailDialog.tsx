@@ -10,7 +10,7 @@ import {
   Calendar, MapPin, Tag, User, Phone, Mail, 
   Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
-import { Ticket, useTicketActivities } from '@/hooks/useTickets';
+import { Ticket, useTicketActivities, TicketActivity } from '@/hooks/useTickets';
 import { TICKET_STATUSES, TICKET_PRIORITIES } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -65,19 +65,101 @@ const getMediaIcon = (type: string) => {
   return <Paperclip className="h-4 w-4" />;
 };
 
+/**
+ * Chat-like conversation view: 
+ * - Original ticket description → right, red bubble (demandeur)
+ * - Outbound replies (team) → left, green bubble
+ * - Inbound replies (demandeur) → right, red bubble
+ */
+function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: string }) {
+  const { activities, loading } = useTicketActivities(ticketId);
+
+  // Build conversation messages: start with the original description, then replies in chronological order
+  const replyActivities = (activities || [])
+    .filter(a => a.activity_type === 'reply')
+    .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
+
+  return (
+    <div className="space-y-4">
+      {/* Original ticket description — right side, red (demandeur) */}
+      <div className="flex justify-end">
+        <div className="max-w-[75%]">
+          <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
+            <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
+          </div>
+          <div className="flex justify-end items-center gap-1.5 mt-1">
+            <span className="text-[11px] text-muted-foreground">
+              {ticket.reporter_name || 'Demandeur'} • {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Replies */}
+      {loading && (
+        <p className="text-xs text-muted-foreground text-center">Chargement des messages…</p>
+      )}
+
+      {replyActivities.map((activity) => {
+        const meta = activity.metadata as any;
+        const isInbound = meta?.direction === 'inbound';
+
+        if (isInbound) {
+          // Inbound (demandeur) → right, red
+          return (
+            <div key={activity.id} className="flex justify-end">
+              <div className="max-w-[75%]">
+                <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
+                  <p className="text-sm whitespace-pre-wrap">{activity.content}</p>
+                </div>
+                <div className="flex justify-end items-center gap-1.5 mt-1">
+                  <span className="text-[11px] text-muted-foreground">
+                    {ticket.reporter_name || 'Demandeur'} • {activity.created_at && format(new Date(activity.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Outbound (team) → left, green
+        return (
+          <div key={activity.id} className="flex justify-start">
+            <div className="max-w-[75%]">
+              <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-green-100 border border-green-200 text-green-900">
+                <p className="text-sm whitespace-pre-wrap">{activity.content}</p>
+              </div>
+              <div className="flex justify-start items-center gap-1.5 mt-1">
+                <span className="text-[11px] text-muted-foreground">
+                  Vous • {activity.created_at && format(new Date(activity.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {!loading && replyActivities.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center italic">Aucune réponse pour le moment.</p>
+      )}
+    </div>
+  );
+}
+
+/** Non-reply activity timeline (status changes, assignments, etc.) */
 function ActivityTimeline({ ticketId }: { ticketId: string }) {
   const { activities, loading } = useTicketActivities(ticketId);
 
-  if (loading) return <p className="text-sm text-muted-foreground">Chargement de l'historique…</p>;
-  if (activities.length === 0) return <p className="text-sm text-muted-foreground">Aucune activité enregistrée.</p>;
+  const nonReplyActivities = (activities || []).filter(a => a.activity_type !== 'reply');
+
+  if (loading) return <p className="text-sm text-muted-foreground">Chargement…</p>;
+  if (nonReplyActivities.length === 0) return <p className="text-sm text-muted-foreground">Aucune activité enregistrée.</p>;
 
   return (
     <div className="space-y-3">
-      {activities.map((activity) => (
+      {nonReplyActivities.map((activity) => (
         <div key={activity.id} className="flex gap-3 text-sm">
-          <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
-            activity.activity_type === 'reply' ? 'bg-primary' : 'bg-muted-foreground'
-          }`} />
+          <div className="mt-1 h-2 w-2 rounded-full flex-shrink-0 bg-muted-foreground" />
           <div className="flex-1">
             <p className="text-foreground">
               {activity.activity_type === 'status_change' && (
@@ -88,18 +170,7 @@ function ActivityTimeline({ ticketId }: { ticketId: string }) {
                 <>Priorité changée de <Badge variant="outline" className="text-xs mx-1">{activity.old_value}</Badge> à <Badge variant="outline" className="text-xs mx-1">{activity.new_value}</Badge></>
               )}
               {activity.activity_type === 'comment' && activity.content}
-              {activity.activity_type === 'reply' && (
-                <div className="rounded-md border border-border bg-muted/50 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <MessageSquare className="h-3.5 w-3.5 text-primary" />
-                    <span className="font-medium text-xs">
-                      {(activity.metadata as any)?.direction === 'inbound' ? 'Réponse du demandeur' : 'Réponse envoyée'}
-                    </span>
-                  </div>
-                  <p className="whitespace-pre-wrap">{activity.content}</p>
-                </div>
-              )}
-              {!['status_change', 'assignment', 'priority_change', 'comment', 'reply'].includes(activity.activity_type) && activity.activity_type}
+              {!['status_change', 'assignment', 'priority_change', 'comment'].includes(activity.activity_type) && activity.activity_type}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {activity.created_at && format(new Date(activity.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
@@ -111,7 +182,7 @@ function ActivityTimeline({ ticketId }: { ticketId: string }) {
   );
 }
 
-function ReplyForm({ ticket }: { ticket: Ticket }) {
+function ReplyForm({ ticket, onSent }: { ticket: Ticket; onSent?: () => void }) {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const { user } = useAuth();
@@ -122,7 +193,6 @@ function ReplyForm({ ticket }: { ticket: Ticket }) {
     if (!content.trim() || !canReply) return;
     setSending(true);
     try {
-      // 1. Save as ticket_activity
       const { error: activityError } = await supabase
         .from('ticket_activities')
         .insert({
@@ -135,7 +205,6 @@ function ReplyForm({ ticket }: { ticket: Ticket }) {
 
       if (activityError) throw activityError;
 
-      // 2. Send email via edge function
       const { error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
           template: 'reply',
@@ -157,6 +226,7 @@ function ReplyForm({ ticket }: { ticket: Ticket }) {
       }
 
       setContent('');
+      onSent?.();
     } catch (err) {
       console.error('Error sending reply:', err);
       toast.error('Erreur lors de l\'envoi de la réponse.');
@@ -167,46 +237,40 @@ function ReplyForm({ ticket }: { ticket: Ticket }) {
 
   if (!canReply) {
     return (
-      <div className="text-sm text-muted-foreground italic">
+      <div className="text-sm text-muted-foreground italic text-center py-2">
         Aucun email de demandeur – impossible de répondre.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex gap-2 items-end">
       <Textarea
         placeholder={`Répondre à ${ticket.reporter_name || ticket.reporter_email}…`}
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        rows={3}
-        className="resize-none"
+        rows={2}
+        className="resize-none flex-1 min-h-[44px]"
       />
-      <div className="flex justify-between items-center">
-        <p className="text-xs text-muted-foreground">
-          <Mail className="h-3 w-3 inline mr-1" />
-          Sera envoyé à {ticket.reporter_email}
-        </p>
-        <Button onClick={handleSend} disabled={!content.trim() || sending} size="sm">
-          <Send className="h-4 w-4 mr-1.5" />
-          {sending ? 'Envoi…' : 'Envoyer'}
-        </Button>
-      </div>
+      <Button onClick={handleSend} disabled={!content.trim() || sending} size="icon" className="h-11 w-11 shrink-0">
+        <Send className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
 
 export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailDialogProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
+
   if (!ticket) return null;
 
   const location = ticket.location as Record<string, any> | null;
   const locationName = location?.name || location?.element_name || null;
-  const meta = ticket.meta as Record<string, any> | null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0">
-        <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
           <DialogTitle className="text-lg leading-snug pr-8">{ticket.title}</DialogTitle>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
@@ -227,144 +291,92 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
               </Badge>
             )}
           </div>
+
+          {/* Compact metadata row */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+            </span>
+            {locationName && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {locationName}
+              </span>
+            )}
+            {ticket.reporter_name && (
+              <span className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                {ticket.reporter_name}
+              </span>
+            )}
+            {ticket.reporter_email && (
+              <span className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                {ticket.reporter_email}
+              </span>
+            )}
+          </div>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-120px)]">
-          <div className="px-6 pb-6 space-y-6">
-            {/* Description */}
-            <section className="space-y-2 pt-2">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Description</h4>
-              <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
-            </section>
+        <Separator className="mt-4" />
 
-            <Separator />
+        {/* Conversation area */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-6 py-4" key={refreshKey}>
+            <ConversationThread ticket={ticket} ticketId={ticket.id} />
+          </div>
 
-            {/* Metadata grid */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-start gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium">Créé le</p>
-                  <p className="text-muted-foreground">{format(new Date(ticket.created_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium">Dernière interaction</p>
-                  <p className="text-muted-foreground">{ticket.last_interaction_at ? format(new Date(ticket.last_interaction_at), 'dd MMMM yyyy à HH:mm', { locale: fr }) : '—'}</p>
-                </div>
-              </div>
-
-              {locationName && (
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Lieu</p>
-                    <p className="text-muted-foreground">{locationName}</p>
-                  </div>
-                </div>
-              )}
-
-              {(ticket.category_code || ticket.nature_code) && (
-                <div className="flex items-start gap-2">
-                  <Tag className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Catégorie / Action</p>
-                    <p className="text-muted-foreground">
-                      {ticket.nature_code}{ticket.nature_code && ticket.category_code ? ' • ' : ''}{ticket.category_code}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Reporter */}
-            {(ticket.reporter_name || ticket.reporter_email || ticket.reporter_phone) && (
-              <>
-                <Separator />
-                <section className="space-y-2">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Demandeur</h4>
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    {ticket.reporter_name && (
-                      <div className="flex items-center gap-1.5">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{ticket.reporter_name}</span>
+          {/* Attachments */}
+          {ticket.attachments && ticket.attachments.length > 0 && (
+            <div className="px-6 pb-4">
+              <Separator className="mb-4" />
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Pièces jointes ({ticket.attachments.length})
+              </h4>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {ticket.attachments.map((att: any, i: number) => (
+                  <a
+                    key={i}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-md border border-border overflow-hidden hover:ring-2 hover:ring-primary/40 transition-shadow"
+                  >
+                    {att.type === 'image' ? (
+                      <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-20 bg-muted">
+                        {getMediaIcon(att.type)}
                       </div>
                     )}
-                    {ticket.reporter_email && (
-                      <a href={`mailto:${ticket.reporter_email}`} className="flex items-center gap-1.5 text-primary hover:underline">
-                        <Mail className="h-4 w-4" />
-                        <span>{ticket.reporter_email}</span>
-                      </a>
-                    )}
-                    {ticket.reporter_phone && (
-                      <a href={`tel:${ticket.reporter_phone}`} className="flex items-center gap-1.5 text-primary hover:underline">
-                        <Phone className="h-4 w-4" />
-                        <span>{ticket.reporter_phone}</span>
-                      </a>
-                    )}
-                  </div>
-                </section>
-              </>
-            )}
+                    <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground truncate">
+                      {att.name}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
-            {/* Attachments */}
-            {ticket.attachments && ticket.attachments.length > 0 && (
-              <>
-                <Separator />
-                <section className="space-y-3">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Pièces jointes ({ticket.attachments.length})
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {ticket.attachments.map((att: any, i: number) => (
-                      <a
-                        key={i}
-                        href={att.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded-md border border-border overflow-hidden hover:ring-2 hover:ring-primary/40 transition-shadow"
-                      >
-                        {att.type === 'image' ? (
-                          <img src={att.url} alt={att.name} className="w-full h-28 object-cover" />
-                        ) : att.type === 'video' ? (
-                          <video src={att.url} className="w-full h-28 object-cover" />
-                        ) : att.type === 'audio' ? (
-                          <div className="flex items-center justify-center h-28 bg-muted p-2">
-                            <audio controls src={att.url} className="w-full h-8" onClick={(e) => e.preventDefault()} />
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center h-28 bg-muted">
-                            <Paperclip className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="px-2 py-1 flex items-center gap-1 text-xs text-muted-foreground truncate">
-                          {getMediaIcon(att.type)}
-                          <span className="truncate">{att.name}</span>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </section>
-              </>
-            )}
-
-            {/* Reply form */}
-            <Separator />
-            <section className="space-y-3">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Répondre</h4>
-              <ReplyForm ticket={ticket} />
-            </section>
-
-            {/* Activity timeline */}
-            <Separator />
-            <section className="space-y-3">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Historique</h4>
-              <ActivityTimeline ticketId={ticket.id} />
-            </section>
+          {/* Activity log (non-reply events) */}
+          <div className="px-6 pb-4">
+            <Separator className="mb-4" />
+            <details className="group">
+              <summary className="text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none">
+                Historique des actions ▸
+              </summary>
+              <div className="mt-3">
+                <ActivityTimeline ticketId={ticket.id} />
+              </div>
+            </details>
           </div>
         </ScrollArea>
+
+        {/* Reply input — pinned at bottom */}
+        <div className="px-6 py-4 border-t border-border shrink-0 bg-muted/30">
+          <ReplyForm ticket={ticket} onSent={() => setRefreshKey(k => k + 1)} />
+        </div>
       </DialogContent>
     </Dialog>
   );

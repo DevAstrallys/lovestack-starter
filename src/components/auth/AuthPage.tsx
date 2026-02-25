@@ -255,14 +255,7 @@ export const AuthPage = () => {
           </CardContent>
         </Card>
 
-        <div className="text-center mt-6 space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Comptes de test disponibles :
-          </p>
-          <div className="text-xs bg-muted p-2 rounded text-muted-foreground">
-            <p>Email: admin@test.com</p>
-            <p>Mot de passe: admin123!</p>
-          </div>
+        <div className="text-center mt-6">
           <p className="text-xs text-muted-foreground">
             En vous connectant, vous acceptez nos conditions d'utilisation
           </p>

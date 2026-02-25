@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { closeCurrentView } from '@/lib/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -225,7 +226,7 @@ export function TicketForm() {
               <p className="text-muted-foreground mb-4">
                 Votre signalement a été enregistré avec succès.
               </p>
-              <Button onClick={() => window.close()}>
+              <Button onClick={() => closeCurrentView(navigate)} className="min-h-[44px] active:scale-95 transition-transform">
                 Fermer
               </Button>
             </div>
@@ -405,7 +406,7 @@ export function TicketForm() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => window.close()}
+              onClick={() => closeCurrentView(navigate)}
             >
               Annuler
             </Button>

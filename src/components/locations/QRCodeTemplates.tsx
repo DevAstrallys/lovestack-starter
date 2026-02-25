@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl } from '@/lib/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,7 +109,7 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
 
   const getEffectiveBaseUrl = (): string => {
     if (baseUrl.trim()) return baseUrl.trim().replace(/\/$/, '');
-    return window.location.origin;
+    return getBaseUrl();
   };
 
   const getQRCodeURL = (qrCodeId?: string): string => {
@@ -571,7 +572,7 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
                 <Input
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder={`${window.location.origin} (par défaut)`}
+                  placeholder={`${getBaseUrl()} (par défaut)`}
                   className="max-w-md"
                 />
                 <p className="text-xs text-muted-foreground">

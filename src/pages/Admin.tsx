@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrganizationSelector } from '@/components/ui/organization-selector';
+import { navigateTo } from '@/lib/navigation';
 import { 
   ArrowLeft,
   Users, 
@@ -39,7 +40,7 @@ export const Admin = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => window.location.href = '/'}
+                onClick={() => navigateTo('/')}
                 className="shrink-0"
               >
                 <ArrowLeft className="h-4 w-4 sm:mr-2" />

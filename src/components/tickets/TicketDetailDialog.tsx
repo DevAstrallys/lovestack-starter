@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
 import { 
   AlertCircle, CheckCircle, Clock, Pause, XCircle, 
   Calendar, MapPin, Tag, User, Phone, Mail, 
@@ -65,16 +64,9 @@ const getMediaIcon = (type: string) => {
   return <Paperclip className="h-4 w-4" />;
 };
 
-/**
- * Chat-like conversation view: 
- * - Original ticket description → right, red bubble (demandeur)
- * - Outbound replies (team) → left, green bubble
- * - Inbound replies (demandeur) → right, red bubble
- */
 function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: string }) {
   const { activities, loading } = useTicketActivities(ticketId);
 
-  // Build conversation messages: start with the original description, then replies in chronological order
   const replyActivities = (activities || [])
     .filter(a => a.activity_type === 'reply')
     .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
@@ -95,7 +87,6 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
         </div>
       </div>
 
-      {/* Replies */}
       {loading && (
         <p className="text-xs text-muted-foreground text-center">Chargement des messages…</p>
       )}
@@ -105,7 +96,6 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
         const isInbound = meta?.direction === 'inbound';
 
         if (isInbound) {
-          // Inbound (demandeur) → right, red
           return (
             <div key={activity.id} className="flex justify-end">
               <div className="max-w-[75%]">
@@ -122,7 +112,6 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
           );
         }
 
-        // Outbound (team) → left, green
         return (
           <div key={activity.id} className="flex justify-start">
             <div className="max-w-[75%]">
@@ -146,10 +135,8 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
   );
 }
 
-/** Non-reply activity timeline (status changes, assignments, etc.) */
 function ActivityTimeline({ ticketId }: { ticketId: string }) {
   const { activities, loading } = useTicketActivities(ticketId);
-
   const nonReplyActivities = (activities || []).filter(a => a.activity_type !== 'reply');
 
   if (loading) return <p className="text-sm text-muted-foreground">Chargement…</p>;
@@ -252,7 +239,7 @@ function ReplyForm({ ticket, onSent }: { ticket: Ticket; onSent?: () => void }) 
         rows={2}
         className="resize-none flex-1 min-h-[44px]"
       />
-      <Button onClick={handleSend} disabled={!content.trim() || sending} size="icon" className="h-11 w-11 shrink-0">
+      <Button onClick={handleSend} disabled={!content.trim() || sending} size="icon" className="h-11 w-11 shrink-0 min-h-[44px] active:scale-95 transition-transform">
         <Send className="h-4 w-4" />
       </Button>
     </div>
@@ -267,117 +254,114 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
   const location = ticket.location as Record<string, any> | null;
   const locationName = location?.name || location?.element_name || null;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
-          <DialogTitle className="text-lg leading-snug pr-8">{ticket.title}</DialogTitle>
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
-              {getStatusIcon(ticket.status)}
-              <span className="ml-1">{TICKET_STATUSES[ticket.status as keyof typeof TICKET_STATUSES]}</span>
-            </Badge>
-            <Badge className={`text-xs ${getPriorityColor(ticket.priority || 'medium')}`}>
-              {TICKET_PRIORITIES[ticket.priority as keyof typeof TICKET_PRIORITIES] || 'Moyenne'}
-            </Badge>
-            {ticket.source === 'qr_code' && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <QrCode className="h-3 w-3" /> QR Code
-              </Badge>
-            )}
-            {ticket.initiality && (
-              <Badge variant="outline" className="text-xs">
-                {ticket.initiality === 'relance' ? `Relance #${ticket.relance_index ?? 1}` : 'Initial'}
-              </Badge>
-            )}
+  const headerContent = (
+    <>
+      <div className="flex flex-wrap items-center gap-2 pt-2">
+        <Badge className={`text-xs ${getStatusColor(ticket.status)}`}>
+          {getStatusIcon(ticket.status)}
+          <span className="ml-1">{TICKET_STATUSES[ticket.status as keyof typeof TICKET_STATUSES]}</span>
+        </Badge>
+        <Badge className={`text-xs ${getPriorityColor(ticket.priority || 'medium')}`}>
+          {TICKET_PRIORITIES[ticket.priority as keyof typeof TICKET_PRIORITIES] || 'Moyenne'}
+        </Badge>
+        {ticket.source === 'qr_code' && (
+          <Badge variant="outline" className="text-xs gap-1">
+            <QrCode className="h-3 w-3" /> QR Code
+          </Badge>
+        )}
+        {ticket.initiality && (
+          <Badge variant="outline" className="text-xs">
+            {ticket.initiality === 'relance' ? `Relance #${ticket.relance_index ?? 1}` : 'Initial'}
+          </Badge>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Calendar className="h-3 w-3" />
+          {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+        </span>
+        {locationName && (
+          <span className="flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            {locationName}
+          </span>
+        )}
+        {ticket.reporter_name && (
+          <span className="flex items-center gap-1">
+            <User className="h-3 w-3" />
+            {ticket.reporter_name}
+          </span>
+        )}
+        {ticket.reporter_email && (
+          <span className="flex items-center gap-1">
+            <Mail className="h-3 w-3" />
+            {ticket.reporter_email}
+          </span>
+        )}
+      </div>
+    </>
+  );
+
+  const conversationContent = (
+    <div key={refreshKey}>
+      <ConversationThread ticket={ticket} ticketId={ticket.id} />
+
+      {/* Attachments */}
+      {ticket.attachments && ticket.attachments.length > 0 && (
+        <div className="pt-4">
+          <Separator className="mb-4" />
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Pièces jointes ({ticket.attachments.length})
+          </h4>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {ticket.attachments.map((att: any, i: number) => (
+              <a
+                key={i}
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-md border border-border overflow-hidden active:scale-95 transition-transform"
+              >
+                {att.type === 'image' ? (
+                  <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center h-20 bg-muted">
+                    {getMediaIcon(att.type)}
+                  </div>
+                )}
+                <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground truncate">
+                  {att.name}
+                </div>
+              </a>
+            ))}
           </div>
-
-          {/* Compact metadata row */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
-            </span>
-            {locationName && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {locationName}
-              </span>
-            )}
-            {ticket.reporter_name && (
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {ticket.reporter_name}
-              </span>
-            )}
-            {ticket.reporter_email && (
-              <span className="flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                {ticket.reporter_email}
-              </span>
-            )}
-          </div>
-        </DialogHeader>
-
-        <Separator className="mt-4" />
-
-        {/* Conversation area */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="px-6 py-4" key={refreshKey}>
-            <ConversationThread ticket={ticket} ticketId={ticket.id} />
-          </div>
-
-          {/* Attachments */}
-          {ticket.attachments && ticket.attachments.length > 0 && (
-            <div className="px-6 pb-4">
-              <Separator className="mb-4" />
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Pièces jointes ({ticket.attachments.length})
-              </h4>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {ticket.attachments.map((att: any, i: number) => (
-                  <a
-                    key={i}
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block rounded-md border border-border overflow-hidden hover:ring-2 hover:ring-primary/40 transition-shadow"
-                  >
-                    {att.type === 'image' ? (
-                      <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
-                    ) : (
-                      <div className="flex items-center justify-center h-20 bg-muted">
-                        {getMediaIcon(att.type)}
-                      </div>
-                    )}
-                    <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground truncate">
-                      {att.name}
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Activity log (non-reply events) */}
-          <div className="px-6 pb-4">
-            <Separator className="mb-4" />
-            <details className="group">
-              <summary className="text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none">
-                Historique des actions ▸
-              </summary>
-              <div className="mt-3">
-                <ActivityTimeline ticketId={ticket.id} />
-              </div>
-            </details>
-          </div>
-        </ScrollArea>
-
-        {/* Reply input — pinned at bottom */}
-        <div className="px-6 py-4 border-t border-border shrink-0 bg-muted/30">
-          <ReplyForm ticket={ticket} onSent={() => setRefreshKey(k => k + 1)} />
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      {/* Activity log */}
+      <div className="pt-4">
+        <Separator className="mb-4" />
+        <details className="group">
+          <summary className="text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none min-h-[44px] flex items-center active:opacity-70 transition-opacity">
+            Historique des actions ▸
+          </summary>
+          <div className="mt-3">
+            <ActivityTimeline ticketId={ticket.id} />
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<span className="text-lg leading-snug pr-8">{ticket.title}</span>}
+      description={headerContent}
+      footer={<ReplyForm ticket={ticket} onSent={() => setRefreshKey(k => k + 1)} />}
+    >
+      {conversationContent}
+    </ResponsiveDialog>
   );
 }

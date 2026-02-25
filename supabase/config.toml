@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.notification-engine]
 verify_jwt = false
+
+[functions.rgpd]
+verify_jwt = false

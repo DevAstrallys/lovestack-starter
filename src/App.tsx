@@ -13,6 +13,7 @@ import { Users } from "./pages/Users";
 import { Tickets } from "./pages/Tickets";
 import { TicketForm } from "./pages/TicketForm";
 import NotFound from "./pages/NotFound";
+import { Profile } from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/users" element={<Users />} />
                 <Route path="/tickets" element={<Tickets />} />
                 <Route path="/ticket-form/:slug" element={<TicketForm />} />
+                <Route path="/profile" element={<Profile />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

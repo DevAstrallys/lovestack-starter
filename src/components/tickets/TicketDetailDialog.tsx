@@ -1,17 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   AlertCircle, CheckCircle, Clock, Pause, XCircle, 
   Calendar, MapPin, Tag, User, Phone, Mail, 
-  Image, Mic, Video, Paperclip, QrCode
+  Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
 import { Ticket, useTicketActivities } from '@/hooks/useTickets';
 import { TICKET_STATUSES, TICKET_PRIORITIES } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface TicketDetailDialogProps {
   ticket: Ticket | null;
@@ -70,7 +75,9 @@ function ActivityTimeline({ ticketId }: { ticketId: string }) {
     <div className="space-y-3">
       {activities.map((activity) => (
         <div key={activity.id} className="flex gap-3 text-sm">
-          <div className="mt-1 h-2 w-2 rounded-full bg-muted-foreground flex-shrink-0" />
+          <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+            activity.activity_type === 'reply' ? 'bg-primary' : 'bg-muted-foreground'
+          }`} />
           <div className="flex-1">
             <p className="text-foreground">
               {activity.activity_type === 'status_change' && (
@@ -81,7 +88,18 @@ function ActivityTimeline({ ticketId }: { ticketId: string }) {
                 <>Priorité changée de <Badge variant="outline" className="text-xs mx-1">{activity.old_value}</Badge> à <Badge variant="outline" className="text-xs mx-1">{activity.new_value}</Badge></>
               )}
               {activity.activity_type === 'comment' && activity.content}
-              {!['status_change', 'assignment', 'priority_change', 'comment'].includes(activity.activity_type) && activity.activity_type}
+              {activity.activity_type === 'reply' && (
+                <div className="rounded-md border border-border bg-muted/50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                    <span className="font-medium text-xs">
+                      {(activity.metadata as any)?.direction === 'inbound' ? 'Réponse du demandeur' : 'Réponse envoyée'}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap">{activity.content}</p>
+                </div>
+              )}
+              {!['status_change', 'assignment', 'priority_change', 'comment', 'reply'].includes(activity.activity_type) && activity.activity_type}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {activity.created_at && format(new Date(activity.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
@@ -89,6 +107,91 @@ function ActivityTimeline({ ticketId }: { ticketId: string }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ReplyForm({ ticket }: { ticket: Ticket }) {
+  const [content, setContent] = useState('');
+  const [sending, setSending] = useState(false);
+  const { user } = useAuth();
+
+  const canReply = !!ticket.reporter_email;
+
+  const handleSend = async () => {
+    if (!content.trim() || !canReply) return;
+    setSending(true);
+    try {
+      // 1. Save as ticket_activity
+      const { error: activityError } = await supabase
+        .from('ticket_activities')
+        .insert({
+          ticket_id: ticket.id,
+          actor_id: user?.id || null,
+          activity_type: 'reply',
+          content: content.trim(),
+          metadata: { direction: 'outbound', sent_to: ticket.reporter_email },
+        });
+
+      if (activityError) throw activityError;
+
+      // 2. Send email via edge function
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          template: 'reply',
+          to: [ticket.reporter_email],
+          data: {
+            ticketTitle: ticket.title,
+            replyContent: content.trim(),
+            replierName: user?.user_metadata?.full_name || 'L\'équipe support',
+            ticketId: ticket.id,
+          },
+        },
+      });
+
+      if (emailError) {
+        console.error('Email send error:', emailError);
+        toast.warning('Réponse enregistrée mais l\'email n\'a pas pu être envoyé.');
+      } else {
+        toast.success('Réponse envoyée par email.');
+      }
+
+      setContent('');
+    } catch (err) {
+      console.error('Error sending reply:', err);
+      toast.error('Erreur lors de l\'envoi de la réponse.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!canReply) {
+    return (
+      <div className="text-sm text-muted-foreground italic">
+        Aucun email de demandeur – impossible de répondre.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <Textarea
+        placeholder={`Répondre à ${ticket.reporter_name || ticket.reporter_email}…`}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        rows={3}
+        className="resize-none"
+      />
+      <div className="flex justify-between items-center">
+        <p className="text-xs text-muted-foreground">
+          <Mail className="h-3 w-3 inline mr-1" />
+          Sera envoyé à {ticket.reporter_email}
+        </p>
+        <Button onClick={handleSend} disabled={!content.trim() || sending} size="sm">
+          <Send className="h-4 w-4 mr-1.5" />
+          {sending ? 'Envoi…' : 'Envoyer'}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -246,6 +349,13 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
                 </section>
               </>
             )}
+
+            {/* Reply form */}
+            <Separator />
+            <section className="space-y-3">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Répondre</h4>
+              <ReplyForm ticket={ticket} />
+            </section>
 
             {/* Activity timeline */}
             <Separator />

@@ -92,7 +92,15 @@ export function useTickets(filters: TicketFilters = {}) {
       }
 
       if (filters.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+        // Escape special PostgREST characters to prevent injection
+        const sanitized = filters.search
+          .replace(/[\\%_]/g, c => `\\${c}`)  // escape wildcards
+          .replace(/[,()]/g, '')               // strip PostgREST operators
+          .trim()
+          .slice(0, 200);                      // limit length
+        if (sanitized) {
+          query = query.or(`title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
+        }
       }
 
       // Organization filtering

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { getBaseUrl } from '@/lib/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -683,7 +684,7 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
             <div className="bg-white border rounded-lg overflow-hidden">
               <div 
                 dangerouslySetInnerHTML={{
-                  __html: createTemplateHTML(previewTemplate, previewQRCode)
+                  __html: DOMPurify.sanitize(createTemplateHTML(previewTemplate, previewQRCode))
                 }}
                 style={{
                   transform: 'scale(0.5)',

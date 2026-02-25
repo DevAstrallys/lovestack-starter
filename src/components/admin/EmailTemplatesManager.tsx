@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -609,7 +610,7 @@ export const EmailTemplatesManager = () => {
                 </Button>
               </div>
               <div className="border rounded-lg p-4 bg-gray-50">
-                <div dangerouslySetInnerHTML={{ __html: selectedTemplate.content }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedTemplate.content) }} />
               </div>
             </div>
           </div>

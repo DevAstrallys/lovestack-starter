@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseUrl, openExternalLink } from '@/lib/navigation';
 import { LocationTag, LocationElement } from './LocationsManagement';
 import { TagSelector } from './TagSelector';
 import { supabase } from '@/integrations/supabase/client';
@@ -361,8 +362,8 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
       });
 
       // Optionnel: ouvrir une nouvelle fenêtre avec le QR code
-      const qrUrl = `${window.location.origin}/qr/${(data as any).id}`;
-      window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`, '_blank');
+      const qrUrl = `${getBaseUrl()}/qr/${(data as any).id}`;
+      openExternalLink(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`);
       
     } catch (error) {
       console.error('Error generating QR code:', error);

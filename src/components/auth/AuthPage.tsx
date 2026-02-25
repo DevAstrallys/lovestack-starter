@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { AUTH_REDIRECT_URL } from '@/lib/app-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,13 +30,11 @@ export const AuthPage = () => {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: AUTH_REDIRECT_URL,
           data: {
             full_name: fullName,
           }
@@ -112,7 +111,7 @@ export const AuthPage = () => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: AUTH_REDIRECT_URL
         }
       });
 

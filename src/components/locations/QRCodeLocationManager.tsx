@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { QrCode, Plus, FileText, Download, Settings } from 'lucide-react';
+import { openInternalRoute } from '@/lib/navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -399,7 +400,7 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
                           variant="outline"
                           onClick={() => {
                             // Naviguer vers le formulaire de ticket pour ce QR code
-                            window.open(`/ticket-form/${qr.target_slug}`, '_blank');
+                            openInternalRoute(`/ticket-form/${qr.target_slug}`);
                           }}
                         >
                           <FileText className="h-4 w-4 mr-2" />

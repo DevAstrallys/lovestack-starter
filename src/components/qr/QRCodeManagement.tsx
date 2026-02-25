@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getBaseUrl } from '@/lib/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,8 +100,7 @@ export function QRCodeManagement({ locationElementId, buildingId, locationName }
   };
 
   const generateQRCodeURL = (qr: QRCode) => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/qr/${qr.target_slug}`;
+    return `${getBaseUrl()}/qr/${qr.target_slug}`;
   };
 
   const downloadQRCode = (qr: QRCode) => {

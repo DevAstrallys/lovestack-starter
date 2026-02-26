@@ -615,36 +615,6 @@ export type Database = {
           },
         ]
       }
-      location_ensemble_groups: {
-        Row: {
-          ensemble_id: string
-          group_id: string
-        }
-        Insert: {
-          ensemble_id: string
-          group_id: string
-        }
-        Update: {
-          ensemble_id?: string
-          group_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "location_ensemble_groups_ensemble_id_fkey"
-            columns: ["ensemble_id"]
-            isOneToOne: false
-            referencedRelation: "location_ensembles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "location_ensemble_groups_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "location_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       location_ensemble_tags: {
         Row: {
           ensemble_id: string
@@ -706,36 +676,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      location_group_elements: {
-        Row: {
-          element_id: string
-          group_id: string
-        }
-        Insert: {
-          element_id: string
-          group_id: string
-        }
-        Update: {
-          element_id?: string
-          group_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "location_group_elements_element_id_fkey"
-            columns: ["element_id"]
-            isOneToOne: false
-            referencedRelation: "location_elements"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "location_group_elements_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "location_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -2403,6 +2343,15 @@ export type Database = {
       }
       fn_has_perm: {
         Args: { bld: string; perm_code: string; uid: string }
+        Returns: boolean
+      }
+      fn_user_has_location_access: {
+        Args: {
+          org_id: string
+          target_id: string
+          target_type: string
+          uid: string
+        }
         Returns: boolean
       }
       regenerate_qr_code: { Args: { qr_id: string }; Returns: string }

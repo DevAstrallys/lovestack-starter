@@ -133,16 +133,15 @@ export function useTickets(filters: TicketFilters = {}) {
         // Use basic JSON filtering for location element_id
         query = query.contains('location', { element_id: filters.locationId });
       } else if (filters.groupId) {
-        // Get all elements in this group
-        const { data: groupElements } = await supabase
-          .from('location_group_elements')
-          .select('element_id')
-          .eq('group_id', filters.groupId);
+        // Get all elements in this group via parent_id
+        const { data: groupElements } = await (supabase as any)
+          .from('location_elements')
+          .select('id')
+          .eq('parent_id', filters.groupId);
         
         if (groupElements?.length) {
-          const elementIds = groupElements.map(ge => ge.element_id);
-          // Create individual location filters for each element
-          const ticketPromises = elementIds.map(elementId =>
+          const elementIds = groupElements.map((ge: any) => ge.id);
+          const ticketPromises = elementIds.map((elementId: string) =>
             supabase
               .from('tickets')
               .select('id')
@@ -159,22 +158,22 @@ export function useTickets(filters: TicketFilters = {}) {
           }
         }
       } else if (filters.ensembleId) {
-        // Get all groups in this ensemble, then all elements in those groups
-        const { data: ensembleGroups } = await supabase
-          .from('location_ensemble_groups')
-          .select('group_id')
-          .eq('ensemble_id', filters.ensembleId);
+        // Get all groups in this ensemble via parent_id, then all elements
+        const { data: ensembleGroups } = await (supabase as any)
+          .from('location_groups')
+          .select('id')
+          .eq('parent_id', filters.ensembleId);
         
         if (ensembleGroups?.length) {
-          const groupIds = ensembleGroups.map(eg => eg.group_id);
-          const { data: groupElements } = await supabase
-            .from('location_group_elements')
-            .select('element_id')
-            .in('group_id', groupIds);
+          const groupIds = ensembleGroups.map((eg: any) => eg.id);
+          const { data: groupElements } = await (supabase as any)
+            .from('location_elements')
+            .select('id')
+            .in('parent_id', groupIds);
           
           if (groupElements?.length) {
-            const elementIds = groupElements.map(ge => ge.element_id);
-            const ticketPromises = elementIds.map(elementId =>
+            const elementIds = groupElements.map((ge: any) => ge.id);
+            const ticketPromises = elementIds.map((elementId: string) =>
               supabase
                 .from('tickets')
                 .select('id')

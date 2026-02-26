@@ -1049,6 +1049,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_premium: boolean
           name: string
           updated_at: string
           zip_code: string | null
@@ -1061,6 +1062,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_premium?: boolean
           name: string
           updated_at?: string
           zip_code?: string | null
@@ -1073,6 +1075,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_premium?: boolean
           name?: string
           updated_at?: string
           zip_code?: string | null
@@ -1582,16 +1585,25 @@ export type Database = {
       }
       tax_actions: {
         Row: {
+          color: string | null
+          description: string | null
+          icon: string | null
           id: string
           key: string
           label: string
         }
         Insert: {
+          color?: string | null
+          description?: string | null
+          icon?: string | null
           id?: string
           key: string
           label: string
         }
         Update: {
+          color?: string | null
+          description?: string | null
+          icon?: string | null
           id?: string
           key?: string
           label?: string
@@ -1630,27 +1642,71 @@ export type Database = {
           },
         ]
       }
+      tax_details: {
+        Row: {
+          id: string
+          is_private: boolean
+          key: string
+          label: string
+          label_i18n: Json | null
+          object_id: string
+          urgency_level: number
+        }
+        Insert: {
+          id?: string
+          is_private?: boolean
+          key: string
+          label: string
+          label_i18n?: Json | null
+          object_id: string
+          urgency_level?: number
+        }
+        Update: {
+          id?: string
+          is_private?: boolean
+          key?: string
+          label?: string
+          label_i18n?: Json | null
+          object_id?: string
+          urgency_level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_details_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "tax_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_objects: {
         Row: {
           category_id: string
           id: string
+          is_private: boolean | null
           key: string
           label: string
           label_i18n: Json | null
+          urgency_level: number | null
         }
         Insert: {
           category_id: string
           id?: string
+          is_private?: boolean | null
           key: string
           label: string
           label_i18n?: Json | null
+          urgency_level?: number | null
         }
         Update: {
           category_id?: string
           id?: string
+          is_private?: boolean | null
           key?: string
           label?: string
           label_i18n?: Json | null
+          urgency_level?: number | null
         }
         Relationships: [
           {

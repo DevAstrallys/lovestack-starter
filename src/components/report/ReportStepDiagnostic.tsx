@@ -122,7 +122,8 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
             value={data.object_id}
             onValueChange={v => {
               const obj = filteredObjects.find(o => o.id === v);
-              set({ object_id: v, object_label: obj?.label || '', detail_id: '', detail_label: '' });
+              const defaultUrgency = obj && 'urgency_level' in obj && obj.urgency_level ? obj.urgency_level : data.urgency;
+              set({ object_id: v, object_label: obj?.label || '', detail_id: '', detail_label: '', urgency: defaultUrgency });
             }}
           >
             <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>

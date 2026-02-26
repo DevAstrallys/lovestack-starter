@@ -90,9 +90,9 @@ export function MediaUpload({ files, onFilesChange }: MediaUploadProps) {
           <Video className="h-4 w-4 mr-1" /> Vidéo
         </Button>
 
-        <input ref={imageRef} type="file" accept={ACCEPT_MAP.image} capture="environment" className="hidden" onChange={handleFileChange('image')} />
+        <input ref={imageRef} type="file" accept={ACCEPT_MAP.image} className="hidden" onChange={handleFileChange('image')} />
         <input ref={audioRef} type="file" accept={ACCEPT_MAP.audio} className="hidden" onChange={handleFileChange('audio')} />
-        <input ref={videoRef} type="file" accept={ACCEPT_MAP.video} capture="environment" className="hidden" onChange={handleFileChange('video')} />
+        <input ref={videoRef} type="file" accept={ACCEPT_MAP.video} className="hidden" onChange={handleFileChange('video')} />
       </div>
 
       {files.length > 0 && (

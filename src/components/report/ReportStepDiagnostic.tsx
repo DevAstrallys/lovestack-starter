@@ -1,7 +1,6 @@
 import { AlertTriangle, HelpCircle, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { TicketFormStep } from '@/components/tickets/TicketFormStep';
 import { TaxAction, TaxCategory, TaxObject, TaxDetail } from '@/hooks/useTaxonomy';
 
@@ -10,10 +9,10 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 const URGENCY_LEVELS = [
-  { value: 4, label: 'Personnes', color: 'bg-destructive text-destructive-foreground' },
-  { value: 3, label: 'Immeuble', color: 'bg-orange-500 text-white' },
-  { value: 2, label: 'Moyen', color: 'bg-yellow-500 text-black' },
-  { value: 1, label: 'Faible', color: 'bg-muted text-muted-foreground' },
+  { value: 4, label: 'Personnes', dot: '🔴', color: 'bg-red-500/10 border-red-500 text-red-700' },
+  { value: 3, label: 'Immeuble', dot: '🟠', color: 'bg-orange-500/10 border-orange-500 text-orange-700' },
+  { value: 2, label: 'Moyen', dot: '🟡', color: 'bg-yellow-500/10 border-yellow-500 text-yellow-700' },
+  { value: 1, label: 'Faible', dot: '🟢', color: 'bg-green-500/10 border-green-500 text-green-700' },
 ];
 
 export interface DiagnosticData {
@@ -181,20 +180,24 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
         <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Label>Niveau d'urgence *</Label>
           <div className="grid grid-cols-2 gap-2">
-            {URGENCY_LEVELS.map(u => (
-              <button
-                key={u.value}
-                type="button"
-                onClick={() => set({ urgency: u.value })}
-                className={`p-3 rounded-lg border-2 text-sm font-medium transition-all active:scale-95 min-h-[44px] ${
-                  data.urgency === u.value
-                    ? 'border-primary shadow-md ring-2 ring-primary/30'
-                    : 'border-border hover:border-primary/40'
-                }`}
-              >
-                <Badge className={`${u.color} text-xs`}>{u.label}</Badge>
-              </button>
-            ))}
+            {URGENCY_LEVELS.map(u => {
+              const isSelected = data.urgency === u.value;
+              return (
+                <button
+                  key={u.value}
+                  type="button"
+                  onClick={() => set({ urgency: u.value })}
+                  className={`flex items-center gap-2 p-3 rounded-lg border-2 text-sm font-medium transition-all active:scale-95 min-h-[44px] ${
+                    isSelected
+                      ? `${u.color} shadow-md ring-2 ring-primary/30`
+                      : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-lg">{u.dot}</span>
+                  <span>{u.value} - {u.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

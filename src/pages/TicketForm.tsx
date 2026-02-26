@@ -42,6 +42,7 @@ export function TicketForm() {
     object_id: '', object_label: '',
     detail_id: '', detail_label: '',
     urgency: 2,
+    initiality: 'initial',
   });
 
   const [media, setMedia] = useState<MediaData>({ description: '', notification_channel: 'email' });
@@ -55,8 +56,8 @@ export function TicketForm() {
       try {
         setLoading(true);
         const { data, error } = await supabase
-          .from('qr_codes')
-          .select('*, location_elements(name), location_groups(name), location_ensembles(name)')
+          .from('qr_codes_public')
+          .select('*')
           .eq('target_slug', slug)
           .eq('is_active', true)
           .single();
@@ -65,7 +66,31 @@ export function TicketForm() {
           toast({ title: 'QR Code non trouvé', description: 'Ce QR Code n\'existe pas ou n\'est plus actif', variant: 'destructive' });
           return;
         }
-        setQrCode(data);
+
+        // Fetch location names separately
+        let locationElementName: string | null = null;
+        let locationGroupName: string | null = null;
+        let locationEnsembleName: string | null = null;
+
+        if (data.location_element_id) {
+          const { data: el } = await supabase.from('location_elements').select('name').eq('id', data.location_element_id).single();
+          locationElementName = el?.name || null;
+        }
+        if (data.location_group_id) {
+          const { data: gr } = await supabase.from('location_groups').select('name').eq('id', data.location_group_id).single();
+          locationGroupName = gr?.name || null;
+        }
+        if (data.location_ensemble_id) {
+          const { data: en } = await supabase.from('location_ensembles').select('name').eq('id', data.location_ensemble_id).single();
+          locationEnsembleName = en?.name || null;
+        }
+
+        setQrCode({
+          ...data,
+          location_elements: locationElementName ? { name: locationElementName } : null,
+          location_groups: locationGroupName ? { name: locationGroupName } : null,
+          location_ensembles: locationEnsembleName ? { name: locationEnsembleName } : null,
+        });
 
         // Check premium
         if (data.organization_id) {
@@ -115,10 +140,8 @@ export function TicketForm() {
   }, []);
 
   const buildTitle = () => {
-    const parts = [`[${diagnostic.action_label}]`, diagnostic.category_label];
-    if (diagnostic.object_label) parts.push(`> ${diagnostic.object_label}`);
-    if (diagnostic.detail_label) parts.push(`: ${diagnostic.detail_label}`);
-    return parts.join(' ');
+    const initialityLabel = diagnostic.initiality === 'relance' ? 'Relance' : 'Initial';
+    return `[${initialityLabel}] - [${diagnostic.action_label}] - [${diagnostic.category_label}] - [${diagnostic.object_label}]`;
   };
 
   const canProceed = () => {
@@ -150,7 +173,9 @@ export function TicketForm() {
         status: 'open',
         created_by: userData?.user?.id || null,
         building_id: qrCode?.building_id || null,
+        organization_id: qrCode?.organization_id || null,
         source: 'qr_code',
+        initiality: diagnostic.initiality,
         action_code: diagnostic.action_key || null,
         category_id: diagnostic.category_id || null,
         object_id: diagnostic.object_id || null,
@@ -167,7 +192,6 @@ export function TicketForm() {
         attachments: uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
         meta: {
           qr_code_id: qrCode?.id,
-          organization_id: qrCode?.organization_id,
           reporter_role: profile.role,
           detail_id: diagnostic.detail_id || null,
           detail_label: diagnostic.detail_label || null,
@@ -242,10 +266,8 @@ export function TicketForm() {
   return (
     <div className="min-h-screen bg-background pb-8">
       <div className="container mx-auto max-w-lg px-4 pt-6 space-y-4">
-        {/* Ad banner for non-premium */}
         {!isPremium && <AdBanner />}
 
-        {/* Header */}
         <div className="flex items-center gap-3">
           <QrCode className="h-7 w-7 text-primary shrink-0" />
           <div className="min-w-0">
@@ -259,7 +281,6 @@ export function TicketForm() {
           <AlertDescription><strong>Lieu :</strong> {locationName}</AlertDescription>
         </Alert>
 
-        {/* Progress */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Étape {step} / {TOTAL_STEPS}</span>
@@ -268,7 +289,6 @@ export function TicketForm() {
           <Progress value={(step / TOTAL_STEPS) * 100} className="h-2" />
         </div>
 
-        {/* Step content */}
         {step === 1 && <ReportStepProfile data={profile} onChange={setProfile} />}
         {step === 2 && (
           <ReportStepDiagnostic
@@ -292,7 +312,6 @@ export function TicketForm() {
           />
         )}
 
-        {/* Navigation */}
         <div className="flex gap-3 pt-2">
           {step > 1 && (
             <Button type="button" variant="outline" onClick={() => setStep(s => s - 1)} className="min-h-[44px] active:scale-95 transition-transform">
@@ -317,7 +336,7 @@ export function TicketForm() {
               className="min-h-[44px] active:scale-95 transition-transform"
             >
               {submitting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-              {submitting ? 'Envoi...' : 'Envoyer'}
+              {submitting ? 'Envoi...' : 'Créer le ticket'}
             </Button>
           )}
         </div>

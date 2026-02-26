@@ -1,5 +1,4 @@
 import { AlertTriangle, HelpCircle, MessageSquare, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +27,7 @@ export interface DiagnosticData {
   detail_id: string;
   detail_label: string;
   urgency: number;
+  initiality: 'initial' | 'relance';
 }
 
 interface Props {
@@ -42,7 +42,7 @@ interface Props {
 export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCategories, getFilteredObjects, getFilteredDetails }: Props) {
   const set = (partial: Partial<DiagnosticData>) => onChange({ ...data, ...partial });
 
-  // Deduplicate actions by key to prevent visual duplicates
+  // Deduplicate actions by key
   const uniqueActions = actions.filter((action, index, self) =>
     index === self.findIndex(a => a.key === action.key)
   );
@@ -64,7 +64,7 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
 
   return (
     <TicketFormStep title="Étape 2 — Diagnostic">
-      {/* Axe selection - icon buttons */}
+      {/* Action selection */}
       <div className="space-y-2">
         <Label>Que souhaitez-vous faire ? *</Label>
         <div className="grid grid-cols-2 gap-3">
@@ -94,6 +94,29 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
           })}
         </div>
       </div>
+
+      {/* Initiality selector - right after action */}
+      {data.action_id && (
+        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Label>Initiative *</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(['initial', 'relance'] as const).map(val => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => set({ initiality: val })}
+                className={`p-3 rounded-lg border-2 text-sm font-medium transition-all active:scale-95 min-h-[44px] ${
+                  data.initiality === val
+                    ? 'border-primary shadow-md ring-2 ring-primary/30 bg-primary/10'
+                    : 'border-border hover:border-primary/40'
+                }`}
+              >
+                {val === 'initial' ? 'Initial' : 'Relance'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Cascade: Category */}
       {data.action_id && (
@@ -134,7 +157,7 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
         </div>
       )}
 
-      {/* Cascade: Detail (Nature) */}
+      {/* Cascade: Detail */}
       {data.object_id && filteredDetails.length > 0 && (
         <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Label>Nature / Détail</Label>
@@ -179,10 +202,9 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
       {/* Auto title preview */}
       {data.action_label && data.category_label && data.object_label && (
         <div className="space-y-1 p-3 bg-muted rounded-md animate-in fade-in duration-300">
-          <Label className="text-xs text-muted-foreground">Titre auto-généré</Label>
+          <Label className="text-xs text-muted-foreground">Titre final du ticket :</Label>
           <p className="text-sm font-mono">
-            [{data.action_label}] {data.category_label} &gt; {data.object_label}
-            {data.detail_label ? ` : ${data.detail_label}` : ''}
+            [{data.initiality === 'relance' ? 'Relance' : 'Initial'}] - [{data.action_label}] - [{data.category_label}] - [{data.object_label}]
           </p>
         </div>
       )}

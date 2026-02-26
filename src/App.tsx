@@ -11,6 +11,7 @@ import { Admin } from "./pages/Admin";
 import { Locations } from "./pages/Locations";
 import { Users } from "./pages/Users";
 import { Tickets } from "./pages/Tickets";
+import { TicketDetail } from "./pages/TicketDetail";
 import { TicketForm } from "./pages/TicketForm";
 import NotFound from "./pages/NotFound";
 import { Profile } from "./pages/Profile";
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/locations" element={<Locations />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/tickets" element={<Tickets />} />
+                <Route path="/tickets/:id" element={<TicketDetail />} />
                 <Route path="/ticket-form/:slug" element={<TicketForm />} />
                 <Route path="/report/:slug" element={<TicketForm />} />
                 <Route path="/profile" element={<Profile />} />

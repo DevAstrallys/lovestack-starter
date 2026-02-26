@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, Send, Loader2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Send, Loader2, X, Camera, Video, Mic, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +53,11 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const photoRef = React.useRef<HTMLInputElement>(null);
+  const videoRef = React.useRef<HTMLInputElement>(null);
+  const audioRef = React.useRef<HTMLInputElement>(null);
+  const docRef = React.useRef<HTMLInputElement>(null);
 
   // --- Location hierarchy ---
   const [ensembles, setEnsembles] = useState<Array<{ id: string; name: string }>>([]);
@@ -540,25 +545,38 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
             />
           </div>
 
-          {/* UPLOAD : inputs HTML bruts visibles */}
+          {/* UPLOAD : 4 gros boutons iconographiques */}
           <div className="space-y-3">
             <Label>Pièces jointes</Label>
-            <div className="space-y-2">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">📷 Photo :</label>
-                <input type="file" accept="image/*" disabled={uploading} onChange={e => handleFileUpload(e, 'image')} />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">🎥 Vidéo :</label>
-                <input type="file" accept="video/*" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">🎤 Audio :</label>
-                <input type="file" accept="audio/*" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
-              </div>
+            <input ref={photoRef} type="file" accept="image/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'image')} />
+            <input ref={videoRef} type="file" accept="video/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
+            <input ref={audioRef} type="file" accept="audio/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
+            <input ref={docRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
+
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => photoRef.current?.click()} disabled={uploading}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <Camera className="h-6 w-6 text-primary" />
+                <span className="text-sm font-medium">Photo</span>
+              </button>
+              <button type="button" onClick={() => videoRef.current?.click()} disabled={uploading}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <Video className="h-6 w-6 text-primary" />
+                <span className="text-sm font-medium">Vidéo</span>
+              </button>
+              <button type="button" onClick={() => audioRef.current?.click()} disabled={uploading}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <Mic className="h-6 w-6 text-primary" />
+                <span className="text-sm font-medium">Audio</span>
+              </button>
+              <button type="button" onClick={() => docRef.current?.click()} disabled={uploading}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <FileText className="h-6 w-6 text-primary" />
+                <span className="text-sm font-medium">Document</span>
+              </button>
             </div>
 
-            {uploading && <p className="text-xs text-muted-foreground">Upload en cours...</p>}
+            {uploading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Upload en cours...</p>}
 
             {uploadedFiles.length > 0 && (
               <div className="space-y-1">

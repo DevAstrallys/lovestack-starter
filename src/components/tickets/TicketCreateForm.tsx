@@ -59,8 +59,13 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const audioRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioStreamRef = React.useRef<MediaStream | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
+  const videoRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const videoStreamRef = React.useRef<MediaStream | null>(null);
+  const videoChunksRef = React.useRef<Blob[]>([]);
+  const videoPreviewRef = React.useRef<HTMLVideoElement>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [recordingAudio, setRecordingAudio] = useState(false);
+  const [recordingVideo, setRecordingVideo] = useState(false);
 
   const [mediaMenu, setMediaMenu] = useState<'photo' | 'video' | 'audio' | null>(null);
 
@@ -334,12 +339,62 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     }
   };
 
+  const stopVideoStream = () => {
+    videoStreamRef.current?.getTracks().forEach(track => track.stop());
+    videoStreamRef.current = null;
+  };
+
+  const toggleVideoRecording = async () => {
+    if (recordingVideo && videoRecorderRef.current) {
+      videoRecorderRef.current.stop();
+      setRecordingVideo(false);
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast({ title: 'Enregistrement vidéo non supporté sur ce navigateur', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
+      videoStreamRef.current = stream;
+      setRecordingVideo(true);
+
+      requestAnimationFrame(() => {
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
+      });
+
+      const recorder = new MediaRecorder(stream);
+      videoRecorderRef.current = recorder;
+      videoChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) videoChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const mimeType = recorder.mimeType || 'video/webm';
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(videoChunksRef.current, { type: mimeType });
+        const file = new File([blob], `video-${Date.now()}.${ext}`, { type: mimeType });
+        await uploadFile(file, 'video');
+        stopVideoStream();
+      };
+
+      recorder.start();
+    } catch (error) {
+      console.error('[Video ERROR]', error);
+      toast({ title: 'Accès caméra/micro refusé ou indisponible', variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     return () => {
-      if (audioRecorderRef.current?.state === 'recording') {
-        audioRecorderRef.current.stop();
-      }
+      if (audioRecorderRef.current?.state === 'recording') audioRecorderRef.current.stop();
+      if (videoRecorderRef.current?.state === 'recording') videoRecorderRef.current.stop();
       stopAudioStream();
+      stopVideoStream();
       stopCameraStream();
     };
   }, []);
@@ -696,10 +751,10 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
                 </button>
                 {mediaMenu === 'video' && (
                   <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                    <button type="button" onClick={() => { setMediaMenu(null); toggleVideoRecording(); }}
+                      className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent">
                       🎥 Enregistrer une vidéo
-                      <input type="file" accept="video/*" capture="environment" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'video'); }} />
-                    </label>
+                    </button>
                     <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
                       📁 Choisir un fichier
                       <input type="file" accept="video/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'video'); }} />
@@ -754,10 +809,21 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
               </div>
             )}
 
+            {recordingVideo && (
+              <div className="rounded-lg border border-primary bg-primary/5 p-3 space-y-3">
+                <video ref={videoPreviewRef} autoPlay playsInline muted className="w-full rounded-md border border-border bg-muted" />
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
+                  <span className="text-xs text-muted-foreground flex-1">Enregistrement vidéo…</span>
+                  <Button type="button" size="sm" variant="outline" onClick={toggleVideoRecording}>⏹️ Stop</Button>
+                </div>
+              </div>
+            )}
+
             {recordingAudio && (
               <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary/5 p-3">
                 <span className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
-                <span className="text-xs text-muted-foreground flex-1">Enregistrement en cours…</span>
+                <span className="text-xs text-muted-foreground flex-1">Enregistrement audio…</span>
                 <Button type="button" size="sm" variant="outline" onClick={toggleAudioRecording}>⏹️ Stop</Button>
               </div>
             )}

@@ -140,8 +140,11 @@ export function TicketForm() {
   }, []);
 
   const buildTitle = () => {
-    const initialityLabel = diagnostic.initiality === 'relance' ? 'Relance' : 'Initial';
-    return `[${initialityLabel}] - [${diagnostic.action_label}] - [${diagnostic.category_label}] - [${diagnostic.object_label}]`;
+    const init = diagnostic.initiality === 'relance' ? 'RELANCE' : 'INITIAL';
+    const axe = diagnostic.action_key.toUpperCase();
+    let title = `[${init}] [${axe}] ${diagnostic.category_label} > ${diagnostic.object_label}`;
+    if (diagnostic.detail_label) title += ` : ${diagnostic.detail_label}`;
+    return title;
   };
 
   const canProceed = () => {

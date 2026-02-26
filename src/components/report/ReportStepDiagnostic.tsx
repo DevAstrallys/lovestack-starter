@@ -204,7 +204,8 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
         <div className="space-y-1 p-3 bg-muted rounded-md animate-in fade-in duration-300">
           <Label className="text-xs text-muted-foreground">Titre final du ticket :</Label>
           <p className="text-sm font-mono">
-            [{data.initiality === 'relance' ? 'Relance' : 'Initial'}] - [{data.action_label}] - [{data.category_label}] - [{data.object_label}]
+            [{data.initiality === 'relance' ? 'RELANCE' : 'INITIAL'}] [{data.action_key.toUpperCase()}] {data.category_label} &gt; {data.object_label}
+            {data.detail_label ? ` : ${data.detail_label}` : ''}
           </p>
         </div>
       )}

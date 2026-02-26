@@ -1,74 +1,45 @@
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, FileText, Video, Mic, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { ArrowLeft, ArrowRight, Send, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
-import { useLocations } from '@/hooks/useLocations';
-import { buildTicketTitle, InitialityType } from '@/utils/ticketUtils';
 import { TicketFormStep } from './TicketFormStep';
+import { SignaturePad } from '@/components/report/SignaturePad';
+import DOMPurify from 'dompurify';
 
-const ticketFormSchema = z.object({
-  // Sélection du lieu
-  locationId: z.string().min(1, 'Veuillez sélectionner un lieu'),
-  
-  // Initialité et relance
-  initiality: z.enum(['initial', 'relance'] as const, {
-    required_error: 'Veuillez choisir le type d\'initiative',
-  }),
-  followUpOfId: z.string().optional(),
+const TOTAL_STEPS = 3;
 
-  // Taxonomie selon cahier des charges
-  action: z.string().min(1, 'Veuillez sélectionner une action'),
-  category: z.string().min(1, 'Veuillez sélectionner une catégorie'),
-  object: z.string().min(1, 'Veuillez sélectionner un objet'),
+const URGENCY_LEVELS = [
+  { value: 4, label: 'Personnes', dot: '🔴', cls: 'border-red-500 bg-red-500/10 text-red-700' },
+  { value: 3, label: 'Immeuble', dot: '🟠', cls: 'border-orange-500 bg-orange-500/10 text-orange-700' },
+  { value: 2, label: 'Moyen', dot: '🟡', cls: 'border-yellow-500 bg-yellow-500/10 text-yellow-700' },
+  { value: 1, label: 'Faible', dot: '🟢', cls: 'border-green-500 bg-green-500/10 text-green-700' },
+] as const;
 
-  // Informations personnelles
-  lastName: z.string().min(1, 'Le nom est requis'),
-  firstName: z.string().min(1, 'Le prénom est requis'),
-  email: z.string().email('Email invalide'),
-  phone: z.string().min(1, 'Le téléphone est requis'),
-  userType: z.enum(['locataire', 'proprietaire', 'intervenant', 'visiteur'], {
-    required_error: 'Veuillez sélectionner votre statut',
-  }),
-  communicationMode: z.enum(['email', 'sms'], {
-    required_error: 'Veuillez choisir un moyen de communication',
-  }),
+const ROLES = [
+  { value: 'locataire', label: 'Locataire' },
+  { value: 'proprietaire', label: 'Propriétaire' },
+  { value: 'prestataire', label: 'Prestataire' },
+  { value: 'visiteur', label: 'Visiteur' },
+  { value: 'gardien', label: 'Gardien' },
+  { value: 'autre', label: 'Autre' },
+];
 
-  // Description et priorité
-  description: z.string().min(10, 'La description doit contenir au moins 10 caractères'),
-  priority: z.enum(['low', 'medium', 'high', 'urgent'], {
-    required_error: 'Veuillez sélectionner une priorité',
-  }),
-
-  // Acceptations
-  acceptPrivacyPolicy: z.boolean().refine(val => val === true, {
-    message: 'Vous devez accepter la politique de confidentialité',
-  }),
-  wantNotifications: z.boolean().default(false),
-}).refine((data) => {
-  // Si c'est une relance, il faut un ticket d'origine
-  if (data.initiality === 'relance' && !data.followUpOfId) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Une relance doit référencer un ticket d'origine",
-  path: ["followUpOfId"]
-});
-
-type TicketFormData = z.infer<typeof ticketFormSchema>;
+interface UploadedFile {
+  name: string;
+  url: string;
+  type: string;
+  storagePath: string;
+}
 
 interface TicketCreateFormProps {
   onSuccess?: () => void;
@@ -76,625 +47,577 @@ interface TicketCreateFormProps {
 
 export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const { user } = useAuth();
+  const { selectedOrganization } = useOrganization();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [availableTickets, setAvailableTickets] = useState<Array<{id: string, title: string}>>([]);
-  const [previewTitle, setPreviewTitle] = useState('');
-  const [selectedLocationId, setSelectedLocationId] = useState('');
 
-  // Hooks pour les données
-  const { locations, loading: locationsLoading } = useLocations();
-  const { 
-    actions, 
-    getFilteredCategories, 
-    getFilteredObjects, 
-    loading: taxonomyLoading 
-  } = useTaxonomy(selectedLocationId);
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const form = useForm<TicketFormData>({
-    resolver: zodResolver(ticketFormSchema),
-    defaultValues: {
-      locationId: '',
-      initiality: 'initial',
-      followUpOfId: undefined,
-      action: '',
-      category: '',
-      object: '',
-      lastName: '',
-      firstName: '',
-      email: '',
-      phone: '+33',
-      userType: undefined,
-      communicationMode: undefined,
-      description: '',
-      priority: 'medium',
-      acceptPrivacyPolicy: false,
-      wantNotifications: false,
-    },
-  });
+  // --- Location hierarchy ---
+  const [ensembles, setEnsembles] = useState<Array<{ id: string; name: string }>>([]);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [elements, setElements] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedEnsembleId, setSelectedEnsembleId] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [selectedElementId, setSelectedElementId] = useState('');
 
-  // Surveillance des changements pour générer le titre automatiquement
-  const watchedValues = form.watch(['initiality', 'action', 'category', 'object']);
-  const watchedLocationId = form.watch('locationId');
-  const watchedInitiality = form.watch('initiality');
+  // --- Profile ---
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [role, setRole] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
 
+  // --- Taxonomy ---
+  const { actions, getFilteredCategories, getFilteredObjects, getFilteredDetails, loading: taxLoading } = useTaxonomy();
+
+  const [actionId, setActionId] = useState('');
+  const [actionKey, setActionKey] = useState('');
+  const [actionLabel, setActionLabel] = useState('');
+  const [initiality, setInitiality] = useState<'initial' | 'relance'>('initial');
+  const [categoryId, setCategoryId] = useState('');
+  const [categoryLabel, setCategoryLabel] = useState('');
+  const [objectId, setObjectId] = useState('');
+  const [objectLabel, setObjectLabel] = useState('');
+  const [detailId, setDetailId] = useState('');
+  const [detailLabel, setDetailLabel] = useState('');
+  const [urgency, setUrgency] = useState(2);
+
+  // --- Media ---
+  const [description, setDescription] = useState('');
+  const [notifChannel, setNotifChannel] = useState<'email' | 'sms' | 'none'>('email');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+
+  // Deduplicate actions
+  const uniqueActions = useMemo(() => {
+    const seen = new Set<string>();
+    return actions.filter((a) => {
+      const k = (a.key || '').trim().toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [actions]);
+
+  const filteredCategories = actionId ? getFilteredCategories(actionId) : [];
+  const filteredObjects = categoryId ? getFilteredObjects(categoryId) : [];
+  const filteredDetails = objectId ? getFilteredDetails(objectId) : [];
+
+  // --- Auto-fill profile from auth ---
   useEffect(() => {
-    const [initiality, action, category, object] = watchedValues;
-    if (action && category && object) {
-      const title = buildTicketTitle({
-        initiality: initiality as InitialityType,
-        action,
-        category,
-        object,
-        relanceIndex: 1 // Pour l'aperçu, on affiche toujours #1
-      });
-      setPreviewTitle(title);
-    } else {
-      setPreviewTitle('');
-    }
-  }, watchedValues);
+    if (!user) return;
+    (async () => {
+      const { data: prof } = await supabase.from('profiles').select('full_name, phone').eq('id', user.id).single();
+      if (prof) {
+        const parts = (prof.full_name || '').split(' ');
+        setLastName(parts[0] || '');
+        setFirstName(parts.slice(1).join(' ') || '');
+        setPhone(prof.phone || '');
+      }
+      setEmail(user.email || '');
+    })();
+  }, [user]);
 
-  // Synchroniser le lieu sélectionné
+  // --- Load location ensembles for selected org ---
   useEffect(() => {
-    setSelectedLocationId(watchedLocationId || '');
-  }, [watchedLocationId]);
+    if (!selectedOrganization) return;
+    (async () => {
+      const { data } = await supabase
+        .from('location_ensembles')
+        .select('id, name')
+        .eq('organization_id', selectedOrganization.id)
+        .order('name');
+      setEnsembles(data || []);
+    })();
+  }, [selectedOrganization]);
 
-  // Charger les tickets disponibles pour relance
+  // --- Load groups when ensemble selected ---
   useEffect(() => {
-    if (selectedLocationId && watchedInitiality === 'relance') {
-      loadAvailableTicketsForLocation(selectedLocationId);
-    }
-  }, [selectedLocationId, watchedInitiality]);
+    if (!selectedEnsembleId) { setGroups([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from('location_groups')
+        .select('id, name')
+        .eq('parent_id', selectedEnsembleId)
+        .order('name');
+      setGroups(data || []);
+    })();
+  }, [selectedEnsembleId]);
 
-  const loadAvailableTicketsForLocation = async (locationId: string) => {
-    // Pour l'instant, on simule des tickets vides
-    setAvailableTickets([]);
+  // --- Load elements when group selected ---
+  useEffect(() => {
+    if (!selectedGroupId) { setElements([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from('location_elements')
+        .select('id, name')
+        .eq('parent_id', selectedGroupId)
+        .order('name');
+      setElements(data || []);
+    })();
+  }, [selectedGroupId]);
+
+  // --- Helpers ---
+  const buildTitle = () => {
+    const init = initiality === 'relance' ? 'RELANCE' : 'INITIAL';
+    const axis = actionKey.toUpperCase();
+    let t = `[${init}] [${axis}] ${categoryLabel} > ${objectLabel}`;
+    if (detailLabel) t += ` : ${detailLabel}`;
+    return t;
   };
 
-  const onSubmit = async (data: TicketFormData) => {
+  const canProceed = () => {
+    if (step === 1) return !!(lastName && firstName && role);
+    if (step === 2) return !!(actionId && categoryId && objectId && urgency > 0);
+    if (step === 3) return !!description.trim() && (actionKey !== 'verifier' || !!signatureDataUrl);
+    return false;
+  };
+
+  const selectAction = (a: typeof uniqueActions[0]) => {
+    setActionId(a.id); setActionKey(a.key); setActionLabel(a.label);
+    setCategoryId(''); setCategoryLabel('');
+    setObjectId(''); setObjectLabel('');
+    setDetailId(''); setDetailLabel('');
+    setUrgency(2);
+  };
+
+  const selectCategory = (id: string) => {
+    const cat = filteredCategories.find(c => c.id === id);
+    setCategoryId(id); setCategoryLabel(cat?.label || '');
+    setObjectId(''); setObjectLabel('');
+    setDetailId(''); setDetailLabel('');
+    setUrgency(2);
+  };
+
+  const selectObject = (id: string) => {
+    const obj = filteredObjects.find(o => o.id === id);
+    setObjectId(id); setObjectLabel(obj?.label || '');
+    setDetailId(''); setDetailLabel('');
+    if (obj && 'urgency_level' in obj && obj.urgency_level) setUrgency(obj.urgency_level);
+  };
+
+  const selectDetail = (id: string) => {
+    const det = filteredDetails.find(d => d.id === id);
+    setDetailId(id); setDetailLabel(det?.label || '');
+  };
+
+  // --- File upload ---
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: 'Fichier trop volumineux (max 20 Mo)', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'bin';
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from('ticket-attachments').upload(path, file, { contentType: file.type });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('ticket-attachments').getPublicUrl(path);
+      setUploadedFiles(prev => [...prev, { name: file.name, url: urlData.publicUrl, type: fileType, storagePath: path }]);
+      console.log('[Upload OK]', file.name, urlData.publicUrl);
+    } catch (err) {
+      console.error('[Upload ERROR]', err);
+      toast({ title: 'Erreur upload', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeFile = (i: number) => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i));
+
+  // --- REAL Submit ---
+  const handleSubmit = async () => {
+    if (!canProceed()) return;
     if (!user) {
-      toast({
-        title: 'Erreur',
-        description: 'Vous devez être connecté pour créer un ticket',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erreur', description: 'Vous devez être connecté', variant: 'destructive' });
       return;
     }
 
-    setIsSubmitting(true);
-    
+    const title = DOMPurify.sanitize(buildTitle());
+    const desc = DOMPurify.sanitize(description);
+    const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
+
+    const locationName = elements.find(e => e.id === selectedElementId)?.name
+      || groups.find(g => g.id === selectedGroupId)?.name
+      || ensembles.find(e => e.id === selectedEnsembleId)?.name
+      || null;
+
+    const ticketData: Record<string, unknown> = {
+      title,
+      description: desc,
+      priority,
+      status: 'open',
+      created_by: user.id,
+      organization_id: selectedOrganization?.id || null,
+      source: 'dashboard',
+      initiality,
+      action_code: actionId || null,
+      category_id: categoryId || null,
+      object_id: objectId || null,
+      reporter_name: DOMPurify.sanitize(`${lastName} ${firstName}`.trim()),
+      reporter_email: email || null,
+      reporter_phone: phone || null,
+      location: {
+        element_id: selectedElementId || null,
+        group_id: selectedGroupId || null,
+        ensemble_id: selectedEnsembleId || null,
+        name: locationName,
+      },
+      attachments: uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
+      meta: {
+        reporter_role: role,
+        detail_id: detailId || null,
+        detail_label: detailLabel || null,
+        urgency_level: urgency,
+        notification_channel: notifChannel,
+        signature: actionKey === 'verifier' ? signatureDataUrl : null,
+        action_id: actionId,
+        action_key: actionKey,
+        action_label: actionLabel,
+        category_label: categoryLabel,
+        object_label: objectLabel,
+        organization_id: selectedOrganization?.id || null,
+      },
+    };
+
+    // *** DEBUG ALERT ***
+    alert(JSON.stringify(ticketData, null, 2));
+    console.log('[TicketCreateForm] SUBMIT PAYLOAD:', ticketData);
+
     try {
-      // Générer le titre automatique final
-      const finalTitle = buildTicketTitle({
-        initiality: data.initiality,
-        action: data.action,
-        category: data.category,
-        object: data.object,
-        relanceIndex: 1 // L'index sera calculé par le trigger
-      });
-
-      // Simulation pour test - remplacer par vraie insertion plus tard
-      console.log('Ticket data:', {
-        location_id: data.locationId,
-        initiality: data.initiality,
-        action: data.action,
-        category: data.category,
-        object: data.object,
-        title: finalTitle,
-        description: data.description,
-        priority: data.priority,
-        created_by: user.id
-      });
-      
-      // Simuler un succès
-      const error = null;
-
+      setSubmitting(true);
+      const { error } = await supabase.from('tickets').insert(ticketData as any);
       if (error) throw error;
-
-      toast({
-        title: 'Succès',
-        description: 'Votre ticket a été créé avec succès',
-      });
-
-      form.reset();
+      toast({ title: 'Ticket créé avec succès !' });
       onSuccess?.();
-    } catch (error) {
-      console.error('Error creating ticket:', error);
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue lors de la création du ticket',
-        variant: 'destructive',
-      });
+    } catch (err: any) {
+      console.error('[TicketCreateForm] INSERT ERROR:', err);
+      toast({ title: 'Erreur', description: err?.message || 'Impossible de créer le ticket', variant: 'destructive' });
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
-  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
-
-  const selectedAction = form.watch('action');
-  const selectedCategory = form.watch('category');
+  if (taxLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        
-        {/* Étape 1: Sélection du lieu et initialité */}
-        {currentStep === 1 && (
-          <TicketFormStep title="Étape 1: Lieu et Type">
-            <FormField
-              control={form.control}
-              name="locationId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lieu *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez un lieu" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id}>
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <div className="space-y-4">
+      {/* Progress */}
+      <div className="space-y-1">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Étape {step} / {TOTAL_STEPS}</span>
+          <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
+        </div>
+        <Progress value={(step / TOTAL_STEPS) * 100} className="h-2" />
+      </div>
 
-            <FormField
-              control={form.control}
-              name="initiality"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Type d'initiative *</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      className="flex flex-col space-y-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="initial" id="initial" />
-                        <label htmlFor="initial" className="cursor-pointer">Initial</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="relance" id="relance" />
-                        <label htmlFor="relance" className="cursor-pointer">Relance</label>
-                      </div>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {watchedInitiality === 'relance' && (
-              <FormField
-                control={form.control}
-                name="followUpOfId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ticket d'origine *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez le ticket d'origine" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableTickets.map((ticket) => (
-                          <SelectItem key={ticket.id} value={ticket.id}>
-                            {ticket.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            <div className="flex justify-between pt-4">
-              <div></div>
-              <Button type="button" onClick={nextStep} disabled={!selectedLocationId}>
-                Suivant <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+      {/* ============ ÉTAPE 1 : PROFIL + LIEU ============ */}
+      {step === 1 && (
+        <TicketFormStep title="Étape 1 — Qui êtes-vous ?">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cf-last_name">Nom *</Label>
+              <Input id="cf-last_name" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Dupont" className="min-h-[44px]" />
             </div>
-          </TicketFormStep>
-        )}
-
-        {/* Étape 2: Action, catégorie, objet selon taxonomie */}
-        {currentStep === 2 && (
-          <TicketFormStep title="Étape 2: Classification">
-            <FormField
-              control={form.control}
-              name="action"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Action *</FormLabel>
-                  <Select onValueChange={(value) => {
-                    field.onChange(value);
-                    // Reset category et object quand on change d'action
-                    form.setValue('category', '');
-                    form.setValue('object', '');
-                  }} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez une action" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {actions.map((action) => (
-                        <SelectItem key={action.id} value={action.label}>
-                          {action.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {selectedAction && (
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Catégorie *</FormLabel>
-                    <Select onValueChange={(value) => {
-                      field.onChange(value);
-                      // Reset object quand on change de catégorie
-                      form.setValue('object', '');
-                    }} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez une catégorie" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {getFilteredCategories(actions.find(a => a.label === selectedAction)?.id || '').map((category) => (
-                          <SelectItem key={category.id} value={category.label}>
-                            {category.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {selectedCategory && (
-              <FormField
-                control={form.control}
-                name="object"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Objet *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez un objet" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {getFilteredObjects(getFilteredCategories(actions.find(a => a.label === selectedAction)?.id || '').find(c => c.label === selectedCategory)?.id || '').map((object) => (
-                          <SelectItem key={object.id} value={object.label}>
-                            {object.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {previewTitle && (
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Aperçu du titre:</span>
-                </div>
-                <p className="mt-2 text-sm font-mono bg-background p-2 rounded border">
-                  {previewTitle}
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-between pt-4">
-              <Button type="button" variant="outline" onClick={prevStep}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Précédent
-              </Button>
-              <Button type="button" onClick={nextStep} disabled={!selectedAction || !selectedCategory || !form.watch('object')}>
-                Suivant <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+            <div className="space-y-2">
+              <Label htmlFor="cf-first_name">Prénom *</Label>
+              <Input id="cf-first_name" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Jean" className="min-h-[44px]" />
             </div>
-          </TicketFormStep>
-        )}
+          </div>
 
-        {/* Étape 3: Informations personnelles */}
-        {currentStep === 3 && (
-          <TicketFormStep title="Étape 3: Informations personnelles">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nom *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nom" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prénom *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Prénom" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <div className="space-y-2">
+            <Label>Rôle *</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner votre rôle" /></SelectTrigger>
+              <SelectContent>
+                {ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cf-phone">Mobile</Label>
+              <Input id="cf-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="06 12 34 56 78" className="min-h-[44px]" />
             </div>
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Email" type="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Téléphone *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Téléphone" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="userType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Je suis ? *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez votre statut" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="locataire">Locataire</SelectItem>
-                      <SelectItem value="proprietaire">Propriétaire</SelectItem>
-                      <SelectItem value="intervenant">Intervenant</SelectItem>
-                      <SelectItem value="visiteur">Visiteur</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="communicationMode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Moyen de communication privilégié *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choisissez votre mode de communication" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="sms">SMS</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-between pt-4">
-              <Button type="button" variant="outline" onClick={prevStep}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Précédent
-              </Button>
-              <Button type="button" onClick={nextStep}>
-                Suivant <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+            <div className="space-y-2">
+              <Label htmlFor="cf-email">Email</Label>
+              <Input id="cf-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jean@exemple.com" className="min-h-[44px]" />
             </div>
-          </TicketFormStep>
-        )}
+          </div>
 
-        {/* Étape 4: Description, pièces jointes et validation */}
-        {currentStep === 4 && (
-          <TicketFormStep title="Étape 4: Description et validation">
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description *</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Décrivez en détail votre demande, signalement ou information..."
-                      className="min-h-[120px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="priority"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Priorité *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez la priorité" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="low">Faible</SelectItem>
-                      <SelectItem value="medium">Moyenne</SelectItem>
-                      <SelectItem value="high">Élevée</SelectItem>
-                      <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* Lieu (hiérarchie Ensemble > Groupe > Élément) */}
+          <div className="border-t pt-4 mt-4 space-y-3">
+            <Label className="text-base font-semibold">Localisation</Label>
+            {selectedOrganization && (
+              <p className="text-xs text-muted-foreground">Organisation : {selectedOrganization.name}</p>
+            )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Pièces jointes (optionnel)</label>
-              <div className="flex space-x-2">
-                <Button type="button" variant="outline" size="sm">
-                  <Camera className="h-4 w-4 mr-2" />
-                  Photo
-                </Button>
-                <Button type="button" variant="outline" size="sm">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Document
-                </Button>
-                <Button type="button" variant="outline" size="sm">
-                  <Video className="h-4 w-4 mr-2" />
-                  Vidéo
-                </Button>
-                <Button type="button" variant="outline" size="sm">
-                  <Mic className="h-4 w-4 mr-2" />
-                  Audio
-                </Button>
-              </div>
+              <Label>Ensemble (Copropriété)</Label>
+              <Select value={selectedEnsembleId || undefined} onValueChange={v => { setSelectedEnsembleId(v); setSelectedGroupId(''); setSelectedElementId(''); }}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner un ensemble" /></SelectTrigger>
+                <SelectContent>
+                  {ensembles.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="acceptPrivacyPolicy"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        J'accepte la politique de confidentialité d'Astrallys *
-                      </FormLabel>
-                      <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="wantNotifications"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Je souhaite être informé des étapes de résolution
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {previewTitle && (
-              <div className="p-4 bg-muted rounded-lg border-l-4 border-primary">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">Titre final du ticket:</span>
-                </div>
-                <p className="mt-2 text-sm font-mono bg-background p-3 rounded border">
-                  {previewTitle}
-                </p>
+            {selectedEnsembleId && groups.length > 0 && (
+              <div className="space-y-2">
+                <Label>Groupement (Bâtiment)</Label>
+                <Select value={selectedGroupId || undefined} onValueChange={v => { setSelectedGroupId(v); setSelectedElementId(''); }}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner un groupement" /></SelectTrigger>
+                  <SelectContent>
+                    {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
-            <div className="flex justify-between pt-4">
-              <Button type="button" variant="outline" onClick={prevStep}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Précédent
-              </Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground">
-                {isSubmitting ? 'Envoi...' : 'CRÉER LE TICKET'}
-              </Button>
-            </div>
-          </TicketFormStep>
-        )}
+            {selectedGroupId && elements.length > 0 && (
+              <div className="space-y-2">
+                <Label>Élément (Appartement / Local)</Label>
+                <Select value={selectedElementId || undefined} onValueChange={setSelectedElementId}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner un élément" /></SelectTrigger>
+                  <SelectContent>
+                    {elements.map(el => <SelectItem key={el.id} value={el.id}>{el.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </TicketFormStep>
+      )}
 
-        {/* Indicateur de progression */}
-        <div className="flex justify-center space-x-2 pt-4">
-          {[1, 2, 3, 4].map((step) => (
-            <div
-              key={step}
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                currentStep === step 
-                  ? 'bg-primary text-primary-foreground' 
-                  : currentStep > step
-                  ? 'bg-primary/20 text-primary' 
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {step}
+      {/* ============ ÉTAPE 2 : DIAGNOSTIC ============ */}
+      {step === 2 && (
+        <TicketFormStep title="Étape 2 — Diagnostic">
+          {/* 1. AXE (boutons) */}
+          <div className="space-y-2">
+            <Label>Que souhaitez-vous faire ? *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {uniqueActions.map(a => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => selectAction(a)}
+                  className={`p-4 rounded-lg border-2 text-center text-sm font-medium transition-all min-h-[60px] ${
+                    actionId === a.id
+                      ? 'border-primary bg-primary/10 shadow-md'
+                      : 'border-border bg-card hover:border-primary/50'
+                  }`}
+                >
+                  {a.label}
+                  {a.description && <span className="block text-xs text-muted-foreground mt-1">{a.description}</span>}
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-      </form>
-    </Form>
+          </div>
+
+          {/* 2. INITIATIVE (boutons) */}
+          {actionId && (
+            <div className="space-y-2">
+              <Label>Initiative *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInitiality('initial')}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
+                    initiality === 'initial' ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
+                  }`}
+                >
+                  Initial
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInitiality('relance')}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
+                    initiality === 'relance' ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
+                  }`}
+                >
+                  Relance
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 3. CATÉGORIE (select) */}
+          {actionId && (
+            <div className="space-y-2">
+              <Label>Catégorie *</Label>
+              <Select value={categoryId || undefined} onValueChange={selectCategory}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
+                <SelectContent>
+                  {filteredCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* 4. OBJET (select) */}
+          {categoryId && (
+            <div className="space-y-2">
+              <Label>Objet *</Label>
+              <Select value={objectId || undefined} onValueChange={selectObject}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>
+                <SelectContent>
+                  {filteredObjects.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* 4b. DÉTAIL (optionnel) */}
+          {objectId && filteredDetails.length > 0 && (
+            <div className="space-y-2">
+              <Label>Nature / Détail</Label>
+              <Select value={detailId || undefined} onValueChange={selectDetail}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Préciser (optionnel)" /></SelectTrigger>
+                <SelectContent>
+                  {filteredDetails.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* 5. URGENCE (pastilles) */}
+          {objectId && (
+            <div className="space-y-2">
+              <Label>Niveau d'urgence *</Label>
+              <div className="space-y-2">
+                {URGENCY_LEVELS.map(u => (
+                  <button
+                    key={u.value}
+                    type="button"
+                    onClick={() => setUrgency(u.value)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-sm font-medium text-left transition-all min-h-[44px] ${
+                      urgency === u.value ? u.cls + ' shadow-md ring-2 ring-primary/30' : 'border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <span className="text-lg">{u.dot}</span>
+                    <span>{u.value} - {u.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Titre preview */}
+          {actionId && categoryId && objectId && (
+            <div className="rounded-md bg-muted p-3">
+              <Label className="text-xs text-muted-foreground">Titre final du ticket</Label>
+              <p className="mt-1 text-sm font-mono">{buildTitle()}</p>
+            </div>
+          )}
+        </TicketFormStep>
+      )}
+
+      {/* ============ ÉTAPE 3 : MÉDIAS ============ */}
+      {step === 3 && (
+        <TicketFormStep title="Étape 3 — Détails & Médias">
+          <div className="space-y-2">
+            <Label htmlFor="cf-description">Description *</Label>
+            <Textarea
+              id="cf-description"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={4}
+              placeholder="Décrivez le problème ou la demande en détail..."
+              className="min-h-[100px]"
+            />
+          </div>
+
+          {/* UPLOAD : inputs HTML bruts visibles */}
+          <div className="space-y-3">
+            <Label>Pièces jointes</Label>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">📷 Photo :</label>
+                <input type="file" accept="image/*" disabled={uploading} onChange={e => handleFileUpload(e, 'image')} />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">🎥 Vidéo :</label>
+                <input type="file" accept="video/*" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">🎤 Audio :</label>
+                <input type="file" accept="audio/*" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
+              </div>
+            </div>
+
+            {uploading && <p className="text-xs text-muted-foreground">Upload en cours...</p>}
+
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-1">
+                {uploadedFiles.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between rounded border p-2 text-xs">
+                    <span className="truncate">{f.type} — {f.name}</span>
+                    <button type="button" onClick={() => removeFile(i)}><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {actionKey === 'verifier' && (
+            <div className="space-y-2">
+              <Label>Signature numérique (obligatoire)</Label>
+              <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
+            </div>
+          )}
+
+          <div className="space-y-2 pt-2">
+            <Label>Notifications</Label>
+            <RadioGroup value={notifChannel} onValueChange={v => setNotifChannel(v as any)} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="email" id="cf-n-email" />
+                <Label htmlFor="cf-n-email" className="font-normal">Par email</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="sms" id="cf-n-sms" />
+                <Label htmlFor="cf-n-sms" className="font-normal">Par SMS</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="none" id="cf-n-none" />
+                <Label htmlFor="cf-n-none" className="font-normal">Aucune</Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </TicketFormStep>
+      )}
+
+      {/* NAV */}
+      <div className="flex gap-3 pt-2">
+        {step > 1 && (
+          <Button type="button" variant="outline" onClick={() => setStep(s => s - 1)} className="min-h-[44px]">
+            <ArrowLeft className="mr-1 h-4 w-4" /> Précédent
+          </Button>
+        )}
+        <div className="flex-1" />
+        {step < TOTAL_STEPS ? (
+          <Button type="button" onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="min-h-[44px]">
+            Suivant <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button type="button" onClick={handleSubmit} disabled={submitting || !canProceed()} className="min-h-[44px]">
+            {submitting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+            {submitting ? 'Envoi...' : 'Créer le ticket'}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 };

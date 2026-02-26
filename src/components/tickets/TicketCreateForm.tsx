@@ -62,6 +62,8 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [recordingAudio, setRecordingAudio] = useState(false);
 
+  const [mediaMenu, setMediaMenu] = useState<'photo' | 'video' | 'audio' | null>(null);
+
   // --- Location hierarchy ---
   const [ensembles, setEnsembles] = useState<Array<{ id: string; name: string }>>([]);
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
@@ -653,41 +655,85 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
             />
           </div>
 
-          {/* UPLOAD : caméra + micro natifs avec fallback fichier */}
+          {/* UPLOAD : boutons avec choix capture / fichier */}
           <div className="space-y-3">
             <Label>Pièces jointes</Label>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={startCameraCapture}
-                disabled={uploading}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]"
-              >
-                <Camera className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium">Photo</span>
-              </button>
+              {/* === PHOTO === */}
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setMediaMenu(mediaMenu === 'photo' ? null : 'photo')}
+                  disabled={uploading}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${mediaMenu === 'photo' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
+                >
+                  <Camera className="h-6 w-6 text-primary" />
+                  <span className="text-sm font-medium">Photo</span>
+                </button>
+                {mediaMenu === 'photo' && (
+                  <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <button type="button" onClick={() => { setMediaMenu(null); startCameraCapture(); }}
+                      className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent">📸 Prendre une photo</button>
+                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                      📁 Choisir un fichier
+                      <input type="file" accept="image/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'image'); }} />
+                    </label>
+                  </div>
+                )}
+              </div>
 
-              <label
-                htmlFor="upload-video"
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <Video className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium">Vidéo</span>
-              </label>
-              <input id="upload-video" type="file" accept="video/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
+              {/* === VIDÉO === */}
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setMediaMenu(mediaMenu === 'video' ? null : 'video')}
+                  disabled={uploading}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${mediaMenu === 'video' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
+                >
+                  <Video className="h-6 w-6 text-primary" />
+                  <span className="text-sm font-medium">Vidéo</span>
+                </button>
+                {mediaMenu === 'video' && (
+                  <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                      🎥 Enregistrer une vidéo
+                      <input type="file" accept="video/*" capture="environment" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'video'); }} />
+                    </label>
+                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                      📁 Choisir un fichier
+                      <input type="file" accept="video/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'video'); }} />
+                    </label>
+                  </div>
+                )}
+              </div>
 
-              <button
-                type="button"
-                onClick={toggleAudioRecording}
-                disabled={uploading}
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${recordingAudio ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
-              >
-                <Mic className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium">{recordingAudio ? 'Stop audio' : 'Audio'}</span>
-              </button>
-              <input id="upload-audio-fallback" type="file" accept="audio/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
+              {/* === AUDIO === */}
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setMediaMenu(mediaMenu === 'audio' ? null : 'audio')}
+                  disabled={uploading}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${mediaMenu === 'audio' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
+                >
+                  <Mic className="h-6 w-6 text-primary" />
+                  <span className="text-sm font-medium">Audio</span>
+                </button>
+                {mediaMenu === 'audio' && (
+                  <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <button type="button" onClick={() => { setMediaMenu(null); toggleAudioRecording(); }}
+                      className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent">
+                      {recordingAudio ? '⏹️ Arrêter l\'enregistrement' : '🎙️ Enregistrer un audio'}
+                    </button>
+                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                      📁 Choisir un fichier
+                      <input type="file" accept="audio/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'audio'); }} />
+                    </label>
+                  </div>
+                )}
+              </div>
 
+              {/* === DOCUMENT === */}
               <label
                 htmlFor="upload-doc"
                 className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
@@ -703,12 +749,19 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
                 <video ref={cameraVideoRef} autoPlay playsInline muted className="w-full rounded-md border border-border bg-muted" />
                 <div className="flex gap-2 justify-end">
                   <Button type="button" variant="outline" onClick={stopCameraStream}>Annuler</Button>
-                  <Button type="button" onClick={capturePhoto}>Capturer</Button>
+                  <Button type="button" onClick={capturePhoto}>📸 Capturer</Button>
                 </div>
               </div>
             )}
 
-            {recordingAudio && <p className="text-xs text-muted-foreground">Enregistrement micro en cours… cliquez à nouveau sur Audio pour arrêter.</p>}
+            {recordingAudio && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary/5 p-3">
+                <span className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
+                <span className="text-xs text-muted-foreground flex-1">Enregistrement en cours…</span>
+                <Button type="button" size="sm" variant="outline" onClick={toggleAudioRecording}>⏹️ Stop</Button>
+              </div>
+            )}
+
             {uploading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Upload en cours...</p>}
 
             {uploadedFiles.length > 0 && (

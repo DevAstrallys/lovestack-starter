@@ -42,6 +42,11 @@ interface Props {
 export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCategories, getFilteredObjects, getFilteredDetails }: Props) {
   const set = (partial: Partial<DiagnosticData>) => onChange({ ...data, ...partial });
 
+  // Deduplicate actions by key to prevent visual duplicates
+  const uniqueActions = actions.filter((action, index, self) =>
+    index === self.findIndex(a => a.key === action.key)
+  );
+
   const filteredCategories = data.action_id ? getFilteredCategories(data.action_id) : [];
   const filteredObjects = data.category_id ? getFilteredObjects(data.category_id) : [];
   const filteredDetails = data.object_id ? getFilteredDetails(data.object_id) : [];
@@ -63,7 +68,7 @@ export function ReportStepDiagnostic({ data, onChange, actions, getFilteredCateg
       <div className="space-y-2">
         <Label>Que souhaitez-vous faire ? *</Label>
         <div className="grid grid-cols-2 gap-3">
-          {actions.map(action => {
+          {uniqueActions.map(action => {
             const Icon = ICON_MAP[action.icon || ''] || AlertTriangle;
             const isSelected = data.action_id === action.id;
             return (

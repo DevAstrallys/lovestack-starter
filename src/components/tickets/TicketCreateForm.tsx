@@ -54,10 +54,13 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const photoRef = React.useRef<HTMLInputElement>(null);
-  const videoRef = React.useRef<HTMLInputElement>(null);
-  const audioRef = React.useRef<HTMLInputElement>(null);
-  const docRef = React.useRef<HTMLInputElement>(null);
+  const cameraVideoRef = React.useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = React.useRef<MediaStream | null>(null);
+  const audioRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const audioStreamRef = React.useRef<MediaStream | null>(null);
+  const audioChunksRef = React.useRef<Blob[]>([]);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [recordingAudio, setRecordingAudio] = useState(false);
 
   // --- Location hierarchy ---
   const [ensembles, setEnsembles] = useState<Array<{ id: string; name: string }>>([]);
@@ -209,13 +212,12 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   };
 
   // --- File upload ---
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File, fileType: string) => {
     if (file.size > 20 * 1024 * 1024) {
       toast({ title: 'Fichier trop volumineux (max 20 Mo)', variant: 'destructive' });
       return;
     }
+
     setUploading(true);
     try {
       const ext = file.name.split('.').pop() || 'bin';
@@ -230,9 +232,115 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       toast({ title: 'Erreur upload', variant: 'destructive' });
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadFile(file, fileType);
+    e.target.value = '';
+  };
+
+  const stopCameraStream = () => {
+    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
+    cameraStreamRef.current = null;
+    setCameraOpen(false);
+  };
+
+  const stopAudioStream = () => {
+    audioStreamRef.current?.getTracks().forEach(track => track.stop());
+    audioStreamRef.current = null;
+  };
+
+  const startCameraCapture = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast({ title: 'Caméra non supportée sur ce navigateur', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      cameraStreamRef.current = stream;
+      setCameraOpen(true);
+      requestAnimationFrame(() => {
+        if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
+      });
+    } catch (error) {
+      console.error('[Camera ERROR]', error);
+      toast({ title: 'Accès caméra refusé ou indisponible', variant: 'destructive' });
+    }
+  };
+
+  const capturePhoto = async () => {
+    const video = cameraVideoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      await uploadFile(file, 'image');
+      stopCameraStream();
+    }, 'image/jpeg', 0.92);
+  };
+
+  const toggleAudioRecording = async () => {
+    if (recordingAudio && audioRecorderRef.current) {
+      audioRecorderRef.current.stop();
+      setRecordingAudio(false);
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      const fallback = document.getElementById('upload-audio-fallback') as HTMLInputElement | null;
+      fallback?.click();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      audioRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        const mimeType = recorder.mimeType || 'audio/webm';
+        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType });
+        await uploadFile(file, 'audio');
+        stopAudioStream();
+      };
+
+      recorder.start();
+      setRecordingAudio(true);
+    } catch (error) {
+      console.error('[Audio ERROR]', error);
+      toast({ title: 'Accès micro refusé ou indisponible', variant: 'destructive' });
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioRecorderRef.current?.state === 'recording') {
+        audioRecorderRef.current.stop();
+      }
+      stopAudioStream();
+      stopCameraStream();
+    };
+  }, []);
 
   const removeFile = (i: number) => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i));
 
@@ -545,40 +653,62 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
             />
           </div>
 
-          {/* UPLOAD : 4 gros boutons via label+input natif */}
+          {/* UPLOAD : caméra + micro natifs avec fallback fichier */}
           <div className="space-y-3">
             <Label>Pièces jointes</Label>
 
             <div className="grid grid-cols-2 gap-3">
-              <label htmlFor="upload-photo"
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <button
+                type="button"
+                onClick={startCameraCapture}
+                disabled={uploading}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]"
+              >
                 <Camera className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Photo</span>
-                <input id="upload-photo" type="file" accept="image/*" capture="environment" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'image')} />
-              </label>
+              </button>
 
-              <label htmlFor="upload-video"
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <label
+                htmlFor="upload-video"
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+              >
                 <Video className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Vidéo</span>
-                <input id="upload-video" type="file" accept="video/*" capture="environment" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
               </label>
+              <input id="upload-video" type="file" accept="video/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
 
-              <label htmlFor="upload-audio"
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <button
+                type="button"
+                onClick={toggleAudioRecording}
+                disabled={uploading}
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${recordingAudio ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
+              >
                 <Mic className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium">Audio</span>
-                <input id="upload-audio" type="file" accept="audio/*" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
-              </label>
+                <span className="text-sm font-medium">{recordingAudio ? 'Stop audio' : 'Audio'}</span>
+              </button>
+              <input id="upload-audio-fallback" type="file" accept="audio/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
 
-              <label htmlFor="upload-doc"
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <label
+                htmlFor="upload-doc"
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+              >
                 <FileText className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Document</span>
-                <input id="upload-doc" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
               </label>
+              <input id="upload-doc" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
             </div>
 
+            {cameraOpen && (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+                <video ref={cameraVideoRef} autoPlay playsInline muted className="w-full rounded-md border border-border bg-muted" />
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={stopCameraStream}>Annuler</Button>
+                  <Button type="button" onClick={capturePhoto}>Capturer</Button>
+                </div>
+              </div>
+            )}
+
+            {recordingAudio && <p className="text-xs text-muted-foreground">Enregistrement micro en cours… cliquez à nouveau sur Audio pour arrêter.</p>}
             {uploading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Upload en cours...</p>}
 
             {uploadedFiles.length > 0 && (

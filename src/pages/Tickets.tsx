@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { NavigationHeader } from '@/components/ui/navigation-header';
 import { Button } from '@/components/ui/button';
-import { Plus, AlertCircle } from 'lucide-react';
+import { Plus, AlertCircle, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { TicketCreateForm } from '@/components/tickets/TicketCreateForm';
 import { TicketsList } from '@/components/tickets/TicketsList';
-import { TicketFilters } from '@/components/tickets/TicketFilters';
+import { TicketQuickFilters } from '@/components/tickets/TicketQuickFilters';
 import { TicketDetailDialog } from '@/components/tickets/TicketDetailDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
@@ -71,8 +72,8 @@ export const Tickets = () => {
   return (
     <div className="min-h-screen bg-background">
       <NavigationHeader 
-        title={`Gestion des Tickets${selectedOrganization ? ` - ${selectedOrganization.name}` : ' - Toutes les organisations'}`}
-        description={`${totalCount} ticket${totalCount !== 1 ? 's' : ''} trouvé${totalCount !== 1 ? 's' : ''}`}
+        title={`Tickets${selectedOrganization ? ` – ${selectedOrganization.name}` : ''}`}
+        description="Gérez les demandes et interventions"
       />
       
       {/* Sélecteur d'organisation pour les admins plateforme */}
@@ -89,52 +90,54 @@ export const Tickets = () => {
         </div>
       )}
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex gap-6">
-          {/* Sidebar with filters */}
-          <div className="w-80 flex-shrink-0">
-            <TicketFilters 
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              onReset={handleFiltersReset}
+      <main className="container mx-auto px-4 py-6 space-y-4">
+        {/* Top bar: search + create */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un ticket..."
+              value={filters.search || ''}
+              onChange={(e) => handleFiltersChange({ ...filters, search: e.target.value || undefined })}
+              className="pl-9 h-9 rounded-lg"
             />
           </div>
-
-          {/* Main content area */}
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold">
-                Tickets {loading && '(Chargement...)'}
-              </h2>
-              
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Créer un ticket
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Créer une demande</DialogTitle>
-                  </DialogHeader>
-                  <TicketCreateForm 
-                    onSuccess={() => {
-                      setIsCreateDialogOpen(false);
-                      refresh();
-                    }} 
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <TicketsList 
-              tickets={tickets}
-              onTicketClick={handleTicketClick}
-              loading={loading}
-            />
-          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="rounded-lg h-9">
+                <Plus className="w-4 h-4 mr-1.5" />
+                Nouveau ticket
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Créer une demande</DialogTitle>
+              </DialogHeader>
+              <TicketCreateForm 
+                onSuccess={() => {
+                  setIsCreateDialogOpen(false);
+                  refresh();
+                }} 
+              />
+            </DialogContent>
+          </Dialog>
         </div>
+
+        {/* Quick filters bar */}
+        <TicketQuickFilters filters={filters} onFiltersChange={handleFiltersChange} />
+
+        {/* Ticket count */}
+        <p className="text-xs text-muted-foreground">
+          {totalCount} ticket{totalCount !== 1 ? 's' : ''} trouvé{totalCount !== 1 ? 's' : ''}
+          {loading && ' · Chargement...'}
+        </p>
+
+        {/* Tickets list */}
+        <TicketsList 
+          tickets={tickets}
+          onTicketClick={handleTicketClick}
+          loading={loading}
+        />
       </main>
 
       <TicketDetailDialog

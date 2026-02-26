@@ -49,24 +49,34 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
     try {
       const { data, error } = await supabase
         .from('location_groups' as any)
-        .select(`
-          *,
-          location_group_elements (
-            location_elements (*)
-          ),
-          location_group_tags (
-            location_tags (*)
-          )
-        `)
+        .select('*')
         .eq('organization_id', organizationId)
         .order('name');
 
       if (error) throw error;
 
+      // Fetch child elements and tags for each group
+      const groupIds = (data || []).map((g: any) => g.id);
+      
+      const [elementsRes, tagsRes] = await Promise.all([
+        supabase.from('location_elements' as any).select('*').in('parent_id', groupIds),
+        supabase.from('location_group_tags' as any).select('*, location_tags(*)').in('group_id', groupIds)
+      ]);
+
+      const elementsByGroup = (elementsRes.data || []).reduce((acc: any, e: any) => {
+        (acc[e.parent_id] = acc[e.parent_id] || []).push(e);
+        return acc;
+      }, {});
+
+      const tagsByGroup = (tagsRes.data || []).reduce((acc: any, gt: any) => {
+        (acc[gt.group_id] = acc[gt.group_id] || []).push(gt.location_tags);
+        return acc;
+      }, {});
+
       const groupsWithRelations = (data || []).map((group: any) => ({
         ...group,
-        elements: group.location_group_elements?.map((ge: any) => ge.location_elements) || [],
-        tags: group.location_group_tags?.map((gt: any) => gt.location_tags) || []
+        elements: elementsByGroup[group.id] || [],
+        tags: tagsByGroup[group.id] || []
       }));
 
       setGroups(groupsWithRelations);
@@ -141,21 +151,17 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
         groupId = (data as any).id;
       }
 
-      // Update elements
+      // Update elements: set parent_id on selected elements, clear on deselected
       await supabase
-        .from('location_group_elements' as any)
-        .delete()
-        .eq('group_id', groupId);
+        .from('location_elements' as any)
+        .update({ parent_id: null })
+        .eq('parent_id', groupId);
 
       if (formData.selectedElements.length > 0) {
-        const elementInserts = formData.selectedElements.map(elementId => ({
-          group_id: groupId,
-          element_id: elementId
-        }));
-
         const { error: elementError } = await supabase
-          .from('location_group_elements' as any)
-          .insert(elementInserts);
+          .from('location_elements' as any)
+          .update({ parent_id: groupId })
+          .in('id', formData.selectedElements);
 
         if (elementError) throw elementError;
       }

@@ -167,7 +167,7 @@ export function useQRCodeBySlug(slug: string) {
 
         // Use the restricted public view (excludes created_by, building_id)
         const { data, error: fetchError } = await supabase
-          .from('qr_codes_public' as any)
+          .from('qr_codes')
           .select('*')
           .eq('target_slug', slug)
           .eq('is_active', true)

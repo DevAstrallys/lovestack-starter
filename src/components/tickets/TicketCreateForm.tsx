@@ -545,35 +545,38 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
             />
           </div>
 
-          {/* UPLOAD : 4 gros boutons iconographiques */}
+          {/* UPLOAD : 4 gros boutons via label+input natif */}
           <div className="space-y-3">
             <Label>Pièces jointes</Label>
-            <input ref={photoRef} type="file" accept="image/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'image')} />
-            <input ref={videoRef} type="file" accept="video/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
-            <input ref={audioRef} type="file" accept="audio/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
-            <input ref={docRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
 
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => photoRef.current?.click()} disabled={uploading}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+              <label htmlFor="upload-photo"
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                 <Camera className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Photo</span>
-              </button>
-              <button type="button" onClick={() => videoRef.current?.click()} disabled={uploading}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <input id="upload-photo" type="file" accept="image/*" capture="environment" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'image')} />
+              </label>
+
+              <label htmlFor="upload-video"
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                 <Video className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Vidéo</span>
-              </button>
-              <button type="button" onClick={() => audioRef.current?.click()} disabled={uploading}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <input id="upload-video" type="file" accept="video/*" capture="environment" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
+              </label>
+
+              <label htmlFor="upload-audio"
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                 <Mic className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Audio</span>
-              </button>
-              <button type="button" onClick={() => docRef.current?.click()} disabled={uploading}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                <input id="upload-audio" type="file" accept="audio/*" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
+              </label>
+
+              <label htmlFor="upload-doc"
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                 <FileText className="h-6 w-6 text-primary" />
                 <span className="text-sm font-medium">Document</span>
-              </button>
+                <input id="upload-doc" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="sr-only" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
+              </label>
             </div>
 
             {uploading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Upload en cours...</p>}

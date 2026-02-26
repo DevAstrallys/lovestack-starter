@@ -1958,6 +1958,7 @@ export type Database = {
           meta: Json | null
           nature_code: string | null
           object_id: string | null
+          organization_id: string | null
           priority: Database["public"]["Enums"]["ticket_priority"] | null
           relance_index: number | null
           reporter_email: string | null
@@ -1992,6 +1993,7 @@ export type Database = {
           meta?: Json | null
           nature_code?: string | null
           object_id?: string | null
+          organization_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
           relance_index?: number | null
           reporter_email?: string | null
@@ -2026,6 +2028,7 @@ export type Database = {
           meta?: Json | null
           nature_code?: string | null
           object_id?: string | null
+          organization_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
           relance_index?: number | null
           reporter_email?: string | null
@@ -2099,6 +2102,13 @@ export type Database = {
             columns: ["object_id"]
             isOneToOne: false
             referencedRelation: "tax_objects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

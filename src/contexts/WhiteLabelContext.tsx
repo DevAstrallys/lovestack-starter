@@ -53,6 +53,15 @@ function foregroundForHsl(hslStr: string): string {
   return l > 55 ? '222.2 47.4% 11.2%' : '210 40% 98%';
 }
 
+/** Darken an HSL string for sidebar background */
+function darkenHsl(hslStr: string, amount: number): string {
+  const parts = hslStr.split(/\s+/);
+  const h = parseFloat(parts[0]);
+  const s = parseFloat(parts[1]);
+  const l = Math.max(parseFloat(parts[2]) - amount, 5);
+  return `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`;
+}
+
 export const WhiteLabelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { selectedOrganization } = useOrganization();
   const [config, setConfig] = useState<WhiteLabelConfig>({
@@ -62,12 +71,13 @@ export const WhiteLabelProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
 
   useEffect(() => {
+    const root = document.documentElement.style;
+
     if (!selectedOrganization) {
       // Reset to defaults
-      document.documentElement.style.removeProperty('--primary');
-      document.documentElement.style.removeProperty('--primary-foreground');
-      document.documentElement.style.removeProperty('--ring');
-      document.documentElement.style.removeProperty('--sidebar-primary');
+      ['--primary', '--primary-foreground', '--ring', '--sidebar-primary',
+       '--sidebar-background', '--sidebar-foreground', '--sidebar-accent',
+       '--sidebar-accent-foreground', '--sidebar-border'].forEach(v => root.removeProperty(v));
       setConfig({ primaryColor: null, secondaryColor: null, logoUrl: null });
       return;
     }
@@ -79,20 +89,27 @@ export const WhiteLabelProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     setConfig({ primaryColor, secondaryColor, logoUrl });
 
-    // Apply CSS variables dynamically
     if (primaryColor) {
       const hsl = hexToHsl(primaryColor);
       if (hsl) {
-        document.documentElement.style.setProperty('--primary', hsl);
-        document.documentElement.style.setProperty('--primary-foreground', foregroundForHsl(hsl));
-        document.documentElement.style.setProperty('--ring', hsl);
-        document.documentElement.style.setProperty('--sidebar-primary', hsl);
+        const fg = foregroundForHsl(hsl);
+        root.setProperty('--primary', hsl);
+        root.setProperty('--primary-foreground', fg);
+        root.setProperty('--ring', hsl);
+        root.setProperty('--sidebar-primary', hsl);
+
+        // Sidebar background: dark version of the primary color
+        const sidebarBg = darkenHsl(hsl, 35);
+        root.setProperty('--sidebar-background', sidebarBg);
+        root.setProperty('--sidebar-foreground', '210 40% 85%');
+        root.setProperty('--sidebar-accent', darkenHsl(hsl, 28));
+        root.setProperty('--sidebar-accent-foreground', '210 40% 95%');
+        root.setProperty('--sidebar-border', darkenHsl(hsl, 30));
       }
     } else {
-      document.documentElement.style.removeProperty('--primary');
-      document.documentElement.style.removeProperty('--primary-foreground');
-      document.documentElement.style.removeProperty('--ring');
-      document.documentElement.style.removeProperty('--sidebar-primary');
+      ['--primary', '--primary-foreground', '--ring', '--sidebar-primary',
+       '--sidebar-background', '--sidebar-foreground', '--sidebar-accent',
+       '--sidebar-accent-foreground', '--sidebar-border'].forEach(v => root.removeProperty(v));
     }
   }, [selectedOrganization]);
 

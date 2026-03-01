@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -7,16 +7,24 @@ import { Input } from '@/components/ui/input';
 import { TicketCreateForm } from '@/components/tickets/TicketCreateForm';
 import { TicketsList } from '@/components/tickets/TicketsList';
 import { TicketsKanban } from '@/components/tickets/TicketsKanban';
+import { TicketsPortfolio } from '@/components/tickets/TicketsPortfolio';
 import { TicketQuickFilters } from '@/components/tickets/TicketQuickFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
-import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { useTickets, TicketFilters as ITicketFilters, Ticket, TicketStatus } from '@/hooks/useTickets';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type ViewMode = 'list' | 'kanban';
+
+interface Building {
+  id: string;
+  name: string;
+  address?: string | null;
+  city?: string | null;
+}
 
 export const Tickets = () => {
   const navigate = useNavigate();
@@ -24,12 +32,41 @@ export const Tickets = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useState<ITicketFilters>({});
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  
-  const ticketFilters = selectedOrganization 
-    ? { ...filters, organizationId: selectedOrganization.id }
-    : filters;
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [buildingsLoading, setBuildingsLoading] = useState(false);
+
+  // Load buildings for the selected organization
+  useEffect(() => {
+    if (!selectedOrganization) {
+      setBuildings([]);
+      return;
+    }
+    const load = async () => {
+      setBuildingsLoading(true);
+      const { data } = await supabase
+        .from('buildings')
+        .select('id, name, address, city')
+        .eq('organization_id', selectedOrganization.id)
+        .eq('is_active', true)
+        .order('name');
+      setBuildings(data || []);
+      setBuildingsLoading(false);
+    };
+    load();
+  }, [selectedOrganization?.id]);
+
+  const ticketFilters: ITicketFilters = {
+    ...filters,
+    ...(selectedOrganization ? { organizationId: selectedOrganization.id } : {}),
+  };
     
   const { tickets, loading, totalCount, refresh, updateTicket } = useTickets(ticketFilters);
+
+  // Filter tickets by selected building (client-side for instant feedback)
+  const displayedTickets = selectedBuildingId
+    ? tickets.filter(t => t.building_id === selectedBuildingId)
+    : tickets;
 
   const handleFiltersChange = (newFilters: ITicketFilters) => setFilters(newFilters);
   const handleTicketClick = (ticket: Ticket) => navigate(`/tickets/${ticket.id}`);
@@ -83,8 +120,16 @@ export const Tickets = () => {
               Gérez les demandes et interventions
             </p>
           </div>
-          {/* Org selector now in sidebar */}
         </div>
+
+        {/* Portfolio view */}
+        <TicketsPortfolio
+          buildings={buildings}
+          tickets={tickets}
+          selectedBuildingId={selectedBuildingId}
+          onBuildingSelect={setSelectedBuildingId}
+          loading={buildingsLoading}
+        />
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -150,20 +195,21 @@ export const Tickets = () => {
 
         {/* Count */}
         <p className="text-xs text-muted-foreground">
-          {totalCount} ticket{totalCount !== 1 ? 's' : ''} trouvé{totalCount !== 1 ? 's' : ''}
+          {displayedTickets.length} ticket{displayedTickets.length !== 1 ? 's' : ''} trouvé{displayedTickets.length !== 1 ? 's' : ''}
+          {selectedBuildingId && ` (filtré par site)`}
           {loading && ' · Chargement...'}
         </p>
 
         {/* View */}
         {viewMode === 'list' ? (
           <TicketsList 
-            tickets={tickets}
+            tickets={displayedTickets}
             onTicketClick={handleTicketClick}
             loading={loading}
           />
         ) : (
           <TicketsKanban
-            tickets={tickets}
+            tickets={displayedTickets}
             onTicketClick={handleTicketClick}
             onStatusChange={handleStatusChange}
             loading={loading}

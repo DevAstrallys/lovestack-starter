@@ -37,8 +37,8 @@ export function buildTicketTitle(params: {
 
 /**
  * Formate un titre de ticket pour l'affichage.
- * Supprime les crochets et majuscules agressives.
- * Résultat : "{Priorité} — {Catégorie} — {Titre}"
+ * Résultat : "{Priorité} — {Catégorie} — {Sujet}"
+ * Nettoie les crochets et majuscules agressives sans perdre d'information.
  */
 export function formatTicketDisplayTitle(ticket: {
   title: string;
@@ -47,35 +47,84 @@ export function formatTicketDisplayTitle(ticket: {
 }): string {
   const { title, priority, category_code } = ticket;
 
-  // Clean the raw title: remove [BRACKETS] patterns
+  // 1. Extract content from [BRACKETS] before removing them
+  const bracketContents: string[] = [];
+  const bracketRegex = /\[([^\]]*)\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = bracketRegex.exec(title)) !== null) {
+    const content = match[1].trim();
+    // Skip if it's a known priority label (already handled separately)
+    const priorityValues = Object.values(TICKET_PRIORITIES).map(v => v.toLowerCase());
+    const priorityKeys = Object.keys(TICKET_PRIORITIES);
+    if (!priorityKeys.includes(content.toLowerCase()) && !priorityValues.includes(content.toLowerCase())) {
+      bracketContents.push(content);
+    }
+  }
+
+  // 2. Clean the raw title: remove [BRACKETS] but keep the rest
   let cleanTitle = title
-    .replace(/\[([^\]]*)\]/g, '') // remove all [...]
-    .replace(/\s*>\s*/g, ' — ')   // replace > with em dash
-    .replace(/\s*:\s*/g, ' — ')   // replace : with em dash
-    .replace(/\s*-\s*/g, ' — ')   // replace - separators with em dash
+    .replace(/\[([^\]]*)\]/g, '')  // remove all [...]
+    .replace(/\s*>\s*/g, ' — ')    // replace > with em dash
+    .replace(/\s*:\s*/g, ' — ')    // replace : with em dash
+    .replace(/\s+—\s+/g, ' — ')   // normalize existing em dashes
+    .replace(/(?<=\S)\s*-\s*(?=\S)/g, (m, offset, str) => {
+      // Only replace standalone separators (space-dash-space), not hyphens in compound words
+      return m.includes(' ') ? ' — ' : m;
+    })
     .replace(/—\s*—/g, '—')       // collapse double dashes
     .replace(/^\s*—\s*/, '')       // remove leading dash
     .replace(/\s*—\s*$/, '')       // remove trailing dash
     .trim();
 
-  // Apply sentence case to each segment
-  cleanTitle = cleanTitle
+  // 3. Split into segments, apply sentence case, and filter empty
+  const segments = cleanTitle
     .split(' — ')
-    .map(s => toSentenceCase(s.trim()))
-    .filter(Boolean)
-    .join(' — ');
+    .map(s => s.trim())
+    .filter(Boolean);
 
-  // Build final display: Priority — Category — Title (avoid duplicates)
+  // 4. Add bracket contents that aren't already represented
+  const allSegments = [...bracketContents, ...segments];
+  
+  // Deduplicate (case-insensitive)
+  const seen = new Set<string>();
+  const uniqueSegments = allSegments.filter(s => {
+    const key = s.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Apply sentence case
+  const formattedSegments = uniqueSegments.map(s => toSentenceCase(s));
+
+  // 5. Build final: Priority — Category — Subject
   const priorityLabel = priority ? TICKET_PRIORITIES[priority as keyof typeof TICKET_PRIORITIES] : null;
   const parts: string[] = [];
 
   if (priorityLabel) parts.push(toSentenceCase(priorityLabel));
-  if (category_code && !cleanTitle.toLowerCase().includes(category_code.toLowerCase())) {
-    parts.push(toSentenceCase(category_code));
-  }
-  if (cleanTitle) parts.push(cleanTitle);
 
-  return parts.join(' — ') || title;
+  // Add category_code if not already present in segments
+  if (category_code) {
+    const catLower = category_code.toLowerCase();
+    const alreadyPresent = formattedSegments.some(s => s.toLowerCase().includes(catLower));
+    if (!alreadyPresent) {
+      parts.push(toSentenceCase(category_code));
+    }
+  }
+
+  // Add all remaining segments
+  parts.push(...formattedSegments);
+
+  // Deduplicate final parts (priority label might match a segment)
+  const finalSeen = new Set<string>();
+  const finalParts = parts.filter(p => {
+    const key = p.toLowerCase();
+    if (finalSeen.has(key)) return false;
+    finalSeen.add(key);
+    return true;
+  });
+
+  return finalParts.join(' — ') || title;
 }
 
 /**

@@ -27,10 +27,12 @@ function KanbanCard({
   ticket,
   onClick,
   onDragStart,
+  onDragEnd,
 }: {
   ticket: Ticket;
   onClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: (e: React.DragEvent) => void;
 }) {
   const urgency =
     URGENCY_CONFIG[(ticket.priority as keyof typeof URGENCY_CONFIG)] ??
@@ -40,6 +42,7 @@ function KanbanCard({
     <Card
       draggable
       onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onClick={onClick}
       className="group relative overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200 rounded-lg border border-border/60"
     >
@@ -97,25 +100,48 @@ export function TicketsKanban({
   const handleDragStart = (e: React.DragEvent, ticketId: string) => {
     setDraggedId(ticketId);
     e.dataTransfer.effectAllowed = 'move';
+    // Required for Firefox
+    e.dataTransfer.setData('text/plain', ticketId);
+    // Add visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedId(null);
+    setDragOverColumn(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, colKey: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverColumn(colKey);
+    if (dragOverColumn !== colKey) {
+      setDragOverColumn(colKey);
+    }
   };
 
-  const handleDragLeave = () => {
-    setDragOverColumn(null);
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the column element itself (not a child)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const { clientX, clientY } = e;
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      setDragOverColumn(null);
+    }
   };
 
   const handleDrop = (e: React.DragEvent, colKey: string) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOverColumn(null);
-    if (draggedId) {
-      const ticket = tickets.find((t) => t.id === draggedId);
+    const ticketId = draggedId || e.dataTransfer.getData('text/plain');
+    if (ticketId) {
+      const ticket = tickets.find((t) => t.id === ticketId);
       if (ticket && ticket.status !== colKey) {
-        onStatusChange(draggedId, colKey as TicketStatus);
+        onStatusChange(ticketId, colKey as TicketStatus);
       }
     }
     setDraggedId(null);
@@ -123,7 +149,7 @@ export function TicketsKanban({
 
   if (loading) {
     return (
-    <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {KANBAN_COLUMNS.map((col) => (
           <div key={col.key} className="space-y-3">
             <div className="h-8 bg-muted rounded-lg animate-pulse" />
@@ -136,7 +162,7 @@ export function TicketsKanban({
   }
 
   return (
-    <div className="grid grid-cols-5 gap-3 min-h-[60vh]">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 min-h-[60vh]">
       {KANBAN_COLUMNS.map((col) => {
         const statusCfg =
           STATUS_CONFIG[col.key as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.open;
@@ -148,7 +174,7 @@ export function TicketsKanban({
             key={col.key}
             className={cn(
               'flex flex-col rounded-xl border border-border/50 bg-muted/30 transition-colors duration-200',
-              isOver && 'bg-primary/5 border-primary/30'
+              isOver && 'bg-primary/5 border-primary/30 ring-2 ring-primary/20'
             )}
             onDragOver={(e) => handleDragOver(e, col.key)}
             onDragLeave={handleDragLeave}
@@ -176,7 +202,7 @@ export function TicketsKanban({
             <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-300px)]">
               {colTickets.length === 0 && (
                 <p className="text-[11px] text-muted-foreground text-center py-8 italic">
-                  Aucun ticket
+                  {isOver ? 'Déposer ici' : 'Aucun ticket'}
                 </p>
               )}
               {colTickets.map((ticket) => (
@@ -185,6 +211,7 @@ export function TicketsKanban({
                   ticket={ticket}
                   onClick={() => onTicketClick(ticket)}
                   onDragStart={(e) => handleDragStart(e, ticket.id)}
+                  onDragEnd={handleDragEnd}
                 />
               ))}
             </div>

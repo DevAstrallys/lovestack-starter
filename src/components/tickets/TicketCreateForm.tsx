@@ -176,11 +176,10 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
 
   // --- Helpers ---
   const buildTitle = () => {
-    const init = initiality === 'relance' ? 'RELANCE' : 'INITIAL';
-    const axis = actionKey.toUpperCase();
-    let t = `[${init}] [${axis}] ${categoryLabel} > ${objectLabel}`;
-    if (detailLabel) t += ` : ${detailLabel}`;
-    return t;
+    const sc = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
+    const parts = [sc(categoryLabel), sc(objectLabel)];
+    if (detailLabel) parts.push(sc(detailLabel));
+    return parts.join(' — ');
   };
 
   const canProceed = () => {

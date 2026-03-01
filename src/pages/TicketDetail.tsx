@@ -14,6 +14,7 @@ import {
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivities, TicketStatus } from '@/hooks/useTickets';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
+import { formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -139,7 +140,7 @@ export function TicketDetail() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-lg font-bold leading-snug text-foreground mb-2">
-                {ticket.title}
+                {formatTicketDisplayTitle(ticket)}
               </h1>
               <div className="flex flex-wrap items-center gap-2">
                 {/* Status tag */}

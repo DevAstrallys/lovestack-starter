@@ -10,7 +10,7 @@ import {
   Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
 import { Ticket, useTicketActivities, TicketActivity } from '@/hooks/useTickets';
-import { TICKET_STATUSES, TICKET_PRIORITIES } from '@/utils/ticketUtils';
+import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -357,7 +357,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={<span className="text-lg leading-snug pr-8">{ticket.title}</span>}
+      title={<span className="text-lg leading-snug pr-8">{formatTicketDisplayTitle(ticket)}</span>}
       description={headerContent}
       footer={<ReplyForm ticket={ticket} onSent={() => setRefreshKey(k => k + 1)} />}
     >

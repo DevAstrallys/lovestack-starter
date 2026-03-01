@@ -6,6 +6,7 @@ import { Calendar, MapPin, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { formatTicketDisplayTitle } from '@/utils/ticketUtils';
 
 interface TicketsKanbanProps {
   tickets: Ticket[];
@@ -48,7 +49,7 @@ function KanbanCard({
       />
       <CardContent className="pl-4 pr-3 py-3 space-y-2">
         <h4 className="text-xs font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-          {ticket.title}
+          {formatTicketDisplayTitle(ticket)}
         </h4>
 
         {/* Urgency tag */}

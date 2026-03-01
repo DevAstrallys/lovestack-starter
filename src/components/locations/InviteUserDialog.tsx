@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, CalendarClock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ interface UserRole {
   roleId: string;
   locationType: 'element' | 'group' | 'ensemble' | null;
   locationId: string | null;
+  expiresAt: string | null;
 }
 
 interface InviteUserDialogProps {
@@ -126,6 +127,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       roleId: '',
       locationType: null,
       locationId: null,
+      expiresAt: null,
     }]);
   };
 
@@ -336,11 +338,15 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
                 </Button>
               </div>
 
-              {userRoles.map((userRole) => (
+              {userRoles.map((userRole) => {
+                const selectedRoleCode = roles.flatMap(r => [r, ...(r.children || [])]).flatMap(r => [r, ...(r.children || [])]).find(r => r.id === userRole.roleId)?.code;
+                const needsExpiry = ['expert', 'auditeur', 'prestataire', 'pompier', 'police', 'data_client', 'administration_publique', 'concierge_digital'].includes(selectedRoleCode || '');
+                
+                return (
                 <Card key={userRole.id}>
                   <CardContent className="p-4">
-                    <div className="flex items-end gap-4">
-                      <div className="flex-1">
+                    <div className="flex items-end gap-4 flex-wrap">
+                      <div className="flex-1 min-w-[180px]">
                         <Label className="text-sm font-medium">Rôle</Label>
                         <Select
                           value={userRole.roleId}
@@ -355,7 +361,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
                         </Select>
                       </div>
 
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-[150px]">
                         <Label className="text-sm font-medium">Type de lieu</Label>
                         <Select
                           value={userRole.locationType || ''}
@@ -375,7 +381,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
                         </Select>
                       </div>
 
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-[150px]">
                         <Label className="text-sm font-medium">Lieu</Label>
                         <Select
                           value={userRole.locationId || ''}
@@ -395,6 +401,27 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
                         </Select>
                       </div>
 
+                      {needsExpiry && (
+                        <div className="min-w-[180px]">
+                          <Label className="text-sm font-medium flex items-center gap-1">
+                            <CalendarClock className="h-3 w-3" />
+                            Expiration
+                          </Label>
+                          <Input
+                            type="date"
+                            value={userRole.expiresAt || ''}
+                            onChange={(e) => updateUserRole(userRole.id, 'expiresAt', e.target.value || null)}
+                            min={new Date().toISOString().split('T')[0]}
+                            placeholder="Accès temporaire"
+                          />
+                          {userRole.expiresAt && (
+                            <Badge variant="outline" className="mt-1 text-[10px] text-orange-600 border-orange-200">
+                              Accès temporaire
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
                       <Button
                         type="button"
                         variant="ghost"
@@ -406,7 +433,8 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
 
               {userRoles.length === 0 && (
                 <Card className="border-dashed">

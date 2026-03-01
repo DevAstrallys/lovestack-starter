@@ -12,7 +12,8 @@ import {
   Shield,
   Settings,
   Mail,
-  Palette
+  Palette,
+  Lock
 } from 'lucide-react';
 import { UsersManagement } from '@/components/admin/UsersManagement';
 import { OrganizationsManagement } from '@/components/admin/OrganizationsManagement';
@@ -22,6 +23,7 @@ import { SystemSettings } from '@/components/admin/SystemSettings';
 import { EmailTester } from '@/components/admin/EmailTester';
 import { EmailTemplatesManager } from '@/components/admin/EmailTemplatesManager';
 import { VisualIdentitySettings } from '@/components/admin/VisualIdentitySettings';
+import { AccessSecurityManager } from '@/components/admin/AccessSecurityManager';
 
 export const Admin = () => {
   const { user } = useAuth();
@@ -61,7 +63,7 @@ export const Admin = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="w-full overflow-x-auto">
-            <TabsList className="grid w-full min-w-[900px] grid-cols-8 h-auto p-1">
+            <TabsList className="grid w-full min-w-[1000px] grid-cols-9 h-auto p-1">
               <TabsTrigger value="organizations" className="flex items-center gap-2 text-xs sm:text-sm py-2.5">
                 <Building2 className="h-4 w-4" />
                 <span className="hidden sm:inline">Organisations</span>
@@ -71,6 +73,11 @@ export const Admin = () => {
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Utilisateurs</span>
                 <span className="sm:hidden">Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="access-security" className="flex items-center gap-2 text-xs sm:text-sm py-2.5">
+                <Lock className="h-4 w-4" />
+                <span className="hidden sm:inline">Accès & Sécurité</span>
+                <span className="sm:hidden">Accès</span>
               </TabsTrigger>
               <TabsTrigger value="permissions" className="flex items-center gap-2 text-xs sm:text-sm py-2.5">
                 <Shield className="h-4 w-4" />
@@ -107,6 +114,7 @@ export const Admin = () => {
 
           <TabsContent value="organizations"><OrganizationsManagement /></TabsContent>
           <TabsContent value="users"><UsersManagement /></TabsContent>
+          <TabsContent value="access-security"><AccessSecurityManager /></TabsContent>
           <TabsContent value="permissions"><RolesPermissions /></TabsContent>
           <TabsContent value="permissions-manager"><PermissionsManager /></TabsContent>
           <TabsContent value="email-test"><EmailTester /></TabsContent>

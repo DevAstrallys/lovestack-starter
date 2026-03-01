@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.rgpd]
 verify_jwt = false
+
+[functions.expire-memberships]
+verify_jwt = false

@@ -760,6 +760,7 @@ export type Database = {
           created_at: string
           element_id: string | null
           ensemble_id: string | null
+          expires_at: string | null
           group_id: string | null
           id: string
           is_active: boolean
@@ -772,6 +773,7 @@ export type Database = {
           created_at?: string
           element_id?: string | null
           ensemble_id?: string | null
+          expires_at?: string | null
           group_id?: string | null
           id?: string
           is_active?: boolean
@@ -784,6 +786,7 @@ export type Database = {
           created_at?: string
           element_id?: string | null
           ensemble_id?: string | null
+          expires_at?: string | null
           group_id?: string | null
           id?: string
           is_active?: boolean

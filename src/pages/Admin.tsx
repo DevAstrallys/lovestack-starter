@@ -15,7 +15,8 @@ import {
   Settings,
   UserPlus,
   Building,
-  Mail
+  Mail,
+  Palette
 } from 'lucide-react';
 import { UsersManagement } from '@/components/admin/UsersManagement';
 import { OrganizationsManagement } from '@/components/admin/OrganizationsManagement';
@@ -24,6 +25,7 @@ import { PermissionsManager } from '@/components/admin/PermissionsManager';
 import { SystemSettings } from '@/components/admin/SystemSettings';
 import { EmailTester } from '@/components/admin/EmailTester';
 import { EmailTemplatesManager } from '@/components/admin/EmailTemplatesManager';
+import { VisualIdentitySettings } from '@/components/admin/VisualIdentitySettings';
 
 export const Admin = () => {
   const { user } = useAuth();
@@ -97,7 +99,7 @@ export const Admin = () => {
         {/* Admin Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           <div className="w-full overflow-x-auto">
-            <TabsList className="grid w-full min-w-[800px] grid-cols-7 h-auto p-1">
+            <TabsList className="grid w-full min-w-[900px] grid-cols-8 h-auto p-1">
               <TabsTrigger value="organizations" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
                 <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Organisations</span>
@@ -127,6 +129,11 @@ export const Admin = () => {
                 <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Templates</span>
                 <span className="sm:hidden">Tpl.</span>
+              </TabsTrigger>
+              <TabsTrigger value="visual-identity" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+                <Palette className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Marque</span>
+                <span className="sm:hidden">WL</span>
               </TabsTrigger>
               <TabsTrigger value="settings" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
                 <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -158,6 +165,10 @@ export const Admin = () => {
 
           <TabsContent value="email-templates">
             <EmailTemplatesManager />
+          </TabsContent>
+
+          <TabsContent value="visual-identity">
+            <VisualIdentitySettings />
           </TabsContent>
 
           <TabsContent value="settings">

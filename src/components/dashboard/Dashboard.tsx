@@ -1,237 +1,175 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Building2, 
   Ticket, 
   FileText, 
   BarChart3, 
   Settings, 
-  LogOut,
   Users,
   MessageSquare,
-  MapPin
+  MapPin,
+  ArrowRight
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { OrgLogo } from '@/components/ui/org-logo';
 
 const modules = [
   {
     id: 'locations',
     name: 'Gestion des Lieux',
-    description: 'Organiser la hiérarchie des lieux (éléments, groupements, ensembles)',
+    description: 'Hiérarchie des lieux : ensembles, groupements, éléments',
     icon: MapPin,
-    color: 'bg-emerald-500',
-    path: '/locations'
+    gradient: 'from-emerald-500/10 to-emerald-500/5',
+    iconColor: 'text-emerald-600',
+    iconBg: 'bg-emerald-100',
+    path: '/locations',
+    ready: true,
   },
   {
     id: 'ticketing',
     name: 'Gestion des Tickets',
     description: 'Créer et suivre les demandes d\'intervention',
     icon: Ticket,
-    color: 'bg-blue-500',
-    path: '/tickets'
+    gradient: 'from-blue-500/10 to-blue-500/5',
+    iconColor: 'text-blue-600',
+    iconBg: 'bg-blue-100',
+    path: '/tickets',
+    ready: true,
+  },
+  {
+    id: 'users',
+    name: 'Utilisateurs',
+    description: 'Gérer les accès et rôles',
+    icon: Users,
+    gradient: 'from-violet-500/10 to-violet-500/5',
+    iconColor: 'text-violet-600',
+    iconBg: 'bg-violet-100',
+    path: '/users',
+    ready: true,
   },
   {
     id: 'documents',
-    name: 'Gestion Documentaire',
-    description: 'Centraliser et organiser tous vos documents',
+    name: 'Documents',
+    description: 'Centraliser tous vos documents',
     icon: FileText,
-    color: 'bg-green-500',
-    path: '/documents'
+    gradient: 'from-amber-500/10 to-amber-500/5',
+    iconColor: 'text-amber-600',
+    iconBg: 'bg-amber-100',
+    path: '/documents',
+    ready: false,
   },
   {
     id: 'surveys',
     name: 'Sondages',
     description: 'Créer et diffuser des enquêtes',
     icon: MessageSquare,
-    color: 'bg-purple-500',
-    path: '/surveys'
+    gradient: 'from-pink-500/10 to-pink-500/5',
+    iconColor: 'text-pink-600',
+    iconBg: 'bg-pink-100',
+    path: '/surveys',
+    ready: false,
   },
   {
     id: 'reporting',
     name: 'Rapports',
     description: 'Analyser et visualiser les données',
     icon: BarChart3,
-    color: 'bg-orange-500',
-    path: '/reports'
-  },
-  {
-    id: 'users',
-    name: 'Gestion des Utilisateurs',
-    description: 'Gérer les utilisateurs et leurs accès aux lieux',
-    icon: Users,
-    color: 'bg-red-500',
-    path: '/users'
+    gradient: 'from-orange-500/10 to-orange-500/5',
+    iconColor: 'text-orange-600',
+    iconBg: 'bg-orange-100',
+    path: '/reports',
+    ready: false,
   },
   {
     id: 'admin',
     name: 'Administration',
-    description: 'Panel d\'administration de la plateforme',
+    description: 'Configuration de la plateforme',
     icon: Settings,
-    color: 'bg-gray-600',
-    path: '/admin'
+    gradient: 'from-slate-500/10 to-slate-500/5',
+    iconColor: 'text-slate-600',
+    iconBg: 'bg-slate-100',
+    path: '/admin',
+    ready: true,
   },
   {
     id: 'communication',
     name: 'Communication',
     description: 'Notifications et messages',
     icon: MessageSquare,
-    color: 'bg-teal-500',
-    path: '/communication'
-  }
+    gradient: 'from-teal-500/10 to-teal-500/5',
+    iconColor: 'text-teal-600',
+    iconBg: 'bg-teal-100',
+    path: '/communication',
+    ready: false,
+  },
 ];
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    try {
-      console.log('Attempting to sign out...');
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-        toast.error('Erreur lors de la déconnexion: ' + error.message);
-      } else {
-        console.log('Sign out successful');
-        toast.success('Déconnexion réussie');
-        // Ne pas naviguer manuellement, laisser AuthContext gérer la redirection
-      }
-    } catch (error) {
-      console.error('Unexpected sign out error:', error);
-      toast.error('Une erreur est survenue lors de la déconnexion');
-    }
-  };
+  const { selectedOrganization } = useOrganization();
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Utilisateur';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <div className="p-2 rounded-lg bg-primary text-primary-foreground">
-                <Building2 className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold">ASTRALINK</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Tableau de bord
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
-              <div className="text-right min-w-0 flex-1 sm:flex-initial">
-                <p className="text-xs sm:text-sm font-medium truncate">{user?.user_metadata?.full_name || user?.email}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleSignOut} className="shrink-0">
-                <LogOut className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Déconnexion</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-10">
+      {/* Welcome */}
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight">
+          Bonjour, {firstName}
+        </h1>
+        <p className="text-muted-foreground text-base">
+          {selectedOrganization
+            ? `Espace de travail — ${selectedOrganization.name}`
+            : 'Sélectionnez un module pour commencer'}
+        </p>
+      </div>
 
-      <main className="container mx-auto px-4 py-4 sm:py-8">
-        {/* Welcome Section */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2">
-            Bienvenue, {user?.user_metadata?.full_name?.split(' ')[0] || 'Utilisateur'}
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Sélectionnez un module pour commencer à gérer vos lieux et votre immeuble
-          </p>
-        </div>
-
-        {/* Modules Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {modules.map((module) => {
-            const IconComponent = module.icon;
-            return (
-              <Card 
-                key={module.id} 
-                className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 group"
-                onClick={() => {
-                  if (module.id === 'admin') {
-                    navigate('/admin');
-                  } else if (module.id === 'locations') {
-                    navigate('/locations');
-                  } else if (module.id === 'users') {
-                    navigate('/users');
-                  } else if (module.id === 'ticketing') {
-                    navigate('/tickets');
-                  } else {
-                    toast.info(`Module ${module.name} - En développement`);
-                  }
-                }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${module.color} text-white group-hover:scale-110 transition-transform`}>
-                      <IconComponent className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{module.name}</CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm">
-                    {module.description}
-                  </CardDescription>
-                  <div className="mt-4">
-                    <Button variant="ghost" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      Accéder au module
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mt-8 sm:mt-12">
-          <h3 className="text-lg sm:text-xl font-semibold mb-4">Actions rapides</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="p-4">
-              <div className="flex items-center space-x-3">
-                <Ticket className="h-5 w-5 text-blue-500" />
-                <div>
-                  <p className="font-medium">Nouveau ticket</p>
-                  <p className="text-sm text-muted-foreground">Créer une demande</p>
+      {/* Modules Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {modules.map((mod) => {
+          const Icon = mod.icon;
+          return (
+            <Card
+              key={mod.id}
+              className={`group relative overflow-hidden cursor-pointer border border-border/60 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 ${!mod.ready ? 'opacity-60' : ''}`}
+              onClick={() => {
+                if (mod.ready) navigate(mod.path);
+                else toast.info(`Module ${mod.name} — En développement`);
+              }}
+            >
+              {/* Subtle gradient bg */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${mod.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+              
+              <CardContent className="relative p-6 space-y-4">
+                <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl ${mod.iconBg} transition-transform duration-300 group-hover:scale-110`}>
+                  <Icon className={`h-5 w-5 ${mod.iconColor}`} />
                 </div>
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center space-x-3">
-                <FileText className="h-5 w-5 text-green-500" />
-                <div>
-                  <p className="font-medium">Ajouter document</p>
-                  <p className="text-sm text-muted-foreground">Uploader un fichier</p>
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-base text-foreground">{mod.name}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {mod.description}
+                  </p>
                 </div>
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center space-x-3">
-                <Settings className="h-5 w-5 text-gray-500" />
-                <div>
-                  <p className="font-medium">Paramètres</p>
-                  <p className="text-sm text-muted-foreground">Configurer l\'espace</p>
+                <div className="flex items-center text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {mod.ready ? 'Accéder' : 'Bientôt disponible'}
+                  {mod.ready && <ArrowRight className="ml-1 h-3 w-3" />}
                 </div>
-              </div>
+              </CardContent>
+              
+              {!mod.ready && (
+                <div className="absolute top-3 right-3">
+                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                    Bientôt
+                  </span>
+                </div>
+              )}
             </Card>
-          </div>
-        </div>
-      </main>
+          );
+        })}
+      </div>
     </div>
   );
 };

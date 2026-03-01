@@ -15,7 +15,7 @@ import {
   CircleDot
 } from 'lucide-react';
 import { Ticket } from '@/hooks/useTickets';
-import { TICKET_STATUSES, TICKET_PRIORITIES } from '@/utils/ticketUtils';
+import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -110,7 +110,7 @@ export function TicketsList({ tickets, onTicketClick, loading }: TicketsListProp
                 <div className="flex-1 min-w-0 space-y-2.5">
                   {/* Title */}
                   <h3 className="font-semibold text-sm leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                    {ticket.title}
+                    {formatTicketDisplayTitle(ticket)}
                   </h3>
 
                   {/* Description preview */}

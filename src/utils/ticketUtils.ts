@@ -2,6 +2,14 @@
 
 export type InitialityType = 'initial' | 'relance';
 
+// ── Sentence case helper ─────────────────────────────────────────────
+/** Converts any string to Sentence case: first letter uppercase, rest lowercase */
+export function toSentenceCase(text: string): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 /**
  * Construit le label d'initialité selon le cahier des charges
  */
@@ -10,26 +18,65 @@ export function buildInitialityLabel(initiality: InitialityType, relanceIndex?: 
 }
 
 /**
- * Construit le titre automatique du ticket selon le template
- * "[{initiality}] - [{action}] - [{category}] - [{object}]"
+ * Construit le titre automatique du ticket au format élégant :
+ * "{Priorité} — {Catégorie} — {Objet}"
  */
 export function buildTicketTitle(params: {
   initiality: InitialityType;
   action: string;
   category: string;
   object: string;
+  detail?: string;
   relanceIndex?: number;
 }): string {
-  const { initiality, action, category, object, relanceIndex } = params;
-  const initialityLabel = buildInitialityLabel(initiality, relanceIndex);
-  
-  return `[${initialityLabel}] - [${action}] - [${category}] - [${object}]`;
+  const { category, object, detail } = params;
+  const parts = [toSentenceCase(category), toSentenceCase(object)];
+  if (detail) parts.push(toSentenceCase(detail));
+  return parts.join(' — ');
 }
 
 /**
- * Template de titre tel que défini dans le cahier des charges
+ * Formate un titre de ticket pour l'affichage.
+ * Supprime les crochets et majuscules agressives.
+ * Résultat : "{Priorité} — {Catégorie} — {Titre}"
  */
-export const TITLE_TEMPLATE = "[{initiality}] - [{action}] - [{category}] - [{object}]";
+export function formatTicketDisplayTitle(ticket: {
+  title: string;
+  priority?: string | null;
+  category_code?: string | null;
+}): string {
+  const { title, priority, category_code } = ticket;
+
+  // Clean the raw title: remove [BRACKETS] patterns
+  let cleanTitle = title
+    .replace(/\[([^\]]*)\]/g, '') // remove all [...]
+    .replace(/\s*>\s*/g, ' — ')   // replace > with em dash
+    .replace(/\s*:\s*/g, ' — ')   // replace : with em dash
+    .replace(/\s*-\s*/g, ' — ')   // replace - separators with em dash
+    .replace(/—\s*—/g, '—')       // collapse double dashes
+    .replace(/^\s*—\s*/, '')       // remove leading dash
+    .replace(/\s*—\s*$/, '')       // remove trailing dash
+    .trim();
+
+  // Apply sentence case to each segment
+  cleanTitle = cleanTitle
+    .split(' — ')
+    .map(s => toSentenceCase(s.trim()))
+    .filter(Boolean)
+    .join(' — ');
+
+  // Build final display: Priority — Category — Title (avoid duplicates)
+  const priorityLabel = priority ? TICKET_PRIORITIES[priority as keyof typeof TICKET_PRIORITIES] : null;
+  const parts: string[] = [];
+
+  if (priorityLabel) parts.push(toSentenceCase(priorityLabel));
+  if (category_code && !cleanTitle.toLowerCase().includes(category_code.toLowerCase())) {
+    parts.push(toSentenceCase(category_code));
+  }
+  if (cleanTitle) parts.push(cleanTitle);
+
+  return parts.join(' — ') || title;
+}
 
 /**
  * Options d'initialité disponibles

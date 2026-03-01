@@ -927,6 +927,7 @@ export type Database = {
           can_validate_user_requests: boolean
           company_id: string | null
           created_at: string
+          expires_at: string | null
           id: string
           is_active: boolean
           meta: Json | null
@@ -938,6 +939,7 @@ export type Database = {
           can_validate_user_requests?: boolean
           company_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           meta?: Json | null
@@ -949,6 +951,7 @@ export type Database = {
           can_validate_user_requests?: boolean
           company_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           meta?: Json | null
@@ -2402,6 +2405,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      fn_deactivate_expired_memberships: { Args: never; Returns: undefined }
       fn_get_user_primary_role: {
         Args: { org_id: string; uid: string }
         Returns: {

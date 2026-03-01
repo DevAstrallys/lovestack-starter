@@ -12,8 +12,8 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Top bar with trigger */}
-          <header className="h-14 flex items-center border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 shrink-0">
+          {/* Top bar */}
+          <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 shrink-0">
             <SidebarTrigger className="mr-3" />
           </header>
           <main className="flex-1 overflow-y-auto">

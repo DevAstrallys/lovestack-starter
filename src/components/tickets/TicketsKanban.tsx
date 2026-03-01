@@ -19,6 +19,7 @@ const KANBAN_COLUMNS: { key: TicketStatus; label: string }[] = [
   { key: 'in_progress' as TicketStatus, label: 'En cours' },
   { key: 'waiting' as TicketStatus, label: 'En attente' },
   { key: 'resolved' as TicketStatus, label: 'Résolu' },
+  { key: 'closed' as TicketStatus, label: 'Fermé' },
 ];
 
 function KanbanCard({
@@ -121,7 +122,7 @@ export function TicketsKanban({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-5 gap-4">
         {KANBAN_COLUMNS.map((col) => (
           <div key={col.key} className="space-y-3">
             <div className="h-8 bg-muted rounded-lg animate-pulse" />
@@ -134,7 +135,7 @@ export function TicketsKanban({
   }
 
   return (
-    <div className="grid grid-cols-4 gap-4 min-h-[60vh]">
+    <div className="grid grid-cols-5 gap-3 min-h-[60vh]">
       {KANBAN_COLUMNS.map((col) => {
         const statusCfg =
           STATUS_CONFIG[col.key as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.open;

@@ -83,7 +83,7 @@ export const Tickets = () => {
               Gérez les demandes et interventions
             </p>
           </div>
-          {isplatformAdmin && <OrganizationSelector />}
+          {/* Org selector now in sidebar */}
         </div>
 
         {/* Toolbar */}

@@ -9,9 +9,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarHeader,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { OrgLogo } from '@/components/ui/org-logo';
+import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,11 +35,8 @@ const NAV_ITEMS = [
   { title: 'Tickets', url: '/tickets', icon: Ticket },
   { title: 'Lieux', url: '/locations', icon: MapPin },
   { title: 'Utilisateurs', url: '/users', icon: Users },
-  { title: 'Administration', url: '/admin', icon: Shield },
-];
-
-const BOTTOM_ITEMS = [
-  { title: 'Mon Profil', url: '/profile', icon: User },
+  { title: 'Administration', url: '/admin', icon: Shield, adminOnly: true },
+  { title: 'Paramètres', url: '/profile', icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -45,7 +44,7 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const navigate = useNavigate();
-  const { selectedOrganization } = useOrganization();
+  const { selectedOrganization, isplatformAdmin } = useOrganization();
   const { user } = useAuth();
 
   const isActive = (path: string) => {
@@ -59,12 +58,15 @@ export function AppSidebar() {
     else toast.success('Déconnecté');
   };
 
+  // Filter nav items based on admin status
+  const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || isplatformAdmin);
+
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarContent className="pt-2">
-        {/* Logo / Org branding */}
+      {/* Org branding header */}
+      <SidebarHeader className="p-0">
         <div className={cn(
-          'flex items-center gap-3 px-4 py-4 mb-2',
+          'flex items-center gap-3 px-4 py-4',
           collapsed && 'justify-center px-2'
         )}>
           <OrgLogo size={collapsed ? 'sm' : 'md'} />
@@ -80,11 +82,20 @@ export function AppSidebar() {
           )}
         </div>
 
+        {/* Organization selector for admins */}
+        {!collapsed && isplatformAdmin && (
+          <div className="px-3 pb-3">
+            <OrganizationSelector variant="sidebar" />
+          </div>
+        )}
+      </SidebarHeader>
+
+      <SidebarContent>
         {/* Main nav */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => {
+              {visibleItems.map((item) => {
                 const active = isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -109,21 +120,6 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
-          {BOTTOM_ITEMS.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                onClick={() => navigate(item.url)}
-                tooltip={item.title}
-                className={cn(
-                  'h-10',
-                  isActive(item.url) && 'bg-sidebar-accent text-sidebar-primary font-semibold'
-                )}
-              >
-                <item.icon className="h-[18px] w-[18px]" />
-                {!collapsed && <span>{item.title}</span>}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleSignOut}

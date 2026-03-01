@@ -17,7 +17,11 @@ import {
 } from '@/components/ui/popover';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
-export function OrganizationSelector() {
+interface OrganizationSelectorProps {
+  variant?: 'default' | 'sidebar';
+}
+
+export function OrganizationSelector({ variant = 'default' }: OrganizationSelectorProps) {
   const { 
     organizations, 
     selectedOrganization, 
@@ -28,91 +32,68 @@ export function OrganizationSelector() {
   
   const [open, setOpen] = React.useState(false);
 
-  // Ne pas afficher le sélecteur si pas admin plateforme ou s'il n'y a qu'une organisation
-  if (!isplatformAdmin || organizations.length <= 1) {
-    return null;
-  }
-
+  if (!isplatformAdmin || organizations.length <= 1) return null;
   if (loading) {
     return (
       <div className="flex items-center space-x-2 animate-pulse">
         <Building2 className="h-4 w-4" />
-        <div className="h-8 w-48 bg-muted rounded"></div>
+        <div className="h-8 w-full bg-muted rounded" />
       </div>
     );
   }
+
+  const isSidebar = variant === 'sidebar';
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
+          variant={isSidebar ? 'ghost' : 'outline'}
           role="combobox"
           aria-expanded={open}
-          className="w-[300px] justify-between"
+          className={cn(
+            'justify-between',
+            isSidebar 
+              ? 'w-full h-8 text-xs text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-primary border border-sidebar-border px-2'
+              : 'w-[300px]'
+          )}
         >
-          <div className="flex items-center space-x-2">
-            <Building2 className="h-4 w-4" />
-            <span className="truncate">
-              {selectedOrganization 
-                ? selectedOrganization.name 
-                : "Toutes les organisations"
-              }
+          <div className="flex items-center space-x-2 min-w-0">
+            <Building2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate text-left">
+              {selectedOrganization ? selectedOrganization.name : 'Toutes les organisations'}
             </span>
           </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0">
+      <PopoverContent className="w-[280px] p-0" side={isSidebar ? 'right' : 'bottom'} align="start">
         <Command>
-          <CommandInput placeholder="Rechercher une organisation..." />
+          <CommandInput placeholder="Rechercher..." />
           <CommandList>
             <CommandEmpty>Aucune organisation trouvée.</CommandEmpty>
             <CommandGroup>
-              {/* Option "Toutes les organisations" pour les super admins */}
               <CommandItem
                 key="all"
                 value="Toutes les organisations"
-                onSelect={() => {
-                  setSelectedOrganization(null);
-                  setOpen(false);
-                }}
+                onSelect={() => { setSelectedOrganization(null); setOpen(false); }}
               >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    selectedOrganization === null ? "opacity-100" : "opacity-0"
-                  )}
-                />
+                <Check className={cn("mr-2 h-4 w-4", !selectedOrganization ? "opacity-100" : "opacity-0")} />
                 <div className="flex flex-col">
                   <span className="font-medium">Toutes les organisations</span>
-                  <span className="text-sm text-muted-foreground">
-                    Voir tous les tickets
-                  </span>
+                  <span className="text-xs text-muted-foreground">Vue globale</span>
                 </div>
               </CommandItem>
               {organizations.map((org) => (
                 <CommandItem
                   key={org.id}
                   value={org.name}
-                  onSelect={() => {
-                    setSelectedOrganization(org);
-                    setOpen(false);
-                  }}
+                  onSelect={() => { setSelectedOrganization(org); setOpen(false); }}
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedOrganization?.id === org.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
+                  <Check className={cn("mr-2 h-4 w-4", selectedOrganization?.id === org.id ? "opacity-100" : "opacity-0")} />
                   <div className="flex flex-col">
                     <span className="font-medium">{org.name}</span>
-                    {org.description && (
-                      <span className="text-sm text-muted-foreground">
-                        {org.description}
-                      </span>
-                    )}
+                    {org.description && <span className="text-xs text-muted-foreground">{org.description}</span>}
                   </div>
                 </CommandItem>
               ))}

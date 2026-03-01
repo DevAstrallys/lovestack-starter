@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { NavigationHeader } from '@/components/ui/navigation-header';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -40,23 +40,24 @@ export function TicketDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Chargement du ticket…</div>
-      </div>
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Chargement du ticket…</div>
+        </div>
+      </AppLayout>
     );
   }
 
   if (error || !ticket) {
     return (
-      <div className="min-h-screen bg-background">
-        <NavigationHeader title="Ticket introuvable" description="" />
-        <div className="container mx-auto px-4 py-12 text-center">
+      <AppLayout>
+        <div className="p-6 lg:p-10 max-w-7xl mx-auto text-center py-12">
           <p className="text-muted-foreground mb-4">Ce ticket n'existe pas ou vous n'y avez pas accès.</p>
           <Button variant="outline" onClick={() => navigate('/tickets')}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Retour à la liste
           </Button>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
@@ -120,7 +121,8 @@ export function TicketDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
+    <div className="p-6 lg:p-10 max-w-[1400px] mx-auto">
       {/* Header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
@@ -431,6 +433,7 @@ export function TicketDetail() {
         </div>
       </div>
     </div>
+    </AppLayout>
   );
 }
 

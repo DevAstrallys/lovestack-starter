@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NavigationHeader } from '@/components/ui/navigation-header';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, AlertCircle, Search, List, Columns } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ export const Tickets = () => {
   const { selectedOrganization, loading: orgLoading, isplatformAdmin } = useOrganization();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useState<ITicketFilters>({});
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   
   const ticketFilters = selectedOrganization 
     ? { ...filters, organizationId: selectedOrganization.id }
@@ -31,44 +31,8 @@ export const Tickets = () => {
     
   const { tickets, loading, totalCount, refresh, updateTicket } = useTickets(ticketFilters);
 
-  if (orgLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Chargement...</div>
-      </div>
-    );
-  }
-
-  if (!selectedOrganization && !isplatformAdmin) {
-    return (
-      <div className="min-h-screen bg-background">
-        <NavigationHeader 
-          title="Gestion des Tickets" 
-          description="Gérez les demandes et interventions"
-        />
-        <main className="container mx-auto px-4 py-8">
-          <Card>
-            <CardContent className="text-center py-12">
-              <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Aucune organisation sélectionnée</h3>
-              <p className="text-muted-foreground mb-4">
-                Vous devez être assigné à une organisation pour voir les tickets.
-              </p>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  const handleFiltersChange = (newFilters: ITicketFilters) => {
-    setFilters(newFilters);
-  };
-
-  const handleTicketClick = (ticket: Ticket) => {
-    navigate(`/tickets/${ticket.id}`);
-  };
-
+  const handleFiltersChange = (newFilters: ITicketFilters) => setFilters(newFilters);
+  const handleTicketClick = (ticket: Ticket) => navigate(`/tickets/${ticket.id}`);
   const handleStatusChange = async (ticketId: string, newStatus: TicketStatus) => {
     try {
       await updateTicket(ticketId, { status: newStatus });
@@ -78,36 +42,59 @@ export const Tickets = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <NavigationHeader 
-        title={`Tickets${selectedOrganization ? ` – ${selectedOrganization.name}` : ''}`}
-        description="Gérez les demandes et interventions"
-      />
-      
-      {isplatformAdmin && (
-        <div className="container mx-auto px-4 pt-4">
+  if (orgLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!selectedOrganization && !isplatformAdmin) {
+    return (
+      <AppLayout>
+        <div className="p-6 lg:p-10 max-w-7xl mx-auto">
           <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">Organisation:</span>
-                <OrganizationSelector />
-              </div>
+            <CardContent className="text-center py-12">
+              <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Aucune organisation sélectionnée</h3>
+              <p className="text-muted-foreground">
+                Vous devez être assigné à une organisation pour voir les tickets.
+              </p>
             </CardContent>
           </Card>
         </div>
-      )}
-      
-      <main className="container mx-auto px-4 py-6 space-y-4">
-        {/* Top bar: search + view toggle + create */}
-        <div className="flex items-center gap-3">
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-6">
+        {/* Page header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Tickets{selectedOrganization ? ` — ${selectedOrganization.name}` : ''}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gérez les demandes et interventions
+            </p>
+          </div>
+          {isplatformAdmin && <OrganizationSelector />}
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Rechercher un ticket..."
               value={filters.search || ''}
               onChange={(e) => handleFiltersChange({ ...filters, search: e.target.value || undefined })}
-              className="pl-9 h-9 rounded-lg"
+              className="pl-9 h-10 rounded-lg"
             />
           </div>
 
@@ -118,7 +105,7 @@ export const Tickets = () => {
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
                 viewMode === 'list'
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -129,7 +116,7 @@ export const Tickets = () => {
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
                 viewMode === 'kanban'
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -139,7 +126,7 @@ export const Tickets = () => {
 
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="rounded-lg h-9">
+              <Button size="default" className="rounded-lg">
                 <Plus className="w-4 h-4 mr-1.5" />
                 Nouveau ticket
               </Button>
@@ -158,10 +145,10 @@ export const Tickets = () => {
           </Dialog>
         </div>
 
-        {/* Quick filters bar */}
+        {/* Quick filters */}
         <TicketQuickFilters filters={filters} onFiltersChange={handleFiltersChange} />
 
-        {/* Ticket count */}
+        {/* Count */}
         <p className="text-xs text-muted-foreground">
           {totalCount} ticket{totalCount !== 1 ? 's' : ''} trouvé{totalCount !== 1 ? 's' : ''}
           {loading && ' · Chargement...'}
@@ -182,8 +169,8 @@ export const Tickets = () => {
             loading={loading}
           />
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

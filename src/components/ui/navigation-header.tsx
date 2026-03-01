@@ -4,6 +4,7 @@ import { Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { RoleViewSelector } from '@/components/ui/role-view-selector';
 import { useAuth } from '@/contexts/AuthContext';
+import { OrgLogo } from '@/components/ui/org-logo';
 
 interface NavigationHeaderProps {
   title: string;
@@ -24,11 +25,14 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-      <div className="min-w-0 flex-1">
-        <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
-        {description && (
-          <p className="text-sm sm:text-base text-muted-foreground mt-2">{description}</p>
-        )}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {user && <OrgLogo size="sm" />}
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
+          {description && (
+            <p className="text-sm sm:text-base text-muted-foreground mt-2">{description}</p>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
         {shouldShowRoleSelector && (

@@ -1050,7 +1050,10 @@ export type Database = {
           id: string
           is_active: boolean
           is_premium: boolean
+          logo_url: string | null
           name: string
+          primary_color: string | null
+          secondary_color: string | null
           updated_at: string
           zip_code: string | null
         }
@@ -1063,7 +1066,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_premium?: boolean
+          logo_url?: string | null
           name: string
+          primary_color?: string | null
+          secondary_color?: string | null
           updated_at?: string
           zip_code?: string | null
         }
@@ -1076,7 +1082,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_premium?: boolean
+          logo_url?: string | null
           name?: string
+          primary_color?: string | null
+          secondary_color?: string | null
           updated_at?: string
           zip_code?: string | null
         }

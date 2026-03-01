@@ -86,7 +86,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Si c'est un admin plateforme, récupérer toutes les organisations
       const { data, error } = await supabase
         .from('organizations')
-        .select('id, name, description, is_active')
+        .select('id, name, description, is_active, primary_color, secondary_color, logo_url')
         .eq('is_active', true)
         .order('name');
 

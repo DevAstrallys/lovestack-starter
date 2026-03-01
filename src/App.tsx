@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { WhiteLabelProvider } from "@/contexts/WhiteLabelContext";
 import Index from "./pages/Index";
 import { Admin } from "./pages/Admin";
 import { Locations } from "./pages/Locations";
@@ -22,6 +23,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <OrganizationProvider>
+        <WhiteLabelProvider>
         <RoleViewProvider>
           <TooltipProvider>
             <Toaster />
@@ -43,6 +45,7 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
         </RoleViewProvider>
+        </WhiteLabelProvider>
       </OrganizationProvider>
     </AuthProvider>
   </QueryClientProvider>

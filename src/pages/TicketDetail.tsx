@@ -4,24 +4,26 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ArrowLeft, Calendar, MapPin, User, Mail, Phone,
-  QrCode, Send, Image, Mic, Video, Paperclip,
+  ArrowLeft, Calendar, MapPin, User, Mail,
+  QrCode, Image, Mic, Video, Paperclip, Copy, Link2,
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivities, TicketStatus } from '@/hooks/useTickets';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
-import { formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-// ── Helpers ──────────────────────────────────────────────────────────
+import { EmergencyButton } from '@/components/tickets/cockpit/EmergencyButton';
+import { AuditTrail } from '@/components/tickets/cockpit/AuditTrail';
+import { SmartDispatcher } from '@/components/tickets/cockpit/SmartDispatcher';
+import { ChatBar } from '@/components/tickets/cockpit/ChatBar';
+
 const getMediaIcon = (type: string) => {
   if (type === 'image') return <Image className="h-4 w-4" />;
   if (type === 'audio') return <Mic className="h-4 w-4" />;
@@ -29,15 +31,23 @@ const getMediaIcon = (type: string) => {
   return <Paperclip className="h-4 w-4" />;
 };
 
-// ── Page Component ───────────────────────────────────────────────────
+/** Extract just the subject from the ticket title (last segment after —) */
+function extractSubject(title: string): string {
+  const segments = title.split('—').map(s => s.trim()).filter(Boolean);
+  return segments[segments.length - 1] || title;
+}
+
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { ticket, loading, error, refresh } = useTicket(id);
-  const { activities, loading: activitiesLoading, addActivity } = useTicketActivities(id || '');
-  const [replyContent, setReplyContent] = useState('');
-  const [sending, setSending] = useState(false);
+  const { activities, loading: activitiesLoading } = useTicketActivities(id || '');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1);
+    refresh();
+  };
 
   if (loading) {
     return (
@@ -55,7 +65,7 @@ export function TicketDetail() {
         <div className="p-6 lg:p-10 max-w-7xl mx-auto text-center py-12">
           <p className="text-muted-foreground mb-4">Ce ticket n'existe pas ou vous n'y avez pas accès.</p>
           <Button variant="outline" onClick={() => navigate('/tickets')}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Retour à la liste
+            <ArrowLeft className="h-4 w-4 mr-2" /> Retour
           </Button>
         </div>
       </AppLayout>
@@ -67,373 +77,305 @@ export function TicketDetail() {
   const StatusIcon = status.icon;
   const location = ticket.location as Record<string, any> | null;
   const locationName = location?.name || location?.element_name || null;
-  const canReply = !!ticket.reporter_email;
+  const ticketAny = ticket as any;
 
   const replyActivities = (activities || [])
     .filter((a) => a.activity_type === 'reply')
     .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
 
-  const nonReplyActivities = (activities || []).filter((a) => a.activity_type !== 'reply');
-
-  // ── Actions ──
   const handleStatusChange = async (newStatus: string) => {
     try {
-      await supabase.from('tickets').update({ status: newStatus as TicketStatus }).eq('id', ticket.id);
+      const updates: any = { status: newStatus };
+      // Track first_opened_at
+      if (!ticketAny.first_opened_at && newStatus !== 'open') {
+        updates.first_opened_at = new Date().toISOString();
+      }
+      await supabase.from('tickets').update(updates).eq('id', ticket.id);
       toast.success('Statut mis à jour');
       refresh();
     } catch {
-      toast.error('Erreur lors de la mise à jour du statut');
+      toast.error('Erreur');
     }
   };
 
-  const handleSendReply = async () => {
-    if (!replyContent.trim() || !canReply) return;
-    setSending(true);
+  const handleMarkDuplicate = async () => {
+    const dupId = prompt('ID du ticket original (UUID) :');
+    if (!dupId?.trim()) return;
     try {
-      await addActivity({
-        ticket_id: ticket.id,
-        actor_id: user?.id || null,
-        activity_type: 'reply',
-        content: replyContent.trim(),
-        metadata: { direction: 'outbound', sent_to: ticket.reporter_email },
-      });
-
-      await supabase.functions.invoke('send-email', {
-        body: {
-          template: 'reply',
-          to: [ticket.reporter_email],
-          data: {
-            ticketTitle: ticket.title,
-            replyContent: replyContent.trim(),
-            replierName: user?.user_metadata?.full_name || "L'équipe support",
-            ticketId: ticket.id,
-          },
-        },
-      });
-
-      toast.success('Réponse envoyée par email.');
-      setReplyContent('');
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de l'envoi de la réponse.");
-    } finally {
-      setSending(false);
+      await supabase.from('tickets').update({ duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus } as any).eq('id', ticket.id);
+      toast.success('Marqué comme doublon');
+      refresh();
+    } catch {
+      toast.error('Erreur');
     }
   };
 
   return (
     <AppLayout>
-    <div className="p-6 lg:p-10 max-w-[1400px] mx-auto">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-3 -ml-2 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate('/tickets')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Retour à la liste
-          </Button>
+      <div className="flex flex-col h-[calc(100vh-64px)]">
+        {/* ── HEADER ── */}
+        <div className="border-b bg-card px-4 py-3 shrink-0">
+          <div className="max-w-[1400px] mx-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-2 text-muted-foreground hover:text-foreground mb-2"
+              onClick={() => navigate('/tickets')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Retour
+            </Button>
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold leading-snug text-foreground mb-2">
-                {formatTicketDisplayTitle(ticket)}
-              </h1>
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Status tag */}
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border"
-                  style={{ backgroundColor: status.bg, color: status.text, borderColor: status.border }}
-                >
-                  <StatusIcon className="h-3 w-3" />
-                  {status.label}
-                </span>
-                {/* Urgency tag */}
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border"
-                  style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
-                >
-                  {urgency.label}
-                </span>
-                {ticket.source === 'qr_code' && (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <QrCode className="h-3 w-3" /> QR Code
-                  </Badge>
-                )}
-                {ticket.initiality && (
-                  <Badge variant="outline" className="text-xs">
-                    {ticket.initiality === 'relance' ? `Relance #${ticket.relance_index ?? 1}` : 'Initial'}
-                  </Badge>
-                )}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-bold leading-snug text-foreground">
+                  {extractSubject(ticket.title)}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border"
+                    style={{ backgroundColor: status.bg, color: status.text, borderColor: status.border }}
+                  >
+                    <StatusIcon className="h-3 w-3" /> {status.label}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border"
+                    style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
+                  >
+                    {urgency.label}
+                  </span>
+                  {ticket.source === 'qr_code' && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <QrCode className="h-3 w-3" /> QR Code
+                    </Badge>
+                  )}
+                  {ticketAny.duplicate_of_id && (
+                    <Badge variant="outline" className="text-xs gap-1 text-orange-600 border-orange-300">
+                      <Copy className="h-3 w-3" /> Doublon
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Metadata row */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
-            </span>
-            {locationName && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" /> {locationName}
+                <Calendar className="h-3 w-3" />
+                {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
               </span>
-            )}
-            {ticket.reporter_name && (
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" /> {ticket.reporter_name}
-              </span>
-            )}
-            {ticket.reporter_email && (
-              <span className="flex items-center gap-1">
-                <Mail className="h-3 w-3" /> {ticket.reporter_email}
-              </span>
-            )}
+              {locationName && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> {locationName}
+                </span>
+              )}
+              {ticket.reporter_name && (
+                <span className="flex items-center gap-1">
+                  <User className="h-3 w-3" /> {ticket.reporter_name}
+                </span>
+              )}
+              {ticket.reporter_email && (
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" /> {ticket.reporter_email}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Two-column layout */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ── LEFT: Conversation / Diagnostic ── */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Conversation thread */}
-            <Card className="rounded-xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Conversation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Original message */}
-                <div className="flex justify-end">
-                  <div className="max-w-[80%]">
-                    <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
-                      <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
-                    </div>
-                    <div className="flex justify-end mt-1">
-                      <span className="text-[11px] text-muted-foreground">
-                        {ticket.reporter_name || 'Demandeur'} • {format(new Date(ticket.created_at), 'dd MMM HH:mm', { locale: fr })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        {/* ── BODY: 65/35 two-column layout ── */}
+        <div className="flex-1 overflow-hidden">
+          <div className="max-w-[1400px] mx-auto h-full grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-0">
+            {/* ── LEFT COLUMN (65%): Tabs Discussion / Audit ── */}
+            <div className="flex flex-col h-full border-r overflow-hidden" key={refreshKey}>
+              <Tabs defaultValue="discussion" className="flex flex-col h-full">
+                <TabsList className="mx-4 mt-3 shrink-0 w-fit">
+                  <TabsTrigger value="discussion">Discussion</TabsTrigger>
+                  <TabsTrigger value="audit">Journal de gestion</TabsTrigger>
+                </TabsList>
 
-                {activitiesLoading && (
-                  <p className="text-xs text-muted-foreground text-center">Chargement des messages…</p>
-                )}
-
-                {replyActivities.map((activity) => {
-                  const meta = activity.metadata as any;
-                  const isInbound = meta?.direction === 'inbound';
-
-                  return (
-                    <div key={activity.id} className={`flex ${isInbound ? 'justify-end' : 'justify-start'}`}>
-                      <div className="max-w-[80%]">
-                        <div
-                          className={`rounded-2xl px-4 py-3 border ${
-                            isInbound
-                              ? 'rounded-tr-sm bg-red-100 border-red-200 text-red-900'
-                              : 'rounded-tl-sm bg-green-100 border-green-200 text-green-900'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{activity.content}</p>
-                        </div>
-                        <div className={`flex ${isInbound ? 'justify-end' : 'justify-start'} mt-1`}>
-                          <span className="text-[11px] text-muted-foreground">
-                            {isInbound ? ticket.reporter_name || 'Demandeur' : 'Vous'} •{' '}
-                            {activity.created_at && format(new Date(activity.created_at), 'dd MMM HH:mm', { locale: fr })}
-                          </span>
-                        </div>
+                {/* Discussion tab */}
+                <TabsContent value="discussion" className="flex-1 overflow-y-auto px-4 py-4 space-y-4 m-0">
+                  {/* Original message */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%]">
+                      <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
+                        <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
+                      </div>
+                      <div className="flex justify-end mt-1">
+                        <span className="text-[11px] text-muted-foreground">
+                          {ticket.reporter_name || 'Demandeur'} • {format(new Date(ticket.created_at), 'dd MMM HH:mm', { locale: fr })}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-
-                {!activitiesLoading && replyActivities.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center italic">Aucune réponse pour le moment.</p>
-                )}
-
-                {/* Reply form */}
-                <Separator />
-                {canReply ? (
-                  <div className="flex gap-2 items-end">
-                    <Textarea
-                      placeholder={`Répondre à ${ticket.reporter_name || ticket.reporter_email}…`}
-                      value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                      rows={2}
-                      className="resize-none flex-1"
-                    />
-                    <Button
-                      onClick={handleSendReply}
-                      disabled={!replyContent.trim() || sending}
-                      size="icon"
-                      className="h-11 w-11 shrink-0"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic text-center py-2">
-                    Aucun email de demandeur – impossible de répondre.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
 
-            {/* Attachments */}
-            {ticket.attachments && ticket.attachments.length > 0 && (
-              <Card className="rounded-xl">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold">
-                    Pièces jointes ({ticket.attachments.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {ticket.attachments.map((att: any, i: number) => (
-                      <a
-                        key={i}
-                        href={att.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded-lg border overflow-hidden hover:shadow-sm transition-shadow"
-                      >
-                        {att.type === 'image' ? (
-                          <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
-                        ) : (
-                          <div className="flex items-center justify-center h-20 bg-muted">
-                            {getMediaIcon(att.type)}
+                  {activitiesLoading && (
+                    <p className="text-xs text-muted-foreground text-center">Chargement…</p>
+                  )}
+
+                  {replyActivities.map((activity) => {
+                    const meta = activity.metadata as any;
+                    const isInbound = meta?.direction === 'inbound';
+
+                    return (
+                      <div key={activity.id} className={`flex ${isInbound ? 'justify-end' : 'justify-start'}`}>
+                        <div className="max-w-[80%]">
+                          <div
+                            className={`rounded-2xl px-4 py-3 border ${
+                              isInbound
+                                ? 'rounded-tr-sm bg-red-100 border-red-200 text-red-900'
+                                : 'rounded-tl-sm bg-green-100 border-green-200 text-green-900'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">{activity.content}</p>
                           </div>
-                        )}
-                        <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground truncate">
-                          {att.name}
+                          <div className={`flex ${isInbound ? 'justify-end' : 'justify-start'} mt-1`}>
+                            <span className="text-[11px] text-muted-foreground">
+                              {isInbound ? ticket.reporter_name || 'Demandeur' : 'Vous'} •{' '}
+                              {activity.created_at && format(new Date(activity.created_at), 'dd MMM HH:mm', { locale: fr })}
+                            </span>
+                          </div>
                         </div>
-                      </a>
-                    ))}
+                      </div>
+                    );
+                  })}
+
+                  {!activitiesLoading && replyActivities.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center italic">Aucune réponse pour le moment.</p>
+                  )}
+
+                  {/* Attachments */}
+                  {ticket.attachments && ticket.attachments.length > 0 && (
+                    <>
+                      <Separator />
+                      <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          Pièces jointes ({ticket.attachments.length})
+                        </h4>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {ticket.attachments.map((att: any, i: number) => (
+                            <a
+                              key={i}
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block rounded-lg border overflow-hidden hover:shadow-sm transition-shadow"
+                            >
+                              {att.type === 'image' ? (
+                                <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
+                              ) : (
+                                <div className="flex items-center justify-center h-20 bg-muted">
+                                  {getMediaIcon(att.type)}
+                                </div>
+                              )}
+                              <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground truncate">
+                                {att.name}
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
+
+                {/* Audit tab */}
+                <TabsContent value="audit" className="flex-1 overflow-y-auto px-4 py-4 m-0">
+                  <AuditTrail
+                    ticket={ticket}
+                    activities={activities || []}
+                    loading={activitiesLoading}
+                    onNoteAdded={handleRefresh}
+                  />
+                </TabsContent>
+
+                {/* Chat bar at the bottom */}
+                <div className="shrink-0">
+                  <ChatBar ticket={ticket} onSent={handleRefresh} />
+                </div>
+              </Tabs>
+            </div>
+
+            {/* ── RIGHT COLUMN (35%): Actions / Dispatcher ── */}
+            <div className="overflow-y-auto p-4 space-y-4">
+              {/* Emergency button (feature-flagged) */}
+              <EmergencyButton ticket={ticket} />
+
+              {/* Status change */}
+              <Card className="rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Statut</label>
+                    <Select value={ticket.status} onValueChange={handleStatusChange}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                          <SelectItem key={key} value={key}>
+                            <span className="flex items-center gap-2">
+                              {React.createElement(cfg.icon, { className: 'h-3 w-3', style: { color: cfg.text } })}
+                              {cfg.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Priorité</span>
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium border"
+                        style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
+                      >
+                        {urgency.label}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Source</span>
+                      <span className="font-medium">{ticket.source === 'qr_code' ? 'QR Code' : 'Dashboard'}</span>
+                    </div>
+                    {ticket.category_code && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Catégorie</span>
+                        <span className="font-medium">{ticket.category_code}</span>
+                      </div>
+                    )}
+                    {ticket.nature_code && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Nature</span>
+                        <span className="font-medium">{ticket.nature_code}</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            )}
-          </div>
 
-          {/* ── RIGHT: Actions / Timeline ── */}
-          <div className="space-y-6">
-            {/* Quick actions card */}
-            <Card className="rounded-xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Changer le statut</label>
-                  <Select value={ticket.status} onValueChange={handleStatusChange}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                        <SelectItem key={key} value={key}>
-                          <span className="flex items-center gap-2">
-                            {React.createElement(cfg.icon, { className: 'h-3 w-3', style: { color: cfg.text } })}
-                            {cfg.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Smart Dispatcher */}
+              <SmartDispatcher
+                ticket={ticket}
+                activities={activities || []}
+                onDispatched={handleRefresh}
+              />
 
-                <Separator />
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Priorité</span>
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium border"
-                      style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
-                    >
-                      {urgency.label}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Source</span>
-                    <span className="font-medium">{ticket.source === 'qr_code' ? 'QR Code' : 'Dashboard'}</span>
-                  </div>
-                  {ticket.assigned_to && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Assigné à</span>
-                      <span className="font-medium">{ticket.assigned_to}</span>
-                    </div>
-                  )}
-                  {ticket.category_code && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Catégorie</span>
-                      <span className="font-medium">{ticket.category_code}</span>
-                    </div>
-                  )}
-                  {ticket.nature_code && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Nature</span>
-                      <span className="font-medium">{ticket.nature_code}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Timeline card */}
-            <Card className="rounded-xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Historique</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {activitiesLoading ? (
-                  <p className="text-xs text-muted-foreground">Chargement…</p>
-                ) : nonReplyActivities.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">Aucune activité enregistrée.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {nonReplyActivities.map((activity) => (
-                      <div key={activity.id} className="flex gap-3 text-xs">
-                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 bg-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="text-foreground">
-                            {activity.activity_type === 'status_change' && (
-                              <>
-                                Statut : {activity.old_value} → {activity.new_value}
-                              </>
-                            )}
-                            {activity.activity_type === 'assignment' && 'Assignation modifiée'}
-                            {activity.activity_type === 'priority_change' && (
-                              <>
-                                Priorité : {activity.old_value} → {activity.new_value}
-                              </>
-                            )}
-                            {activity.activity_type === 'comment' && activity.content}
-                            {!['status_change', 'assignment', 'priority_change', 'comment'].includes(
-                              activity.activity_type
-                            ) && activity.activity_type}
-                          </p>
-                          <p className="text-muted-foreground mt-0.5">
-                            {activity.created_at &&
-                              format(new Date(activity.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              {/* Duplicate button */}
+              <Button
+                variant="outline"
+                className="w-full gap-2 text-xs"
+                onClick={handleMarkDuplicate}
+              >
+                <Link2 className="h-3.5 w-3.5" /> Marquer comme doublon
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </AppLayout>
   );
 }

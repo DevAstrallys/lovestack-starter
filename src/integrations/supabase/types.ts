@@ -94,6 +94,8 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          emergency_contacts: Json | null
+          emergency_module_enabled: boolean
           id: string
           is_active: boolean
           name: string
@@ -107,6 +109,8 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          emergency_contacts?: Json | null
+          emergency_module_enabled?: boolean
           id?: string
           is_active?: boolean
           name: string
@@ -120,6 +124,8 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          emergency_contacts?: Json | null
+          emergency_module_enabled?: boolean
           id?: string
           is_active?: boolean
           name?: string
@@ -1952,6 +1958,7 @@ export type Database = {
       tickets: {
         Row: {
           action_code: string | null
+          assigned_at: string | null
           assigned_to: string | null
           attachments: Json | null
           building_id: string | null
@@ -1963,6 +1970,9 @@ export type Database = {
           created_by: string | null
           description: string | null
           duplicate_of: string | null
+          duplicate_of_id: string | null
+          first_opened_at: string | null
+          first_responded_at: string | null
           first_response_at: string | null
           follow_up_of_id: string | null
           id: string
@@ -1979,6 +1989,7 @@ export type Database = {
           reporter_email: string | null
           reporter_name: string | null
           reporter_phone: string | null
+          resolved_at: string | null
           sla_due_at: string | null
           source: string | null
           status: Database["public"]["Enums"]["ticket_status"]
@@ -1987,6 +1998,7 @@ export type Database = {
         }
         Insert: {
           action_code?: string | null
+          assigned_at?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           building_id?: string | null
@@ -1998,6 +2010,9 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           duplicate_of?: string | null
+          duplicate_of_id?: string | null
+          first_opened_at?: string | null
+          first_responded_at?: string | null
           first_response_at?: string | null
           follow_up_of_id?: string | null
           id?: string
@@ -2014,6 +2029,7 @@ export type Database = {
           reporter_email?: string | null
           reporter_name?: string | null
           reporter_phone?: string | null
+          resolved_at?: string | null
           sla_due_at?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
@@ -2022,6 +2038,7 @@ export type Database = {
         }
         Update: {
           action_code?: string | null
+          assigned_at?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           building_id?: string | null
@@ -2033,6 +2050,9 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           duplicate_of?: string | null
+          duplicate_of_id?: string | null
+          first_opened_at?: string | null
+          first_responded_at?: string | null
           first_response_at?: string | null
           follow_up_of_id?: string | null
           id?: string
@@ -2049,6 +2069,7 @@ export type Database = {
           reporter_email?: string | null
           reporter_name?: string | null
           reporter_phone?: string | null
+          resolved_at?: string | null
           sla_due_at?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
@@ -2094,6 +2115,20 @@ export type Database = {
           {
             foreignKeyName: "tickets_duplicate_of_fkey"
             columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "tickets_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_duplicate_of_id_fkey"
+            columns: ["duplicate_of_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_duplicate_of_id_fkey"
+            columns: ["duplicate_of_id"]
             isOneToOne: false
             referencedRelation: "tickets_safe"
             referencedColumns: ["id"]

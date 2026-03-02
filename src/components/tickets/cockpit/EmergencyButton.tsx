@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, Flame, Droplets, ShieldAlert, Phone } from 'lucide-react';
+import { AlertTriangle, Flame, Droplets, ShieldAlert, Phone, Volume2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Ticket } from '@/hooks/useTickets';
 
@@ -20,42 +20,67 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [buildingInfo, setBuildingInfo] = useState<any>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+
+  const isUrgentPriority = ticket.priority === 'urgent' || ticket.priority === 'high';
 
   useEffect(() => {
     async function check() {
-      if (!ticket.building_id) return;
+      if (!ticket.building_id) {
+        // If no building but urgent priority, still show the button
+        if (isUrgentPriority) setEnabled(true);
+        return;
+      }
       const { data } = await supabase
         .from('buildings')
         .select('name, address, city, emergency_module_enabled, emergency_contacts')
         .eq('id', ticket.building_id)
         .single();
-      if (data?.emergency_module_enabled) {
+      if (data?.emergency_module_enabled || isUrgentPriority) {
         setEnabled(true);
         setBuildingInfo(data);
       }
     }
     check();
-  }, [ticket.building_id]);
+  }, [ticket.building_id, isUrgentPriority]);
 
   if (!enabled) return null;
 
   const location = ticket.location as Record<string, any> | null;
   const locationName = location?.name || location?.element_name || buildingInfo?.name || 'Site inconnu';
   const address = buildingInfo?.address ? `${buildingInfo.address}, ${buildingInfo.city || ''}` : 'Adresse non renseignée';
+  
+  // Extract access codes from building emergency_contacts or location data
+  const emergencyContacts = buildingInfo?.emergency_contacts as any[] || [];
+  const accessCodes = location?.access_codes || location?.vigik || location?.digicode || null;
 
   const generateScript = (type: string) => {
-    return `Alerte Astralink sur le site ${locationName}. Adresse : ${address}. Nature : ${type}.`;
+    let script = `Alerte Astralink sur le site ${locationName}. Adresse : ${address}. Nature : ${type}.`;
+    if (accessCodes) {
+      script += ` Codes d'accès : ${typeof accessCodes === 'string' ? accessCodes : JSON.stringify(accessCodes)}.`;
+    }
+    return script;
+  };
+
+  const handleSpeak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 0.85;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   return (
     <>
       <Button
         variant="destructive"
-        className="w-full animate-pulse hover:animate-none gap-2 font-bold"
+        className="w-full animate-pulse hover:animate-none gap-2 font-bold text-sm"
         onClick={() => setOpen(true)}
       >
         <AlertTriangle className="h-4 w-4" />
-        ALERTE SECOURS
+        🚨 ALERTE SECOURS
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -68,36 +93,78 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
           </DialogHeader>
 
           <div className="space-y-3 mt-2">
-            {EMERGENCY_TYPES.map((etype) => (
-              <div
-                key={etype.key}
-                className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full text-white ${etype.color}`}>
-                    <etype.icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{etype.label}</p>
-                    <p className="text-xs text-muted-foreground">{etype.number}</p>
-                  </div>
-                </div>
-                <a href={`tel:${etype.number.replace(/\s/g, '')}`}>
-                  <Button size="sm" variant="outline" className="gap-1.5">
-                    <Phone className="h-3 w-3" /> Appeler
-                  </Button>
-                </a>
-              </div>
-            ))}
+            {EMERGENCY_TYPES.map((etype) => {
+              const script = generateScript(etype.label);
+              const isSelected = selectedType === etype.key;
 
-            <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                Script vocal prêt
-              </p>
-              <p className="text-sm text-foreground italic">
-                "{generateScript(EMERGENCY_TYPES[0].label)}"
-              </p>
-            </div>
+              return (
+                <div key={etype.key} className="space-y-2">
+                  <div
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer ${
+                      isSelected ? 'bg-accent border-primary' : 'bg-card hover:bg-accent/50'
+                    }`}
+                    onClick={() => setSelectedType(isSelected ? null : etype.key)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-full text-white ${etype.color}`}>
+                        <etype.icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{etype.label}</p>
+                        <p className="text-xs text-muted-foreground">{etype.number}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={(e) => { e.stopPropagation(); handleSpeak(script); }}
+                        title="Lire le script vocal"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                      </Button>
+                      <a href={`tel:${etype.number.replace(/\s/g, '')}`} onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="outline" className="gap-1.5">
+                          <Phone className="h-3 w-3" /> Appeler
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Show vocal script when selected */}
+                  {isSelected && (
+                    <div className="ml-12 p-3 rounded-lg bg-muted/50 border border-dashed">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                        <Volume2 className="h-3 w-3" /> Script vocal
+                      </p>
+                      <p className="text-sm text-foreground italic">"{script}"</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Custom emergency contacts */}
+            {emergencyContacts.length > 0 && (
+              <div className="mt-4 pt-3 border-t">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Contacts d'urgence de l'immeuble
+                </p>
+                {emergencyContacts.map((contact: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+                    <span>{contact.name || contact.label || `Contact ${i + 1}`}</span>
+                    {contact.phone && (
+                      <a href={`tel:${contact.phone}`}>
+                        <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                          <Phone className="h-3 w-3" /> {contact.phone}
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

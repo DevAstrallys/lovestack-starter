@@ -214,6 +214,7 @@ export const Tickets = () => {
             onStatusChange={handleStatusChange}
             loading={loading}
             buildingNames={Object.fromEntries(buildings.map(b => [b.id, b.name]))}
+            organizationNames={selectedOrganization ? { [selectedOrganization.id]: selectedOrganization.name } : {}}
           />
         )}
       </div>

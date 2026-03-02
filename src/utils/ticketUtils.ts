@@ -154,11 +154,39 @@ export const TICKET_PRIORITIES = {
 } as const;
 
 /**
- * Extrait uniquement le sujet d'un titre de ticket
- * (dernier segment après nettoyage des crochets et séparateurs)
+ * Extrait uniquement le sujet d'un titre de ticket.
+ * Ex: "[Initial] - [Je signale] - [Plomberie] - [Fuite d'eau]" → "Fuite d'eau"
+ * Ex: "Urgent — Plomberie — Fuite d'eau" → "Fuite d'eau"
  */
 export function extractSubject(title: string): string {
-  const cleaned = title.replace(/\[([^\]]*)\]/g, '').trim();
-  const segments = cleaned.split(/\s*[—>\-:]\s*/).map(s => s.trim()).filter(Boolean);
+  if (!title) return '';
+
+  // Case 1: bracketed format "[A] - [B] - [C]"
+  const bracketParts = title.match(/\[([^\]]*)\]/g);
+  if (bracketParts && bracketParts.length > 0) {
+    const last = bracketParts[bracketParts.length - 1].replace(/^\[|\]$/g, '').trim();
+    if (last) return toSentenceCase(last);
+  }
+
+  // Case 2: dash/arrow separated "A — B — C" or "A > B > C" or "A - B - C"
+  const segments = title
+    .split(/\s*(?:—|>|:|\s-\s)\s*/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
   return toSentenceCase(segments[segments.length - 1] || title);
+}
+
+/**
+ * Extrait les badges de métadonnées d'un titre (contenu des crochets sauf le dernier).
+ */
+export function extractTitleBadges(title: string): string[] {
+  const bracketParts = title.match(/\[([^\]]*)\]/g);
+  if (!bracketParts || bracketParts.length <= 1) {
+    // Fallback: split by separators and take all but last
+    const segments = title.split(/\s*(?:—|>|:|\s-\s)\s*/).map(s => s.trim()).filter(Boolean);
+    return segments.slice(0, -1).map(s => toSentenceCase(s));
+  }
+  // Return all bracket contents except the last (which is the subject)
+  return bracketParts.slice(0, -1).map(b => toSentenceCase(b.replace(/^\[|\]$/g, '').trim())).filter(Boolean);
 }

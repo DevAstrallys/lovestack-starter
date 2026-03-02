@@ -280,18 +280,28 @@ export function useTickets(filters: TicketFilters = {}) {
   };
 
   const updateTicket = async (id: string, updates: Database['public']['Tables']['tickets']['Update']) => {
+    // Optimistic update for instant UI feedback
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updates } as Ticket : t));
+
     const { data, error: updateError } = await supabase
       .from('tickets')
       .update(updates)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      // Revert on failure
+      await loadTickets();
+      throw updateError;
+    }
+
+    if (!data || data.length === 0) {
+      // RLS blocked the update – revert and inform
+      await loadTickets();
+      throw new Error('Mise à jour refusée (permissions insuffisantes)');
+    }
     
-    // Refresh tickets list
-    await loadTickets();
-    return data;
+    return data[0];
   };
 
   useEffect(() => {

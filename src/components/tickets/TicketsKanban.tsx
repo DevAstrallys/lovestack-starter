@@ -6,13 +6,14 @@ import { Calendar, MapPin, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { formatTicketDisplayTitle } from '@/utils/ticketUtils';
+import { extractSubject } from '@/utils/ticketUtils';
 
 interface TicketsKanbanProps {
   tickets: Ticket[];
   onTicketClick: (ticket: Ticket) => void;
   onStatusChange: (ticketId: string, newStatus: TicketStatus) => void;
   loading?: boolean;
+  buildingNames?: Record<string, string>;
 }
 
 const KANBAN_COLUMNS: { key: TicketStatus; label: string }[] = [
@@ -28,11 +29,13 @@ function KanbanCard({
   onClick,
   onDragStart,
   onDragEnd,
+  buildingName,
 }: {
   ticket: Ticket;
   onClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  buildingName?: string;
 }) {
   const urgency =
     URGENCY_CONFIG[(ticket.priority as keyof typeof URGENCY_CONFIG)] ??
@@ -50,22 +53,18 @@ function KanbanCard({
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
         style={{ backgroundColor: urgency.text }}
       />
-      <CardContent className="pl-4 pr-3 py-3 space-y-2">
+      <CardContent className="pl-4 pr-3 py-3 space-y-1.5">
         <h4 className="text-xs font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-          {formatTicketDisplayTitle(ticket)}
+          {extractSubject(ticket.title)}
         </h4>
 
-        {/* Urgency tag */}
-        <span
-          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border"
-          style={{
-            backgroundColor: urgency.bg,
-            color: urgency.text,
-            borderColor: urgency.border,
-          }}
-        >
-          {urgency.label}
-        </span>
+        {/* Building / Site */}
+        {buildingName && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-full">
+            <MapPin className="h-2.5 w-2.5 shrink-0" />
+            {buildingName}
+          </span>
+        )}
 
         {/* Metadata */}
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -93,6 +92,7 @@ export function TicketsKanban({
   onTicketClick,
   onStatusChange,
   loading,
+  buildingNames = {},
 }: TicketsKanbanProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -212,6 +212,7 @@ export function TicketsKanban({
                   onClick={() => onTicketClick(ticket)}
                   onDragStart={(e) => handleDragStart(e, ticket.id)}
                   onDragEnd={handleDragEnd}
+                  buildingName={ticket.building_id ? buildingNames[ticket.building_id] : undefined}
                 />
               ))}
             </div>

@@ -15,7 +15,7 @@ import {
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivities, TicketStatus } from '@/hooks/useTickets';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
-import { TICKET_PRIORITIES } from '@/utils/ticketUtils';
+import { TICKET_PRIORITIES, extractSubject, extractTitleBadges } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,22 +32,7 @@ const getMediaIcon = (type: string) => {
   return <Paperclip className="h-5 w-5" />;
 };
 
-function extractSubject(title: string): string {
-  const cleaned = title.replace(/\[([^\]]*)\]/g, '').trim();
-  const segments = cleaned.split('—').map(s => s.trim()).filter(Boolean);
-  return segments[segments.length - 1] || title;
-}
-
-function extractTitleBadges(title: string): string[] {
-  const badges: string[] = [];
-  const bracketRegex = /\[([^\]]*)\]/g;
-  let match: RegExpExecArray | null;
-  while ((match = bracketRegex.exec(title)) !== null) {
-    const content = match[1].trim();
-    if (content) badges.push(content);
-  }
-  return badges;
-}
+// Use centralized extractSubject and extractTitleBadges from ticketUtils
 
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();

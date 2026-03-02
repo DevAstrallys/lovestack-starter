@@ -8,6 +8,8 @@ export type TicketPriority = Database['public']['Enums']['ticket_priority'];
 
 export interface Ticket extends DbTicket {
   attachments: any[];
+  building_name?: string;
+  organization_name?: string;
 }
 
 export interface TicketFilters {
@@ -200,11 +202,57 @@ export function useTickets(filters: TicketFilters = {}) {
       if (fetchError) throw fetchError;
 
       // Transform the data to match our Ticket interface
-      const transformedData = (data || []).map(ticket => ({
+      const transformedData: Ticket[] = (data || []).map(ticket => ({
         ...ticket,
         attachments: Array.isArray(ticket.attachments) ? ticket.attachments : 
                     (typeof ticket.attachments === 'string' ? JSON.parse(ticket.attachments) : [])
       }));
+
+      // Enrich with building names
+      const buildingIds = [...new Set(transformedData.map(t => t.building_id).filter(Boolean))] as string[];
+      if (buildingIds.length > 0) {
+        const { data: buildings } = await supabase
+          .from('buildings')
+          .select('id, name, organization_id')
+          .in('id', buildingIds);
+        
+        if (buildings) {
+          const buildingMap = Object.fromEntries(buildings.map(b => [b.id, b]));
+          
+          // Also fetch org names for the buildings
+          const orgIds = [...new Set(buildings.map(b => b.organization_id).filter(Boolean))] as string[];
+          let orgMap: Record<string, string> = {};
+          if (orgIds.length > 0) {
+            const { data: orgs } = await supabase
+              .from('organizations')
+              .select('id, name')
+              .in('id', orgIds);
+            if (orgs) orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
+          }
+
+          for (const t of transformedData) {
+            if (t.building_id && buildingMap[t.building_id]) {
+              t.building_name = buildingMap[t.building_id].name;
+              const orgId = buildingMap[t.building_id].organization_id;
+              if (orgId && orgMap[orgId]) t.organization_name = orgMap[orgId];
+            }
+          }
+        }
+      }
+
+      // Enrich remaining tickets with org name from organization_id or meta
+      const missingOrgTickets = transformedData.filter(t => !t.organization_name && (t.organization_id || (t.meta as any)?.organization_id));
+      const missingOrgIds = [...new Set(missingOrgTickets.map(t => t.organization_id || (t.meta as any)?.organization_id).filter(Boolean))] as string[];
+      if (missingOrgIds.length > 0) {
+        const { data: orgs } = await supabase.from('organizations').select('id, name').in('id', missingOrgIds);
+        if (orgs) {
+          const orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
+          for (const t of missingOrgTickets) {
+            const oid = t.organization_id || (t.meta as any)?.organization_id;
+            if (oid && orgMap[oid]) t.organization_name = orgMap[oid];
+          }
+        }
+      }
 
       setTickets(transformedData);
       setTotalCount(count || 0);

@@ -18,14 +18,41 @@ export function useTicket(id: string | undefined) {
         .eq('id', id)
         .single();
       if (fetchError) throw fetchError;
-      setTicket({
+      const t: Ticket = {
         ...data,
         attachments: Array.isArray(data.attachments)
           ? data.attachments
           : typeof data.attachments === 'string'
           ? JSON.parse(data.attachments)
           : [],
-      });
+      };
+
+      // Enrich with building & org name
+      if (t.building_id) {
+        const { data: building } = await supabase
+          .from('buildings')
+          .select('name, organization_id')
+          .eq('id', t.building_id)
+          .single();
+        if (building) {
+          t.building_name = building.name;
+          if (building.organization_id) {
+            const { data: org } = await supabase
+              .from('organizations')
+              .select('name')
+              .eq('id', building.organization_id)
+              .single();
+            if (org) t.organization_name = org.name;
+          }
+        }
+      }
+      if (!t.organization_name && (t.organization_id || (t.meta as any)?.organization_id)) {
+        const oid = t.organization_id || (t.meta as any)?.organization_id;
+        const { data: org } = await supabase.from('organizations').select('name').eq('id', oid).single();
+        if (org) t.organization_name = org.name;
+      }
+
+      setTicket(t);
     } catch (err) {
       console.error('Error loading ticket:', err);
       setError(err instanceof Error ? err.message : 'Erreur');

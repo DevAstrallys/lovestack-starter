@@ -113,6 +113,24 @@ export function TicketsList({ tickets, onTicketClick, loading }: TicketsListProp
                     {extractSubject(ticket.title)}
                   </h3>
 
+                  {/* Building & Organization */}
+                  {(ticket.building_name || ticket.organization_name) && (
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {ticket.building_name && (
+                        <span className="inline-flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {ticket.building_name}
+                        </span>
+                      )}
+                      {ticket.organization_name && (
+                        <span className="inline-flex items-center gap-1 truncate">
+                          <Tag className="h-3 w-3 shrink-0" />
+                          {ticket.organization_name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Description preview */}
                   {ticket.description && (
                     <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed">

@@ -144,11 +144,33 @@ export function TicketDetail() {
               {/* Left: Title + meta badges */}
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
-                  Demande d'Intervention
-                  <span className="text-muted-foreground font-normal ml-2 text-xl">
-                    (#{shortId})
-                  </span>
+                  {subject}
                 </h1>
+
+                {/* Building & Organisation */}
+                {(ticket.building_name || ticket.organization_name) && (
+                  <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                    {ticket.building_name && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-4 w-4 shrink-0" />
+                        {ticket.building_name}
+                      </span>
+                    )}
+                    {ticket.organization_name && (
+                      <span className="inline-flex items-center gap-1">
+                        — {ticket.organization_name}
+                      </span>
+                    )}
+                    <span className="text-muted-foreground/60 font-normal text-xs">
+                      #{shortId}
+                    </span>
+                  </div>
+                )}
+                {!ticket.building_name && !ticket.organization_name && (
+                  <span className="text-muted-foreground font-normal text-sm mt-1 block">
+                    #{shortId}
+                  </span>
+                )}
 
                 {/* Meta badges row */}
                 <div className="flex flex-wrap items-center gap-2 mt-3">

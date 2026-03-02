@@ -13,8 +13,6 @@ interface TicketsKanbanProps {
   onTicketClick: (ticket: Ticket) => void;
   onStatusChange: (ticketId: string, newStatus: TicketStatus) => void;
   loading?: boolean;
-  buildingNames?: Record<string, string>;
-  organizationNames?: Record<string, string>;
 }
 
 const KANBAN_COLUMNS: { key: TicketStatus; label: string }[] = [
@@ -30,15 +28,11 @@ function KanbanCard({
   onClick,
   onDragStart,
   onDragEnd,
-  buildingName,
-  organizationName,
 }: {
   ticket: Ticket;
   onClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
-  buildingName?: string;
-  organizationName?: string;
 }) {
   const urgency =
     URGENCY_CONFIG[(ticket.priority as keyof typeof URGENCY_CONFIG)] ??
@@ -62,18 +56,18 @@ function KanbanCard({
         </h4>
 
         {/* Site & Organisation */}
-        {(buildingName || organizationName) && (
+        {(ticket.building_name || ticket.organization_name) && (
           <div className="flex flex-col gap-0.5">
-            {buildingName && (
+            {ticket.building_name && (
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-full">
                 <MapPin className="h-2.5 w-2.5 shrink-0" />
-                {buildingName}
+                {ticket.building_name}
               </span>
             )}
-            {organizationName && (
+            {ticket.organization_name && (
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-full">
                 <Building2 className="h-2.5 w-2.5 shrink-0" />
-                {organizationName}
+                {ticket.organization_name}
               </span>
             )}
           </div>
@@ -105,8 +99,6 @@ export function TicketsKanban({
   onTicketClick,
   onStatusChange,
   loading,
-  buildingNames = {},
-  organizationNames = {},
 }: TicketsKanbanProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -226,8 +218,6 @@ export function TicketsKanban({
                   onClick={() => onTicketClick(ticket)}
                   onDragStart={(e) => handleDragStart(e, ticket.id)}
                   onDragEnd={handleDragEnd}
-                  buildingName={ticket.building_id ? buildingNames[ticket.building_id] : undefined}
-                  organizationName={ticket.organization_id ? organizationNames[ticket.organization_id] : undefined}
                 />
               ))}
             </div>

@@ -23,6 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { InviteUserDialog } from '@/components/locations/InviteUserDialog';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { UserCompanyAffiliations } from './UserCompanyAffiliations';
 
 interface Profile {
   id: string;
@@ -410,6 +411,9 @@ export const UsersManagement = () => {
                    Ajouter le membership
                  </Button>
                </div>
+
+              {/* Affiliations Professionnelles */}
+              <UserCompanyAffiliations userId={selectedUser.id} userName={selectedUser.full_name} />
             </div>
           )}
         </DialogContent>

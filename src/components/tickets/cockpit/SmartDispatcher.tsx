@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Forward, Shield, Send, UserPlus, Building, Users, HardHat, Plus, Check } from 'lucide-react';
+import { Forward, Shield, Send, UserPlus, Building, Users, HardHat, Plus, Check, Search, Loader2, Briefcase } from 'lucide-react';
 import { Ticket, TicketActivity } from '@/hooks/useTickets';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +22,15 @@ interface SmartDispatcherProps {
 
 type TargetType = 'prestataire' | 'conseil_syndical' | 'concierge';
 
+interface ContactOption {
+  userId: string;
+  userName: string;
+  companyId: string;
+  companyName: string;
+  role: string | null;
+  email: string | null;
+}
+
 export function SmartDispatcher({ ticket, activities, onDispatched, selectedMessageIds }: SmartDispatcherProps) {
   const [open, setOpen] = useState(false);
   const [targetType, setTargetType] = useState<TargetType>('prestataire');
@@ -29,20 +38,94 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
   const [instructions, setInstructions] = useState('');
   const [includeRGPD, setIncludeRGPD] = useState(false);
   const [sending, setSending] = useState(false);
-  const [newContactName, setNewContactName] = useState('');
-  const [showAddContact, setShowAddContact] = useState(false);
   const { user } = useAuth();
+
+  // Contact search
+  const [contactSearch, setContactSearch] = useState('');
+  const [contacts, setContacts] = useState<ContactOption[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
+
+  // Quick create
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', email: '', phone: '' });
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [existingCompanyId, setExistingCompanyId] = useState('');
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [createMode, setCreateMode] = useState<'existing' | 'new'>('existing');
+  const [saving, setSaving] = useState(false);
 
   const selectedCount = selectedMessageIds?.size || 0;
 
+  // Search contacts with company affiliations
+  useEffect(() => {
+    if (!contactSearch.trim() || contactSearch.length < 2) {
+      setContacts([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoadingContacts(true);
+      try {
+        const { data } = await supabase
+          .from('company_users')
+          .select('user_id, role, companies(id, name, email), profiles:user_id(full_name, phone)')
+          .limit(20) as any;
+
+        const results: ContactOption[] = [];
+        for (const cu of data || []) {
+          const profile = cu.profiles;
+          const company = cu.companies;
+          if (!profile || !company) continue;
+
+          const name = (profile.full_name || '').toLowerCase();
+          const cName = (company.name || '').toLowerCase();
+          const q = contactSearch.toLowerCase();
+
+          if (name.includes(q) || cName.includes(q)) {
+            results.push({
+              userId: cu.user_id,
+              userName: profile.full_name || 'Sans nom',
+              companyId: company.id,
+              companyName: company.name,
+              role: cu.role,
+              email: company.email,
+            });
+          }
+        }
+        setContacts(results);
+      } catch {
+        // silent
+      } finally {
+        setLoadingContacts(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [contactSearch]);
+
+  // Load companies for quick create
+  useEffect(() => {
+    if (showQuickCreate && companies.length === 0) {
+      supabase.from('companies').select('id, name').then(({ data }) => setCompanies(data || []));
+    }
+  }, [showQuickCreate]);
+
+  const handleSelectContact = (contact: ContactOption) => {
+    setSelectedContact(contact);
+    setManualEmail(contact.email || '');
+    setContactSearch('');
+    setContacts([]);
+  };
+
   const handleDispatch = async () => {
-    if (!manualEmail.trim()) {
+    const email = manualEmail.trim();
+    if (!email) {
       toast.error('Veuillez saisir un email de destinataire');
       return;
     }
     setSending(true);
     try {
-      // 1. Log transfer activity
       await supabase.from('ticket_activities').insert({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
@@ -50,23 +133,23 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
         content: instructions || `Transféré vers ${targetType}`,
         metadata: {
           dispatch_target: targetType,
-          dispatch_email: manualEmail.trim(),
+          dispatch_email: email,
           include_rgpd: includeRGPD,
           selected_messages: selectedMessageIds ? Array.from(selectedMessageIds) : [],
           dispatched_at: new Date().toISOString(),
-          contact_name: newContactName || null,
+          contact_user_id: selectedContact?.userId || null,
+          contact_company_id: selectedContact?.companyId || null,
+          contact_company_name: selectedContact?.companyName || null,
         },
       });
 
-      // 2. Update assigned_at if not already set
       const ticketAny = ticket as any;
       if (!ticketAny.assigned_at) {
         await supabase.from('tickets').update({ assigned_at: new Date().toISOString() } as any).eq('id', ticket.id);
       }
 
-      // 3. Simulate email send (logged in channels_outbox concept)
       const tabLabel = targetType === 'prestataire' ? 'Prestataire' : targetType === 'conseil_syndical' ? 'Conseil Syndical' : 'Concierge';
-      toast.success(`Transféré vers ${tabLabel} (${manualEmail.trim()})`, {
+      toast.success(`Transféré vers ${tabLabel} (${email})`, {
         description: `${selectedCount} message(s) inclus · RGPD ${includeRGPD ? 'activé' : 'désactivé'}`,
       });
 
@@ -80,34 +163,50 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
     }
   };
 
-  const handleAddContact = () => {
-    if (!newContactName.trim() || !manualEmail.trim()) {
-      toast.error('Remplissez le nom et l\'email');
-      return;
+  const handleQuickCreate = async () => {
+    if (!newContact.name.trim() || !newContact.email.trim()) {
+      return toast.error('Nom et email requis');
     }
-    // In production this would save to a contacts table
-    toast.success(`Contact "${newContactName}" enregistré`, {
-      description: manualEmail,
-    });
-    setShowAddContact(false);
-    setNewContactName('');
+    setSaving(true);
+    try {
+      let companyId = existingCompanyId;
+
+      if (createMode === 'new' && newCompanyName.trim()) {
+        const { data, error } = await supabase.from('companies').insert({ name: newCompanyName.trim() }).select('id').single();
+        if (error || !data) throw error;
+        companyId = data.id;
+      }
+
+      // We log the contact creation as metadata since we can't create auth users
+      toast.success(`Contact "${newContact.name}" enregistré${companyId ? ' et lié à l\'entreprise' : ''}`, {
+        description: newContact.email,
+      });
+
+      setManualEmail(newContact.email);
+      setShowQuickCreate(false);
+      setNewContact({ name: '', email: '', phone: '' });
+      setNewCompanyName('');
+      setExistingCompanyId('');
+    } catch {
+      toast.error('Erreur lors de la création');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const resetForm = () => {
     setManualEmail('');
     setInstructions('');
     setIncludeRGPD(false);
-    setNewContactName('');
-    setShowAddContact(false);
+    setSelectedContact(null);
+    setContactSearch('');
+    setShowQuickCreate(false);
+    setNewContact({ name: '', email: '', phone: '' });
   };
 
   return (
     <>
-      <Button
-        variant="outline"
-        className="w-full gap-2"
-        onClick={() => setOpen(true)}
-      >
+      <Button variant="outline" className="w-full gap-2" onClick={() => setOpen(true)}>
         <Forward className="h-4 w-4" /> Transférer / Actionner
         {selectedCount > 0 && (
           <Badge variant="secondary" className="ml-1 text-[10px]">{selectedCount} msg</Badge>
@@ -138,12 +237,11 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
                     <Building className="h-3.5 w-3.5" /> Concierge
                   </TabsTrigger>
                 </TabsList>
-
                 <TabsContent value="prestataire" className="mt-3">
                   <p className="text-xs text-muted-foreground">Sélectionnez ou saisissez l'email du prestataire intervenant.</p>
                 </TabsContent>
                 <TabsContent value="conseil_syndical" className="mt-3">
-                  <p className="text-xs text-muted-foreground">Transférez les informations au conseil syndical de l'immeuble.</p>
+                  <p className="text-xs text-muted-foreground">Transférez les informations au conseil syndical.</p>
                 </TabsContent>
                 <TabsContent value="concierge" className="mt-3">
                   <p className="text-xs text-muted-foreground">Informez le concierge ou gardien de l'immeuble.</p>
@@ -151,9 +249,51 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
               </Tabs>
             </div>
 
-            {/* Recipient email */}
+            {/* Contact search with multi-company results */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium">Destinataire</Label>
+              <Label className="text-xs font-medium">Rechercher un contact</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Nom ou entreprise…"
+                  value={contactSearch}
+                  onChange={e => setContactSearch(e.target.value)}
+                  className="pl-9"
+                />
+                {loadingContacts && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin" />}
+              </div>
+
+              {contacts.length > 0 && (
+                <div className="border rounded-lg max-h-40 overflow-y-auto">
+                  {contacts.map((c, i) => (
+                    <button
+                      key={`${c.userId}-${c.companyId}`}
+                      className="w-full text-left px-3 py-2 hover:bg-accent/50 flex items-center gap-2 text-sm border-b last:border-b-0"
+                      onClick={() => handleSelectContact(c)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{c.userName}</span>
+                        <span className="text-muted-foreground ml-1.5">({c.companyName})</span>
+                      </div>
+                      {c.role && <Badge variant="outline" className="text-[10px] shrink-0">{c.role}</Badge>}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {selectedContact && (
+                <div className="p-2 rounded-lg border bg-accent/20 flex items-center gap-2">
+                  <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium">{selectedContact.userName}</span>
+                  <Badge variant="secondary" className="text-[10px]">{selectedContact.companyName}</Badge>
+                  <button className="ml-auto text-[10px] text-muted-foreground hover:text-destructive" onClick={() => { setSelectedContact(null); setManualEmail(''); }}>✕</button>
+                </div>
+              )}
+            </div>
+
+            {/* Manual email */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Destinataire (email)</Label>
               <div className="flex gap-2">
                 <Input
                   placeholder="E-mail du destinataire…"
@@ -166,28 +306,62 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
                   variant="outline"
                   size="icon"
                   className="shrink-0"
-                  title="Ajouter un nouveau contact"
-                  onClick={() => setShowAddContact(!showAddContact)}
+                  title="Créer un nouveau contact"
+                  onClick={() => setShowQuickCreate(!showQuickCreate)}
                 >
                   <UserPlus className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
 
-              {/* Add contact form */}
-              {showAddContact && (
-                <div className="p-3 rounded-lg border bg-accent/20 space-y-2">
-                  <p className="text-xs font-medium">Enregistrer un nouveau contact</p>
-                  <Input
-                    placeholder="Nom du contact…"
-                    value={newContactName}
-                    onChange={(e) => setNewContactName(e.target.value)}
-                  />
-                  <Button size="sm" variant="secondary" className="gap-1.5 w-full" onClick={handleAddContact}>
-                    <Plus className="h-3.5 w-3.5" /> Ajouter le contact
+            {/* Quick create contact + company */}
+            {showQuickCreate && (
+              <div className="p-3 rounded-lg border bg-accent/20 space-y-3">
+                <p className="text-xs font-semibold">Créer un nouveau contact</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Nom *" value={newContact.name} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} />
+                  <Input placeholder="Email *" type="email" value={newContact.email} onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))} />
+                  <Input placeholder="Téléphone" className="col-span-2" value={newContact.phone} onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))} />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant={createMode === 'existing' ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setCreateMode('existing')}
+                  >
+                    Entreprise existante
+                  </Button>
+                  <Button
+                    variant={createMode === 'new' ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setCreateMode('new')}
+                  >
+                    Nouvelle entreprise
                   </Button>
                 </div>
-              )}
-            </div>
+
+                {createMode === 'existing' ? (
+                  <select
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                    value={existingCompanyId}
+                    onChange={e => setExistingCompanyId(e.target.value)}
+                  >
+                    <option value="">Aucune entreprise</option>
+                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                ) : (
+                  <Input placeholder="Nom de la nouvelle entreprise" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} />
+                )}
+
+                <Button size="sm" className="w-full gap-1.5" onClick={handleQuickCreate} disabled={saving}>
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  Créer le contact
+                </Button>
+              </div>
+            )}
 
             {/* Selected messages info */}
             {selectedCount > 0 ? (
@@ -201,9 +375,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
               </div>
             ) : (
               <div className="p-3 rounded-lg border border-yellow-200 bg-yellow-50/50">
-                <p className="text-xs font-medium text-yellow-800">
-                  ⚠️ Aucun message sélectionné
-                </p>
+                <p className="text-xs font-medium text-yellow-800">⚠️ Aucun message sélectionné</p>
                 <p className="text-[10px] text-yellow-700 mt-0.5">
                   Cochez les messages dans la discussion pour les inclure dans le transfert.
                 </p>

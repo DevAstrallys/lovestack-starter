@@ -152,3 +152,13 @@ export const TICKET_PRIORITIES = {
   high: 'Élevée',
   urgent: 'Urgente'
 } as const;
+
+/**
+ * Extrait uniquement le sujet d'un titre de ticket
+ * (dernier segment après nettoyage des crochets et séparateurs)
+ */
+export function extractSubject(title: string): string {
+  const cleaned = title.replace(/\[([^\]]*)\]/g, '').trim();
+  const segments = cleaned.split(/\s*[—>\-:]\s*/).map(s => s.trim()).filter(Boolean);
+  return toSentenceCase(segments[segments.length - 1] || title);
+}

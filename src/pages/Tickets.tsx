@@ -213,6 +213,7 @@ export const Tickets = () => {
             onTicketClick={handleTicketClick}
             onStatusChange={handleStatusChange}
             loading={loading}
+            buildingNames={Object.fromEntries(buildings.map(b => [b.id, b.name]))}
           />
         )}
       </div>

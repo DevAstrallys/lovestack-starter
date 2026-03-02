@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -6,14 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft, Calendar, MapPin, User, Mail,
-  QrCode, Image, Mic, Video, Paperclip, Copy, Link2,
+  QrCode, Image, Mic, Video, Paperclip, Copy, Link2, Tag,
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivities, TicketStatus } from '@/hooks/useTickets';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
+import { TICKET_PRIORITIES } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,10 +33,24 @@ const getMediaIcon = (type: string) => {
   return <Paperclip className="h-4 w-4" />;
 };
 
-/** Extract just the subject from the ticket title (last segment after —) */
+/** Extract the raw subject from the title: last segment after — (strip brackets) */
 function extractSubject(title: string): string {
-  const segments = title.split('—').map(s => s.trim()).filter(Boolean);
+  // Remove everything in [brackets]
+  const cleaned = title.replace(/\[([^\]]*)\]/g, '').trim();
+  const segments = cleaned.split('—').map(s => s.trim()).filter(Boolean);
   return segments[segments.length - 1] || title;
+}
+
+/** Extract metadata badges from the title brackets */
+function extractTitleBadges(title: string): string[] {
+  const badges: string[] = [];
+  const bracketRegex = /\[([^\]]*)\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = bracketRegex.exec(title)) !== null) {
+    const content = match[1].trim();
+    if (content) badges.push(content);
+  }
+  return badges;
 }
 
 export function TicketDetail() {
@@ -43,11 +59,21 @@ export function TicketDetail() {
   const { ticket, loading, error, refresh } = useTicket(id);
   const { activities, loading: activitiesLoading } = useTicketActivities(id || '');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
 
   const handleRefresh = () => {
     setRefreshKey(k => k + 1);
     refresh();
   };
+
+  const toggleMessage = useCallback((msgId: string) => {
+    setSelectedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(msgId)) next.delete(msgId);
+      else next.add(msgId);
+      return next;
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -78,6 +104,18 @@ export function TicketDetail() {
   const location = ticket.location as Record<string, any> | null;
   const locationName = location?.name || location?.element_name || null;
   const ticketAny = ticket as any;
+  const titleBadges = extractTitleBadges(ticket.title);
+  const subject = extractSubject(ticket.title);
+
+  // Priority label for badge
+  const priorityLabel = TICKET_PRIORITIES[ticket.priority as keyof typeof TICKET_PRIORITIES] || ticket.priority;
+
+  // Category / action labels for badges
+  const categoryLabel = ticket.category_code || null;
+  const actionLabel = ticketAny.action_code || null;
+  const initialityLabel = ticketAny.initiality === 'relance'
+    ? `Relance #${ticketAny.relance_index || 1}`
+    : 'Initial';
 
   const replyActivities = (activities || [])
     .filter((a) => a.activity_type === 'reply')
@@ -86,7 +124,6 @@ export function TicketDetail() {
   const handleStatusChange = async (newStatus: string) => {
     try {
       const updates: any = { status: newStatus };
-      // Track first_opened_at
       if (!ticketAny.first_opened_at && newStatus !== 'open') {
         updates.first_opened_at = new Date().toISOString();
       }
@@ -110,6 +147,8 @@ export function TicketDetail() {
     }
   };
 
+  const isUrgent = ticket.priority === 'urgent' || ticket.priority === 'high';
+
   return (
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-64px)]">
@@ -125,38 +164,69 @@ export function TicketDetail() {
               <ArrowLeft className="h-4 w-4 mr-1.5" /> Retour
             </Button>
 
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-bold leading-snug text-foreground">
-                  {extractSubject(ticket.title)}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border"
-                    style={{ backgroundColor: status.bg, color: status.text, borderColor: status.border }}
-                  >
-                    <StatusIcon className="h-3 w-3" /> {status.label}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border"
-                    style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
-                  >
-                    {urgency.label}
-                  </span>
-                  {ticket.source === 'qr_code' && (
-                    <Badge variant="outline" className="text-xs gap-1">
-                      <QrCode className="h-3 w-3" /> QR Code
-                    </Badge>
-                  )}
-                  {ticketAny.duplicate_of_id && (
-                    <Badge variant="outline" className="text-xs gap-1 text-orange-600 border-orange-300">
-                      <Copy className="h-3 w-3" /> Doublon
-                    </Badge>
-                  )}
-                </div>
-              </div>
+            {/* Clean subject title */}
+            <h1 className="text-xl font-bold leading-snug text-foreground">
+              {subject}
+            </h1>
+
+            {/* Metadata badges row */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {/* Initiality badge */}
+              <Badge variant="outline" className="text-[11px] gap-1">
+                <Tag className="h-3 w-3" /> {initialityLabel}
+              </Badge>
+
+              {/* Action badge (e.g. "Je signale") */}
+              {actionLabel && (
+                <Badge variant="outline" className="text-[11px]">
+                  {actionLabel}
+                </Badge>
+              )}
+
+              {/* Category badge */}
+              {categoryLabel && (
+                <Badge variant="secondary" className="text-[11px]">
+                  {categoryLabel}
+                </Badge>
+              )}
+
+              {/* Priority badge */}
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border"
+                style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
+              >
+                {urgency.dot} {priorityLabel}
+              </span>
+
+              {/* Status badge */}
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border"
+                style={{ backgroundColor: status.bg, color: status.text, borderColor: status.border }}
+              >
+                <StatusIcon className="h-3 w-3" /> {status.label}
+              </span>
+
+              {/* Title bracket badges (extra info) */}
+              {titleBadges.map((badge, i) => (
+                <Badge key={i} variant="outline" className="text-[11px]">
+                  {badge}
+                </Badge>
+              ))}
+
+              {ticket.source === 'qr_code' && (
+                <Badge variant="outline" className="text-[11px] gap-1">
+                  <QrCode className="h-3 w-3" /> QR Code
+                </Badge>
+              )}
+
+              {ticketAny.duplicate_of_id && (
+                <Badge variant="outline" className="text-[11px] gap-1 text-orange-600 border-orange-300">
+                  <Copy className="h-3 w-3" /> Doublon
+                </Badge>
+              )}
             </div>
 
+            {/* Meta info line */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -184,7 +254,7 @@ export function TicketDetail() {
         {/* ── BODY: 65/35 two-column layout ── */}
         <div className="flex-1 overflow-hidden">
           <div className="max-w-[1400px] mx-auto h-full grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-0">
-            {/* ── LEFT COLUMN (65%): Tabs Discussion / Audit ── */}
+            {/* ── LEFT COLUMN: Tabs Discussion / Audit ── */}
             <div className="flex flex-col h-full border-r overflow-hidden" key={refreshKey}>
               <Tabs defaultValue="discussion" className="flex flex-col h-full">
                 <TabsList className="mx-4 mt-3 shrink-0 w-fit">
@@ -194,8 +264,14 @@ export function TicketDetail() {
 
                 {/* Discussion tab */}
                 <TabsContent value="discussion" className="flex-1 overflow-y-auto px-4 py-4 space-y-4 m-0">
-                  {/* Original message */}
-                  <div className="flex justify-end">
+                  {/* Original message with checkbox */}
+                  <div className="flex items-start gap-2 justify-end">
+                    <Checkbox
+                      checked={selectedMessages.has('original')}
+                      onCheckedChange={() => toggleMessage('original')}
+                      className="mt-3 shrink-0"
+                      title="Inclure dans le transfert"
+                    />
                     <div className="max-w-[80%]">
                       <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
                         <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
@@ -217,7 +293,15 @@ export function TicketDetail() {
                     const isInbound = meta?.direction === 'inbound';
 
                     return (
-                      <div key={activity.id} className={`flex ${isInbound ? 'justify-end' : 'justify-start'}`}>
+                      <div key={activity.id} className={`flex items-start gap-2 ${isInbound ? 'justify-end' : 'justify-start'}`}>
+                        {isInbound && (
+                          <Checkbox
+                            checked={selectedMessages.has(activity.id)}
+                            onCheckedChange={() => toggleMessage(activity.id)}
+                            className="mt-3 shrink-0"
+                            title="Inclure dans le transfert"
+                          />
+                        )}
                         <div className="max-w-[80%]">
                           <div
                             className={`rounded-2xl px-4 py-3 border ${
@@ -235,12 +319,29 @@ export function TicketDetail() {
                             </span>
                           </div>
                         </div>
+                        {!isInbound && (
+                          <Checkbox
+                            checked={selectedMessages.has(activity.id)}
+                            onCheckedChange={() => toggleMessage(activity.id)}
+                            className="mt-3 shrink-0"
+                            title="Inclure dans le transfert"
+                          />
+                        )}
                       </div>
                     );
                   })}
 
                   {!activitiesLoading && replyActivities.length === 0 && (
                     <p className="text-xs text-muted-foreground text-center italic">Aucune réponse pour le moment.</p>
+                  )}
+
+                  {/* Selected messages indicator */}
+                  {selectedMessages.size > 0 && (
+                    <div className="text-center">
+                      <Badge variant="secondary" className="text-xs">
+                        {selectedMessages.size} message(s) sélectionné(s) pour le transfert
+                      </Badge>
+                    </div>
                   )}
 
                   {/* Attachments */}
@@ -295,9 +396,9 @@ export function TicketDetail() {
               </Tabs>
             </div>
 
-            {/* ── RIGHT COLUMN (35%): Actions / Dispatcher ── */}
+            {/* ── RIGHT COLUMN: Actions / Dispatcher ── */}
             <div className="overflow-y-auto p-4 space-y-4">
-              {/* Emergency button (feature-flagged) */}
+              {/* Emergency button (feature-flagged + urgent priority fallback) */}
               <EmergencyButton ticket={ticket} />
 
               {/* Status change */}
@@ -357,11 +458,12 @@ export function TicketDetail() {
                 </CardContent>
               </Card>
 
-              {/* Smart Dispatcher */}
+              {/* Smart Dispatcher with selected messages */}
               <SmartDispatcher
                 ticket={ticket}
                 activities={activities || []}
                 onDispatched={handleRefresh}
+                selectedMessageIds={selectedMessages}
               />
 
               {/* Duplicate button */}

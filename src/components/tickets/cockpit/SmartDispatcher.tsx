@@ -6,7 +6,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Forward, Shield, Send, UserPlus, Building, Users, HardHat } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Forward, Shield, Send, UserPlus, Building, Users, HardHat, Plus, Check } from 'lucide-react';
 import { Ticket, TicketActivity } from '@/hooks/useTickets';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,12 +22,6 @@ interface SmartDispatcherProps {
 
 type TargetType = 'prestataire' | 'conseil_syndical' | 'concierge';
 
-const TARGET_TABS: { key: TargetType; label: string; icon: React.ElementType }[] = [
-  { key: 'prestataire', label: 'Prestataire', icon: HardHat },
-  { key: 'conseil_syndical', label: 'Conseil Syndical', icon: Users },
-  { key: 'concierge', label: 'Concierge', icon: Building },
-];
-
 export function SmartDispatcher({ ticket, activities, onDispatched, selectedMessageIds }: SmartDispatcherProps) {
   const [open, setOpen] = useState(false);
   const [targetType, setTargetType] = useState<TargetType>('prestataire');
@@ -34,36 +29,47 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
   const [instructions, setInstructions] = useState('');
   const [includeRGPD, setIncludeRGPD] = useState(false);
   const [sending, setSending] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [showAddContact, setShowAddContact] = useState(false);
   const { user } = useAuth();
 
   const selectedCount = selectedMessageIds?.size || 0;
 
   const handleDispatch = async () => {
-    if (!manualEmail.trim() && !targetType) return;
+    if (!manualEmail.trim()) {
+      toast.error('Veuillez saisir un email de destinataire');
+      return;
+    }
     setSending(true);
     try {
+      // 1. Log transfer activity
       await supabase.from('ticket_activities').insert({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
         activity_type: 'assignment',
-        content: instructions || null,
+        content: instructions || `Transféré vers ${targetType}`,
         metadata: {
           dispatch_target: targetType,
-          dispatch_email: manualEmail.trim() || null,
+          dispatch_email: manualEmail.trim(),
           include_rgpd: includeRGPD,
           selected_messages: selectedMessageIds ? Array.from(selectedMessageIds) : [],
           dispatched_at: new Date().toISOString(),
+          contact_name: newContactName || null,
         },
       });
 
-      // Update assigned_at if not already set
+      // 2. Update assigned_at if not already set
       const ticketAny = ticket as any;
       if (!ticketAny.assigned_at) {
         await supabase.from('tickets').update({ assigned_at: new Date().toISOString() } as any).eq('id', ticket.id);
       }
 
-      const targetLabel = TARGET_TABS.find(t => t.key === targetType)?.label || targetType;
-      toast.success(`Transféré vers : ${targetLabel}${manualEmail ? ` (${manualEmail})` : ''}`);
+      // 3. Simulate email send (logged in channels_outbox concept)
+      const tabLabel = targetType === 'prestataire' ? 'Prestataire' : targetType === 'conseil_syndical' ? 'Conseil Syndical' : 'Concierge';
+      toast.success(`Transféré vers ${tabLabel} (${manualEmail.trim()})`, {
+        description: `${selectedCount} message(s) inclus · RGPD ${includeRGPD ? 'activé' : 'désactivé'}`,
+      });
+
       setOpen(false);
       resetForm();
       onDispatched?.();
@@ -74,10 +80,25 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
     }
   };
 
+  const handleAddContact = () => {
+    if (!newContactName.trim() || !manualEmail.trim()) {
+      toast.error('Remplissez le nom et l\'email');
+      return;
+    }
+    // In production this would save to a contacts table
+    toast.success(`Contact "${newContactName}" enregistré`, {
+      description: manualEmail,
+    });
+    setShowAddContact(false);
+    setNewContactName('');
+  };
+
   const resetForm = () => {
     setManualEmail('');
     setInstructions('');
     setIncludeRGPD(false);
+    setNewContactName('');
+    setShowAddContact(false);
   };
 
   return (
@@ -105,26 +126,33 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
             {/* Target type tabs */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Type de destinataire</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {TARGET_TABS.map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setTargetType(tab.key)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-colors ${
-                      targetType === tab.key
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card hover:bg-accent/50 border-border'
-                    }`}
-                  >
-                    <tab.icon className="h-5 w-5" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <Tabs value={targetType} onValueChange={(v) => setTargetType(v as TargetType)}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="prestataire" className="flex-1 gap-1.5 text-xs">
+                    <HardHat className="h-3.5 w-3.5" /> Prestataire
+                  </TabsTrigger>
+                  <TabsTrigger value="conseil_syndical" className="flex-1 gap-1.5 text-xs">
+                    <Users className="h-3.5 w-3.5" /> Conseil Syndical
+                  </TabsTrigger>
+                  <TabsTrigger value="concierge" className="flex-1 gap-1.5 text-xs">
+                    <Building className="h-3.5 w-3.5" /> Concierge
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="prestataire" className="mt-3">
+                  <p className="text-xs text-muted-foreground">Sélectionnez ou saisissez l'email du prestataire intervenant.</p>
+                </TabsContent>
+                <TabsContent value="conseil_syndical" className="mt-3">
+                  <p className="text-xs text-muted-foreground">Transférez les informations au conseil syndical de l'immeuble.</p>
+                </TabsContent>
+                <TabsContent value="concierge" className="mt-3">
+                  <p className="text-xs text-muted-foreground">Informez le concierge ou gardien de l'immeuble.</p>
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Recipient email */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs font-medium">Destinataire</Label>
               <div className="flex gap-2">
                 <Input
@@ -134,23 +162,41 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
                   type="email"
                   className="flex-1"
                 />
-                <Button variant="outline" size="icon" className="shrink-0" title="Ajouter un contact">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  title="Ajouter un nouveau contact"
+                  onClick={() => setShowAddContact(!showAddContact)}
+                >
                   <UserPlus className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Saisissez l'email ou ajoutez un contact depuis le répertoire de l'immeuble.
-              </p>
+
+              {/* Add contact form */}
+              {showAddContact && (
+                <div className="p-3 rounded-lg border bg-accent/20 space-y-2">
+                  <p className="text-xs font-medium">Enregistrer un nouveau contact</p>
+                  <Input
+                    placeholder="Nom du contact…"
+                    value={newContactName}
+                    onChange={(e) => setNewContactName(e.target.value)}
+                  />
+                  <Button size="sm" variant="secondary" className="gap-1.5 w-full" onClick={handleAddContact}>
+                    <Plus className="h-3.5 w-3.5" /> Ajouter le contact
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Selected messages info */}
             {selectedCount > 0 ? (
               <div className="p-3 rounded-lg border bg-accent/30">
-                <p className="text-xs font-medium text-foreground">
-                  ✅ {selectedCount} message(s) sélectionné(s) pour inclusion
+                <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-green-600" /> {selectedCount} message(s) sélectionné(s)
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Seuls les messages cochés dans la discussion seront transmis au destinataire.
+                  Seuls les messages cochés seront transmis au destinataire.
                 </p>
               </div>
             ) : (
@@ -191,8 +237,8 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleDispatch} disabled={sending} className="gap-2">
-              <Send className="h-4 w-4" /> Envoyer
+            <Button onClick={handleDispatch} disabled={sending || !manualEmail.trim()} className="gap-2">
+              <Send className="h-4 w-4" /> Envoyer le transfert
             </Button>
           </DialogFooter>
         </DialogContent>

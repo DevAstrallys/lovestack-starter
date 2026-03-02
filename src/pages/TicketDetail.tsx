@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -22,7 +21,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 import { EmergencyButton } from '@/components/tickets/cockpit/EmergencyButton';
-import { AuditTrail } from '@/components/tickets/cockpit/AuditTrail';
 import { SmartDispatcher } from '@/components/tickets/cockpit/SmartDispatcher';
 import { ChatBar } from '@/components/tickets/cockpit/ChatBar';
 
@@ -35,7 +33,6 @@ const getMediaIcon = (type: string) => {
 
 /** Extract the raw subject from the title: last segment after — (strip brackets) */
 function extractSubject(title: string): string {
-  // Remove everything in [brackets]
   const cleaned = title.replace(/\[([^\]]*)\]/g, '').trim();
   const segments = cleaned.split('—').map(s => s.trim()).filter(Boolean);
   return segments[segments.length - 1] || title;
@@ -107,10 +104,7 @@ export function TicketDetail() {
   const titleBadges = extractTitleBadges(ticket.title);
   const subject = extractSubject(ticket.title);
 
-  // Priority label for badge
   const priorityLabel = TICKET_PRIORITIES[ticket.priority as keyof typeof TICKET_PRIORITIES] || ticket.priority;
-
-  // Category / action labels for badges
   const categoryLabel = ticket.category_code || null;
   const actionLabel = ticketAny.action_code || null;
   const initialityLabel = ticketAny.initiality === 'relance'
@@ -153,46 +147,27 @@ export function TicketDetail() {
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-64px)]">
         {/* ── HEADER ── */}
-        <div className="border-b bg-card px-4 py-3 shrink-0">
+        <div className="border-b bg-card px-4 py-4 shrink-0">
           <div className="max-w-[1400px] mx-auto">
             <Button
               variant="ghost"
               size="sm"
-              className="-ml-2 text-muted-foreground hover:text-foreground mb-2"
+              className="-ml-2 text-muted-foreground hover:text-foreground mb-3"
               onClick={() => navigate('/tickets')}
             >
-              <ArrowLeft className="h-4 w-4 mr-1.5" /> Retour
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Retour aux tickets
             </Button>
 
             {/* Clean subject title */}
-            <h1 className="text-xl font-bold leading-snug text-foreground">
+            <h1 className="text-2xl font-bold leading-snug text-foreground mb-3">
               {subject}
             </h1>
 
-            {/* Metadata badges row */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {/* Initiality badge */}
-              <Badge variant="outline" className="text-[11px] gap-1">
-                <Tag className="h-3 w-3" /> {initialityLabel}
-              </Badge>
-
-              {/* Action badge (e.g. "Je signale") */}
-              {actionLabel && (
-                <Badge variant="outline" className="text-[11px]">
-                  {actionLabel}
-                </Badge>
-              )}
-
-              {/* Category badge */}
-              {categoryLabel && (
-                <Badge variant="secondary" className="text-[11px]">
-                  {categoryLabel}
-                </Badge>
-              )}
-
+            {/* Metadata badges row — spaced out */}
+            <div className="flex flex-wrap items-center gap-2">
               {/* Priority badge */}
               <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border"
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border"
                 style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
               >
                 {urgency.dot} {priorityLabel}
@@ -200,51 +175,70 @@ export function TicketDetail() {
 
               {/* Status badge */}
               <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border"
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border"
                 style={{ backgroundColor: status.bg, color: status.text, borderColor: status.border }}
               >
-                <StatusIcon className="h-3 w-3" /> {status.label}
+                <StatusIcon className="h-3.5 w-3.5" /> {status.label}
               </span>
 
-              {/* Title bracket badges (extra info) */}
+              {/* Category badge */}
+              {categoryLabel && (
+                <Badge variant="secondary" className="text-xs px-3 py-1">
+                  {categoryLabel}
+                </Badge>
+              )}
+
+              {/* Action badge */}
+              {actionLabel && (
+                <Badge variant="outline" className="text-xs px-3 py-1">
+                  {actionLabel}
+                </Badge>
+              )}
+
+              {/* Initiality badge */}
+              <Badge variant="outline" className="text-xs px-3 py-1 gap-1">
+                <Tag className="h-3 w-3" /> {initialityLabel}
+              </Badge>
+
+              {/* Title bracket badges */}
               {titleBadges.map((badge, i) => (
-                <Badge key={i} variant="outline" className="text-[11px]">
+                <Badge key={i} variant="outline" className="text-xs px-3 py-1">
                   {badge}
                 </Badge>
               ))}
 
               {ticket.source === 'qr_code' && (
-                <Badge variant="outline" className="text-[11px] gap-1">
+                <Badge variant="outline" className="text-xs px-3 py-1 gap-1">
                   <QrCode className="h-3 w-3" /> QR Code
                 </Badge>
               )}
 
               {ticketAny.duplicate_of_id && (
-                <Badge variant="outline" className="text-[11px] gap-1 text-orange-600 border-orange-300">
+                <Badge variant="outline" className="text-xs px-3 py-1 gap-1 text-orange-600 border-orange-300">
                   <Copy className="h-3 w-3" /> Doublon
                 </Badge>
               )}
             </div>
 
             {/* Meta info line */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(ticket.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                {format(new Date(ticket.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
               </span>
               {locationName && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {locationName}
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" /> {locationName}
                 </span>
               )}
               {ticket.reporter_name && (
-                <span className="flex items-center gap-1">
-                  <User className="h-3 w-3" /> {ticket.reporter_name}
+                <span className="flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" /> {ticket.reporter_name}
                 </span>
               )}
               {ticket.reporter_email && (
-                <span className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> {ticket.reporter_email}
+                <span className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" /> {ticket.reporter_email}
                 </span>
               )}
             </div>
@@ -254,151 +248,140 @@ export function TicketDetail() {
         {/* ── BODY: 65/35 two-column layout ── */}
         <div className="flex-1 overflow-hidden">
           <div className="max-w-[1400px] mx-auto h-full grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-0">
-            {/* ── LEFT COLUMN: Tabs Discussion / Audit ── */}
+            {/* ── LEFT COLUMN: Discussion only ── */}
             <div className="flex flex-col h-full border-r overflow-hidden" key={refreshKey}>
-              <Tabs defaultValue="discussion" className="flex flex-col h-full">
-                <TabsList className="mx-4 mt-3 shrink-0 w-fit">
-                  <TabsTrigger value="discussion">Discussion</TabsTrigger>
-                  <TabsTrigger value="audit">Journal de gestion</TabsTrigger>
-                </TabsList>
-
-                {/* Discussion tab */}
-                <TabsContent value="discussion" className="flex-1 overflow-y-auto px-4 py-4 space-y-4 m-0">
-                  {/* Original message with checkbox */}
-                  <div className="flex items-start gap-2 justify-end">
-                    <Checkbox
-                      checked={selectedMessages.has('original')}
-                      onCheckedChange={() => toggleMessage('original')}
-                      className="mt-3 shrink-0"
-                      title="Inclure dans le transfert"
-                    />
-                    <div className="max-w-[80%]">
-                      <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
-                        <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
-                      </div>
-                      <div className="flex justify-end mt-1">
-                        <span className="text-[11px] text-muted-foreground">
-                          {ticket.reporter_name || 'Demandeur'} • {format(new Date(ticket.created_at), 'dd MMM HH:mm', { locale: fr })}
-                        </span>
-                      </div>
+              {/* Discussion content */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                {/* Original message with checkbox */}
+                <div className="flex items-start gap-2 justify-end">
+                  <Checkbox
+                    checked={selectedMessages.has('original')}
+                    onCheckedChange={() => toggleMessage('original')}
+                    className="mt-3 shrink-0"
+                    title="Inclure dans le transfert"
+                  />
+                  <div className="max-w-[80%]">
+                    <div className="rounded-2xl rounded-tr-sm px-4 py-3 bg-red-100 border border-red-200 text-red-900">
+                      <p className="text-sm whitespace-pre-wrap">{ticket.description || 'Aucune description.'}</p>
+                    </div>
+                    <div className="flex justify-end mt-1">
+                      <span className="text-[11px] text-muted-foreground">
+                        {ticket.reporter_name || 'Demandeur'} • {format(new Date(ticket.created_at), 'dd MMM HH:mm', { locale: fr })}
+                      </span>
                     </div>
                   </div>
-
-                  {activitiesLoading && (
-                    <p className="text-xs text-muted-foreground text-center">Chargement…</p>
-                  )}
-
-                  {replyActivities.map((activity) => {
-                    const meta = activity.metadata as any;
-                    const isInbound = meta?.direction === 'inbound';
-
-                    return (
-                      <div key={activity.id} className={`flex items-start gap-2 ${isInbound ? 'justify-end' : 'justify-start'}`}>
-                        {isInbound && (
-                          <Checkbox
-                            checked={selectedMessages.has(activity.id)}
-                            onCheckedChange={() => toggleMessage(activity.id)}
-                            className="mt-3 shrink-0"
-                            title="Inclure dans le transfert"
-                          />
-                        )}
-                        <div className="max-w-[80%]">
-                          <div
-                            className={`rounded-2xl px-4 py-3 border ${
-                              isInbound
-                                ? 'rounded-tr-sm bg-red-100 border-red-200 text-red-900'
-                                : 'rounded-tl-sm bg-green-100 border-green-200 text-green-900'
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap">{activity.content}</p>
-                          </div>
-                          <div className={`flex ${isInbound ? 'justify-end' : 'justify-start'} mt-1`}>
-                            <span className="text-[11px] text-muted-foreground">
-                              {isInbound ? ticket.reporter_name || 'Demandeur' : 'Vous'} •{' '}
-                              {activity.created_at && format(new Date(activity.created_at), 'dd MMM HH:mm', { locale: fr })}
-                            </span>
-                          </div>
-                        </div>
-                        {!isInbound && (
-                          <Checkbox
-                            checked={selectedMessages.has(activity.id)}
-                            onCheckedChange={() => toggleMessage(activity.id)}
-                            className="mt-3 shrink-0"
-                            title="Inclure dans le transfert"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {!activitiesLoading && replyActivities.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center italic">Aucune réponse pour le moment.</p>
-                  )}
-
-                  {/* Selected messages indicator */}
-                  {selectedMessages.size > 0 && (
-                    <div className="text-center">
-                      <Badge variant="secondary" className="text-xs">
-                        {selectedMessages.size} message(s) sélectionné(s) pour le transfert
-                      </Badge>
-                    </div>
-                  )}
-
-                  {/* Attachments */}
-                  {ticket.attachments && ticket.attachments.length > 0 && (
-                    <>
-                      <Separator />
-                      <div>
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                          Pièces jointes ({ticket.attachments.length})
-                        </h4>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                          {ticket.attachments.map((att: any, i: number) => (
-                            <a
-                              key={i}
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block rounded-lg border overflow-hidden hover:shadow-sm transition-shadow"
-                            >
-                              {att.type === 'image' ? (
-                                <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
-                              ) : (
-                                <div className="flex items-center justify-center h-20 bg-muted">
-                                  {getMediaIcon(att.type)}
-                                </div>
-                              )}
-                              <div className="px-1.5 py-0.5 text-[10px] text-muted-foreground truncate">
-                                {att.name}
-                              </div>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </TabsContent>
-
-                {/* Audit tab */}
-                <TabsContent value="audit" className="flex-1 overflow-y-auto px-4 py-4 m-0">
-                  <AuditTrail
-                    ticket={ticket}
-                    activities={activities || []}
-                    loading={activitiesLoading}
-                    onNoteAdded={handleRefresh}
-                  />
-                </TabsContent>
-
-                {/* Chat bar at the bottom */}
-                <div className="shrink-0">
-                  <ChatBar ticket={ticket} onSent={handleRefresh} />
                 </div>
-              </Tabs>
+
+                {activitiesLoading && (
+                  <p className="text-xs text-muted-foreground text-center">Chargement…</p>
+                )}
+
+                {replyActivities.map((activity) => {
+                  const meta = activity.metadata as any;
+                  const isInbound = meta?.direction === 'inbound';
+
+                  return (
+                    <div key={activity.id} className={`flex items-start gap-2 ${isInbound ? 'justify-end' : 'justify-start'}`}>
+                      {isInbound && (
+                        <Checkbox
+                          checked={selectedMessages.has(activity.id)}
+                          onCheckedChange={() => toggleMessage(activity.id)}
+                          className="mt-3 shrink-0"
+                          title="Inclure dans le transfert"
+                        />
+                      )}
+                      <div className="max-w-[80%]">
+                        <div
+                          className={`rounded-2xl px-4 py-3 border ${
+                            isInbound
+                              ? 'rounded-tr-sm bg-red-100 border-red-200 text-red-900'
+                              : 'rounded-tl-sm bg-green-100 border-green-200 text-green-900'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{activity.content}</p>
+                        </div>
+                        <div className={`flex ${isInbound ? 'justify-end' : 'justify-start'} mt-1`}>
+                          <span className="text-[11px] text-muted-foreground">
+                            {isInbound ? ticket.reporter_name || 'Demandeur' : 'Vous'} •{' '}
+                            {activity.created_at && format(new Date(activity.created_at), 'dd MMM HH:mm', { locale: fr })}
+                          </span>
+                        </div>
+                      </div>
+                      {!isInbound && (
+                        <Checkbox
+                          checked={selectedMessages.has(activity.id)}
+                          onCheckedChange={() => toggleMessage(activity.id)}
+                          className="mt-3 shrink-0"
+                          title="Inclure dans le transfert"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+
+                {!activitiesLoading && replyActivities.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center italic">Aucune réponse pour le moment.</p>
+                )}
+
+                {/* Selected messages indicator */}
+                {selectedMessages.size > 0 && (
+                  <div className="text-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedMessages.size} message(s) sélectionné(s) pour le transfert
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Attachments with real thumbnails */}
+                {ticket.attachments && ticket.attachments.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        Pièces jointes ({ticket.attachments.length})
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {ticket.attachments.map((att: any, i: number) => (
+                          <a
+                            key={i}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block rounded-xl border overflow-hidden hover:shadow-md transition-shadow group"
+                          >
+                            {att.type === 'image' ? (
+                              <img
+                                src={att.url}
+                                alt={att.name}
+                                className="w-full h-28 object-cover group-hover:scale-105 transition-transform"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-28 bg-muted gap-1">
+                                {getMediaIcon(att.type)}
+                                <span className="text-[10px] text-muted-foreground">{att.type?.toUpperCase()}</span>
+                              </div>
+                            )}
+                            <div className="px-2 py-1.5 text-[11px] text-muted-foreground truncate bg-card">
+                              {att.name}
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Chat bar at the bottom */}
+              <div className="shrink-0">
+                <ChatBar ticket={ticket} onSent={handleRefresh} />
+              </div>
             </div>
 
             {/* ── RIGHT COLUMN: Actions / Dispatcher ── */}
             <div className="overflow-y-auto p-4 space-y-4">
-              {/* Emergency button (feature-flagged + urgent priority fallback) */}
+              {/* Emergency button */}
               <EmergencyButton ticket={ticket} />
 
               {/* Status change */}
@@ -458,7 +441,7 @@ export function TicketDetail() {
                 </CardContent>
               </Card>
 
-              {/* Smart Dispatcher with selected messages */}
+              {/* Smart Dispatcher */}
               <SmartDispatcher
                 ticket={ticket}
                 activities={activities || []}

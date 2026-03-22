@@ -139,6 +139,22 @@ export async function fetchBuildings(ids: string[]) {
   }
 }
 
+export async function fetchOrganizationEnsembles(organizationId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('location_ensembles')
+      .select('id, name, description')
+      .eq('organization_id', organizationId)
+      .order('name');
+    if (error) throw error;
+    log.info('Ensembles fetched', { count: data?.length, organizationId });
+    return data ?? [];
+  } catch (err) {
+    log.error('Failed to fetch organization ensembles', { organizationId, error: err });
+    throw err;
+  }
+}
+
 export async function fetchOrganizations(ids: string[]) {
   try {
     const { data, error } = await supabase

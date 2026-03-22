@@ -16,7 +16,7 @@ import { OrgLogo } from '@/components/ui/org-logo';
 import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { signOut } from '@/services/auth';
 import { toast } from 'sonner';
 import {
   LayoutDashboard,

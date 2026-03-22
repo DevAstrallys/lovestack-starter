@@ -81,92 +81,43 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
   const handleCreateQR = async () => {
     try {
       if (!newQRData.location_type || !newQRData.location_id) {
-        toast({
-          title: 'Erreur',
-          description: 'Veuillez sélectionner un type et un lieu',
-          variant: 'destructive'
-        });
+        toast({ title: 'Erreur', description: 'Veuillez sélectionner un type et un lieu', variant: 'destructive' });
         return;
       }
 
-      // Générer un slug unique
       const slug = `${newQRData.location_type}-${newQRData.location_id}-${Date.now()}`;
-      
-      // Désactiver les anciens QR codes pour ce lieu selon le type
-      if (newQRData.location_type === 'element') {
-        await supabase
-          .from('qr_codes')
-          .update({ is_active: false })
-          .eq('location_element_id', newQRData.location_id)
-          .eq('is_active', true);
-      } else if (newQRData.location_type === 'group') {
-        await supabase
-          .from('qr_codes')
-          .update({ is_active: false })
-          .eq('location_group_id', newQRData.location_id)
-          .eq('is_active', true);
-      } else if (newQRData.location_type === 'ensemble') {
-        await supabase
-          .from('qr_codes')
-          .update({ is_active: false })
-          .eq('location_ensemble_id', newQRData.location_id)
-          .eq('is_active', true);
-      }
 
-      // Créer le nouveau QR code
-      const qrCodeData: any = {
+      const payload: Parameters<typeof createQRCode>[0] = {
         display_label: newQRData.display_label,
         target_slug: slug,
-        version: 1,
-        is_active: true,
         organization_id: organizationId,
         created_by: user?.id,
-        last_regenerated_at: new Date().toISOString(),
         form_config: {
           action: '',
           category: '',
           object: '',
           title_template: '[{initiality}] - [{action}] - [{category}] - [{object}]'
-        }
+        },
       };
 
-      // Associer le QR code au bon type de lieu
       if (newQRData.location_type === 'element') {
-        qrCodeData.location_element_id = newQRData.location_id;
+        payload.location_element_id = newQRData.location_id;
       } else if (newQRData.location_type === 'group') {
-        qrCodeData.location_group_id = newQRData.location_id;
+        payload.location_group_id = newQRData.location_id;
       } else if (newQRData.location_type === 'ensemble') {
-        qrCodeData.location_ensemble_id = newQRData.location_id;
+        payload.location_ensemble_id = newQRData.location_id;
       }
 
-      const { error } = await supabase
-        .from('qr_codes')
-        .insert(qrCodeData);
-
-      if (error) throw error;
+      await createQRCode(payload);
 
       setIsCreateDialogOpen(false);
-      setNewQRData({
-        display_label: '',
-        location_type: '',
-        location_id: '',
-        template_id: 'default'
-      });
-
+      setNewQRData({ display_label: '', location_type: '', location_id: '', template_id: 'default' });
       await loadData();
 
-      toast({
-        title: 'QR Code créé',
-        description: 'Le QR Code a été créé avec succès'
-      });
-
+      toast({ title: 'QR Code créé', description: 'Le QR Code a été créé avec succès' });
     } catch (error) {
-      console.error('Error creating QR code:', error);
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de créer le QR Code',
-        variant: 'destructive'
-      });
+      log.error('Error creating QR code', { error });
+      toast({ title: 'Erreur', description: 'Impossible de créer le QR Code', variant: 'destructive' });
     }
   };
 

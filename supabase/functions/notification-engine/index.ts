@@ -14,24 +14,48 @@ interface NotificationRequest {
   organizationId?: string;
 }
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+/**
+ * Authenticate: requires a valid user JWT.
+ */
+async function authenticateCaller(req: Request): Promise<{ authenticated: boolean; userId?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { authenticated: false };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user) {
+    return { authenticated: false };
+  }
+
+  return { authenticated: true, userId: data.user.id };
+}
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // --- AUTH CHECK ---
+    const auth = await authenticateCaller(req);
+    if (!auth.authenticated) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', success: false }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     const { type, userIds, data, channels = ['email'], organizationId }: NotificationRequest = await req.json();
 
-    console.log(`Processing ${type} notification for ${userIds.length} users`);
-
     // Récupérer les profils et préférences des utilisateurs
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select(`
         id,
@@ -57,49 +81,49 @@ serve(async (req) => {
       const shouldSendSms = channels.includes('sms') && prefs?.sms;
       const shouldSendPush = channels.includes('push') && prefs?.push;
 
-      // Préparer les données pour les templates
       const templateData = {
         name: profile.full_name,
         organizationName: data.organizationName || "Votre App",
         ...data
       };
 
-      // Envoyer email si demandé et autorisé
       if (shouldSendEmail) {
         try {
           const emailTemplate = getEmailTemplate(type);
-          const emailResponse = await supabase.functions.invoke('send-email', {
-            body: {
+          // Call send-email with service-role key for internal auth
+          const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': serviceRoleKey,
+              'Authorization': `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({
               template: emailTemplate,
-              to: [profile.id], // Utiliser l'ID pour récupérer l'email via auth
-              data: templateData
-            }
+              to: [profile.id],
+              data: templateData,
+            }),
           });
 
-          if (emailResponse.error) {
-            console.error(`Erreur envoi email pour ${profile.id}:`, emailResponse.error);
-          } else {
-            console.log(`Email envoyé à ${profile.id}`);
-          }
+          const emailResult = await emailResponse.json();
 
           results.push({
             userId: profile.id,
             channel: 'email',
-            success: !emailResponse.error,
-            error: emailResponse.error?.message
+            success: emailResult.success ?? false,
+            error: emailResult.error,
           });
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error(`Erreur email pour ${profile.id}:`, emailError);
           results.push({
             userId: profile.id,
             channel: 'email',
             success: false,
-            error: emailError.message
+            error: 'Email send failed',
           });
         }
       }
 
-      // TODO: Implémenter SMS et Push notifications
       if (shouldSendSms) {
         console.log(`SMS notification pour ${profile.id} (à implémenter)`);
       }
@@ -115,17 +139,14 @@ serve(async (req) => {
       results
     }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
 
   } catch (error: any) {
     console.error('Erreur dans notification-engine:', error);
 
     return new Response(JSON.stringify({
-      error: error.message,
+      error: 'Notification processing failed',
       success: false
     }), {
       status: 500,

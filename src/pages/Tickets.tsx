@@ -159,11 +159,11 @@ export const Tickets = () => {
         {/* Portfolio view — only for managers */}
         {canViewAllOrgTickets && (
           <TicketsPortfolio
-            buildings={buildings}
+            buildings={ensembles}
             tickets={tickets}
-            selectedBuildingId={selectedBuildingId}
-            onBuildingSelect={setSelectedBuildingId}
-            loading={buildingsLoading}
+            selectedBuildingId={selectedEnsembleId}
+            onBuildingSelect={setSelectedEnsembleId}
+            loading={ensemblesLoading}
           />
         )}
 

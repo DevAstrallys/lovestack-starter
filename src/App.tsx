@@ -15,6 +15,8 @@ import { Users } from "./pages/Users";
 import { Tickets } from "./pages/Tickets";
 import { TicketDetail } from "./pages/TicketDetail";
 import { TicketForm } from "./pages/TicketForm";
+import { TicketLanding } from "./pages/TicketLanding";
+import { TicketTracking } from "./pages/TicketTracking";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import Health from "./pages/Health";

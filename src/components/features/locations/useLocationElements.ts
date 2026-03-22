@@ -31,7 +31,7 @@ export function useLocationElements(organizationId: string) {
 
       setElements(elementsWithTags);
     } catch (error) {
-      console.error('Error fetching elements:', error);
+      log.error('Error fetching elements', { error });
       toast({ title: 'Erreur', description: 'Impossible de charger les éléments', variant: 'destructive' });
     } finally {
       setLoading(false);

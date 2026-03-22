@@ -75,9 +75,9 @@ export const Tickets = () => {
     
   const { tickets, loading, totalCount, refresh, updateTicket } = useTickets(ticketFilters);
 
-  // Filter tickets by selected building (client-side for instant feedback)
-  const displayedTickets = selectedBuildingId
-    ? tickets.filter(t => t.building_id === selectedBuildingId)
+  // Filter tickets by selected ensemble (client-side for instant feedback)
+  const displayedTickets = selectedEnsembleId
+    ? tickets.filter(t => (t.location as any)?.ensemble_id === selectedEnsembleId)
     : tickets;
 
   const handleFiltersChange = (newFilters: ITicketFilters) => setFilters(newFilters);

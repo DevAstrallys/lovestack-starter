@@ -434,14 +434,56 @@ export function TicketForm() {
 
   const handleFollowTicket = async (ticketId: string) => {
     const user = await getCurrentUser();
-    if (!user) {
-      toast({ title: 'Connectez-vous pour suivre un ticket', variant: 'destructive' });
-      return;
+    if (user) {
+      // Connected user: follow directly
+      const ok = await followTicket({ ticketId, userId: user.id });
+      if (ok) {
+        toast({ title: 'Vous suivez ce ticket !' });
+        setDuplicatesDismissed(true);
+      }
+    } else {
+      // Anonymous: show inline form
+      setFollowFormTicketId(ticketId);
+      setFollowEmail(email); // pre-fill from step 1
+      setFollowPhone(phone);
     }
-    const ok = await followTicket(ticketId, user.id);
-    if (ok) {
-      toast({ title: 'Vous suivez ce ticket !' });
-      setDuplicatesDismissed(true);
+  };
+
+  const handleAnonymousFollow = async () => {
+    if (!followFormTicketId || !followEmail.trim()) return;
+    setFollowSubmitting(true);
+    try {
+      const ok = await followTicket({
+        ticketId: followFormTicketId,
+        email: followEmail.trim(),
+        name: `${firstName} ${lastName}`.trim() || undefined,
+        phone: followPhone.trim() || undefined,
+      });
+      if (ok) {
+        // Send confirmation email
+        try {
+          const dup = duplicates.find(d => d.id === followFormTicketId);
+          await sendEmail({
+            template: 'notification',
+            to: [followEmail.trim()],
+            data: {
+              recipientName: `${firstName} ${lastName}`.trim(),
+              title: 'Vous suivez un ticket',
+              message: `Vous avez rejoint le ticket "${dup?.title || ''}". Statut actuel : ${dup?.status || 'ouvert'}. Vous recevrez les mises à jour par email.`,
+            },
+          });
+        } catch (emailErr) {
+          log.warn('Follow confirmation email failed', { error: emailErr });
+        }
+        toast({ title: 'Vous suivez ce ticket !' });
+        setFollowFormTicketId(null);
+        setDuplicatesDismissed(true);
+      }
+    } catch (err) {
+      log.error('Anonymous follow failed', { error: err });
+      toast({ title: 'Erreur', variant: 'destructive' });
+    } finally {
+      setFollowSubmitting(false);
     }
   };
 

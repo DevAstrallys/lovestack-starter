@@ -151,6 +151,10 @@ export function TicketForm() {
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [duplicatesChecked, setDuplicatesChecked] = useState(false);
   const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
+  const [followFormTicketId, setFollowFormTicketId] = useState<string | null>(null);
+  const [followEmail, setFollowEmail] = useState('');
+  const [followPhone, setFollowPhone] = useState('');
+  const [followSubmitting, setFollowSubmitting] = useState(false);
 
   // --- Load QR code ---
   useEffect(() => {

@@ -148,7 +148,7 @@ export function useLocationElements(organizationId: string) {
       });
 
       toast({ title: 'Succès', description: `QR Code généré pour ${elementName}` });
-      const qrUrl = `${getBaseUrl()}/qr/${data.id}`;
+      const qrUrl = `${getBaseUrl()}/ticket-form/${data.target_slug}`;
       openExternalLink(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`);
     } catch (error) {
       log.error('Error generating QR code', { elementId, error });

@@ -4,7 +4,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Send, Smile, ImagePlus, Paperclip, Lock, Globe } from 'lucide-react';
 import { Ticket } from '@/hooks/useTickets';
-import { supabase } from '@/integrations/supabase/client';
+import { addTicketActivity, updateTicket, uploadTicketAttachment } from '@/services/tickets';
+import { sendEmail } from '@/services/notifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -30,8 +31,7 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
     setSending(true);
     try {
       if (isPrivate) {
-        // Private note
-        await supabase.from('ticket_activities').insert({
+        await addTicketActivity({
           ticket_id: ticket.id,
           actor_id: user?.id || null,
           activity_type: 'comment',
@@ -41,13 +41,12 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
         });
         toast.success('Note privée ajoutée');
       } else {
-        // Public reply
         if (!canReply) {
           toast.error('Aucun email de demandeur');
           return;
         }
 
-        await supabase.from('ticket_activities').insert({
+        await addTicketActivity({
           ticket_id: ticket.id,
           actor_id: user?.id || null,
           activity_type: 'reply',
@@ -58,20 +57,18 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
         // Record first_responded_at
         const ticketAny = ticket as any;
         if (!ticketAny.first_responded_at) {
-          await supabase.from('tickets').update({ first_responded_at: new Date().toISOString() } as any).eq('id', ticket.id);
+          await updateTicket(ticket.id, { first_responded_at: new Date().toISOString() } as any);
         }
 
-        // Send email
-        await supabase.functions.invoke('send-email', {
-          body: {
-            template: 'reply',
-            to: [ticket.reporter_email],
-            data: {
-              ticketTitle: ticket.title,
-              replyContent: content.trim(),
-              replierName: user?.user_metadata?.full_name || "L'équipe support",
-              ticketId: ticket.id,
-            },
+        // Send email via notifications service
+        await sendEmail({
+          template: 'reply',
+          to: [ticket.reporter_email!],
+          data: {
+            ticketTitle: ticket.title,
+            replyContent: content.trim(),
+            replierName: user?.user_metadata?.full_name || "L'équipe support",
+            ticketId: ticket.id,
           },
         });
         toast.success('Réponse envoyée');
@@ -94,18 +91,14 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const path = `${ticket.id}/${Date.now()}_${file.name}`;
-      const { error } = await supabase.storage.from('ticket-attachments').upload(path, file);
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from('ticket-attachments').getPublicUrl(path);
+      const { publicUrl, fileName } = await uploadTicketAttachment(ticket.id, file);
       
-      // Add as activity
-      await supabase.from('ticket_activities').insert({
+      await addTicketActivity({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
         activity_type: 'reply',
-        content: `📎 ${file.name}`,
-        metadata: { direction: 'outbound', attachment_url: urlData.publicUrl, file_name: file.name },
+        content: `📎 ${fileName}`,
+        metadata: { direction: 'outbound', attachment_url: publicUrl, file_name: fileName },
       });
       toast.success('Fichier envoyé');
       onSent?.();

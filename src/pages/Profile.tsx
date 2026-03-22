@@ -11,7 +11,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { User, Download, Trash2, Loader2, Shield, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchProfile, updateProfile, invokeRgpd } from '@/services/users';
+import { signOut } from '@/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -27,23 +28,28 @@ export function Profile() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('profiles').select('full_name, phone, locale').eq('id', user.id).single()
-      .then(({ data }) => { setProfile(data); setLoading(false); });
+    fetchProfile(user.id)
+      .then((data) => { setProfile(data); setLoading(false); })
+      .catch(() => { setLoading(false); });
   }, [user]);
 
   const handleSave = async () => {
     if (!user || !profile) return;
     setSaving(true);
-    const { error } = await supabase.from('profiles').update({ full_name: profile.full_name, phone: profile.phone }).eq('id', user.id);
-    setSaving(false);
-    error ? toast.error('Erreur lors de la mise à jour') : toast.success('Profil mis à jour');
+    try {
+      await updateProfile(user.id, { full_name: profile.full_name, phone: profile.phone });
+      toast.success('Profil mis à jour');
+    } catch {
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('rgpd', { body: { action: 'export' } });
-      if (error) throw error;
+      const data = await invokeRgpd('export');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
@@ -59,10 +65,9 @@ export function Profile() {
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
-      const { error } = await supabase.functions.invoke('rgpd', { body: { action: 'delete' } });
-      if (error) throw error;
+      await invokeRgpd('delete');
       toast.success('Votre compte a été supprimé.');
-      await supabase.auth.signOut();
+      await signOut();
       navigate('/');
     } catch (err: any) {
       toast.error('Erreur : ' + (err.message || 'Erreur inconnue'));

@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import {
+  fetchTicketById,
+  fetchTicketActivities,
+  addTicketActivity as addTicketActivityService,
+  fetchBuildings,
+  fetchOrganizations,
+  updateTicket as updateTicketService,
+  createTicket as createTicketService,
+} from '@/services/tickets';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('hook:tickets');
 
 type DbTicket = Database['public']['Tables']['tickets']['Row'];
 export type TicketStatus = Database['public']['Enums']['ticket_status'];
@@ -94,20 +106,20 @@ export function useTickets(filters: TicketFilters = {}) {
       }
 
       if (filters.search) {
-        // Escape special PostgREST characters to prevent injection
         const sanitized = filters.search
-          .replace(/[\\%_]/g, c => `\\${c}`)  // escape wildcards
-          .replace(/[,()]/g, '')               // strip PostgREST operators
+          .replace(/[\\%_]/g, c => `\\${c}`)
+          .replace(/[,()]/g, '')
           .trim()
-          .slice(0, 200);                      // limit length
+          .slice(0, 200);
         if (sanitized) {
           query = query.or(`title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
         }
       }
 
       // Organization filtering
-      // IMPORTANT: QR-created tickets can have building_id NULL; in that case the org is stored in meta.organization_id.
       if (filters.organizationId) {
+        const buildings = await fetchBuildings([]);
+        // Need to query buildings by org — use supabase directly for complex filtering
         const { data: orgBuildings } = await supabase
           .from('buildings')
           .select('id')
@@ -116,26 +128,20 @@ export function useTickets(filters: TicketFilters = {}) {
         const buildingIds = (orgBuildings || []).map(b => b.id);
 
         if (buildingIds.length > 0) {
-          // Include tickets for the organization's buildings OR QR tickets tagged with the organization in meta
-          // PostgREST filter syntax supports JSON path access via ->>
           query = query.or(
             `building_id.in.(${buildingIds.join(',')}),and(source.eq.qr_code,meta->>organization_id.eq.${filters.organizationId})`
           );
         } else {
-          // No buildings for this organization: still include QR-created tickets for that organization
           query = query
             .eq('source', 'qr_code')
-            // JSONB contains match (meta has organization_id as a string)
             .contains('meta', { organization_id: filters.organizationId });
         }
       }
 
       // Location filtering based on hierarchy
       if (filters.locationId) {
-        // Use basic JSON filtering for location element_id
         query = query.contains('location', { element_id: filters.locationId });
       } else if (filters.groupId) {
-        // Get all elements in this group via parent_id
         const { data: groupElements } = await (supabase as any)
           .from('location_elements')
           .select('id')
@@ -160,7 +166,6 @@ export function useTickets(filters: TicketFilters = {}) {
           }
         }
       } else if (filters.ensembleId) {
-        // Get all groups in this ensemble via parent_id, then all elements
         const { data: ensembleGroups } = await (supabase as any)
           .from('location_groups')
           .select('id')
@@ -208,25 +213,18 @@ export function useTickets(filters: TicketFilters = {}) {
                     (typeof ticket.attachments === 'string' ? JSON.parse(ticket.attachments) : [])
       }));
 
-      // Enrich with building names
+      // Enrich with building names via service
       const buildingIds = [...new Set(transformedData.map(t => t.building_id).filter(Boolean))] as string[];
       if (buildingIds.length > 0) {
-        const { data: buildings } = await supabase
-          .from('buildings')
-          .select('id, name, organization_id')
-          .in('id', buildingIds);
+        const buildings = await fetchBuildings(buildingIds);
         
         if (buildings) {
           const buildingMap = Object.fromEntries(buildings.map(b => [b.id, b]));
           
-          // Also fetch org names for the buildings
           const orgIds = [...new Set(buildings.map(b => b.organization_id).filter(Boolean))] as string[];
           let orgMap: Record<string, string> = {};
           if (orgIds.length > 0) {
-            const { data: orgs } = await supabase
-              .from('organizations')
-              .select('id, name')
-              .in('id', orgIds);
+            const orgs = await fetchOrganizations(orgIds);
             if (orgs) orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
           }
 
@@ -244,7 +242,7 @@ export function useTickets(filters: TicketFilters = {}) {
       const missingOrgTickets = transformedData.filter(t => !t.organization_name && (t.organization_id || (t.meta as any)?.organization_id));
       const missingOrgIds = [...new Set(missingOrgTickets.map(t => t.organization_id || (t.meta as any)?.organization_id).filter(Boolean))] as string[];
       if (missingOrgIds.length > 0) {
-        const { data: orgs } = await supabase.from('organizations').select('id, name').in('id', missingOrgIds);
+        const orgs = await fetchOrganizations(missingOrgIds);
         if (orgs) {
           const orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
           for (const t of missingOrgTickets) {
@@ -257,7 +255,7 @@ export function useTickets(filters: TicketFilters = {}) {
       setTickets(transformedData);
       setTotalCount(count || 0);
     } catch (err) {
-      console.error('Error loading tickets:', err);
+      log.error('Error loading tickets', err);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des tickets');
     } finally {
       setLoading(false);
@@ -266,15 +264,7 @@ export function useTickets(filters: TicketFilters = {}) {
   }, [filtersKey]);
 
   const createTicket = async (ticketData: Database['public']['Tables']['tickets']['Insert']) => {
-    const { data, error: createError } = await supabase
-      .from('tickets')
-      .insert(ticketData)
-      .select()
-      .single();
-
-    if (createError) throw createError;
-    
-    // Refresh tickets list
+    const data = await createTicketService(ticketData);
     await loadTickets();
     return data;
   };
@@ -283,17 +273,7 @@ export function useTickets(filters: TicketFilters = {}) {
     // Optimistic update for instant UI feedback
     setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updates } as Ticket : t));
 
-    const { data, error: updateError } = await supabase
-      .from('tickets')
-      .update(updates)
-      .eq('id', id)
-      .select();
-
-    if (updateError) {
-      // Revert on failure
-      await loadTickets();
-      throw updateError;
-    }
+    const data = await updateTicketService(id, updates);
 
     if (!data || data.length === 0) {
       // RLS blocked the update – revert and inform
@@ -331,15 +311,8 @@ export function useTicketActivities(ticketId: string) {
         setLoading(true);
         setError(null);
 
-        const { data, error: fetchError } = await supabase
-          .from('ticket_activities')
-          .select('*')
-          .eq('ticket_id', ticketId)
-          .order('created_at', { ascending: false });
+        const data = await fetchTicketActivities(ticketId);
 
-        if (fetchError) throw fetchError;
-
-        // Transform metadata to any type
         const transformedData = (data || []).map(activity => ({
           ...activity,
           metadata: activity.metadata || {}
@@ -347,7 +320,7 @@ export function useTicketActivities(ticketId: string) {
 
         setActivities(transformedData);
       } catch (err) {
-        console.error('Error loading ticket activities:', err);
+        log.error('Error loading ticket activities', err);
         setError(err instanceof Error ? err.message : 'Erreur lors du chargement des activités');
       } finally {
         setLoading(false);
@@ -361,15 +334,8 @@ export function useTicketActivities(ticketId: string) {
 
   const addActivity = async (activity: Database['public']['Tables']['ticket_activities']['Insert']) => {
     const activityData = { ...activity, ticket_id: ticketId };
-    const { data, error: createError } = await supabase
-      .from('ticket_activities')
-      .insert(activityData)
-      .select()
-      .single();
-
-    if (createError) throw createError;
+    const data = await addTicketActivityService(activityData);
     
-    // Transform and add to activities
     const transformedActivity = {
       ...data,
       metadata: data.metadata || {}

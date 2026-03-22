@@ -53,9 +53,12 @@ export function AppSidebar() {
   };
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) toast.error('Erreur de déconnexion');
-    else toast.success('Déconnecté');
+    try {
+      await signOut();
+      toast.success('Déconnecté');
+    } catch {
+      toast.error('Erreur de déconnexion');
+    }
   };
 
   // Filter nav items based on admin status

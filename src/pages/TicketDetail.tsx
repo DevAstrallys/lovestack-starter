@@ -118,10 +118,11 @@ export function TicketDetail() {
     const dupId = prompt('ID du ticket original (UUID) :');
     if (!dupId?.trim()) return;
     try {
-      await supabase.from('tickets').update({ duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus } as any).eq('id', ticket.id);
+      await updateTicketService(ticket.id, { duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus } as any);
       toast.success('Marqué comme doublon');
       refresh();
-    } catch {
+    } catch (err) {
+      log.error('Failed to mark duplicate', err);
       toast.error('Erreur');
     }
   };

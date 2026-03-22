@@ -151,6 +151,10 @@ export function TicketForm() {
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [duplicatesChecked, setDuplicatesChecked] = useState(false);
   const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
+  const [followFormTicketId, setFollowFormTicketId] = useState<string | null>(null);
+  const [followEmail, setFollowEmail] = useState('');
+  const [followPhone, setFollowPhone] = useState('');
+  const [followSubmitting, setFollowSubmitting] = useState(false);
 
   // --- Load QR code ---
   useEffect(() => {
@@ -430,14 +434,56 @@ export function TicketForm() {
 
   const handleFollowTicket = async (ticketId: string) => {
     const user = await getCurrentUser();
-    if (!user) {
-      toast({ title: 'Connectez-vous pour suivre un ticket', variant: 'destructive' });
-      return;
+    if (user) {
+      // Connected user: follow directly
+      const ok = await followTicket({ ticketId, userId: user.id });
+      if (ok) {
+        toast({ title: 'Vous suivez ce ticket !' });
+        setDuplicatesDismissed(true);
+      }
+    } else {
+      // Anonymous: show inline form
+      setFollowFormTicketId(ticketId);
+      setFollowEmail(email); // pre-fill from step 1
+      setFollowPhone(phone);
     }
-    const ok = await followTicket(ticketId, user.id);
-    if (ok) {
-      toast({ title: 'Vous suivez ce ticket !' });
-      setDuplicatesDismissed(true);
+  };
+
+  const handleAnonymousFollow = async () => {
+    if (!followFormTicketId || !followEmail.trim()) return;
+    setFollowSubmitting(true);
+    try {
+      const ok = await followTicket({
+        ticketId: followFormTicketId,
+        email: followEmail.trim(),
+        name: `${firstName} ${lastName}`.trim() || undefined,
+        phone: followPhone.trim() || undefined,
+      });
+      if (ok) {
+        // Send confirmation email
+        try {
+          const dup = duplicates.find(d => d.id === followFormTicketId);
+          await sendEmail({
+            template: 'notification',
+            to: [followEmail.trim()],
+            data: {
+              recipientName: `${firstName} ${lastName}`.trim(),
+              title: 'Vous suivez un ticket',
+              message: `Vous avez rejoint le ticket "${dup?.title || ''}". Statut actuel : ${dup?.status || 'ouvert'}. Vous recevrez les mises à jour par email.`,
+            },
+          });
+        } catch (emailErr) {
+          log.warn('Follow confirmation email failed', { error: emailErr });
+        }
+        toast({ title: 'Vous suivez ce ticket !' });
+        setFollowFormTicketId(null);
+        setDuplicatesDismissed(true);
+      }
+    } catch (err) {
+      log.error('Anonymous follow failed', { error: err });
+      toast({ title: 'Erreur', variant: 'destructive' });
+    } finally {
+      setFollowSubmitting(false);
     }
   };
 
@@ -992,14 +1038,50 @@ export function TicketForm() {
                         <Users className="h-3 w-3" /> {d.follower_count} suiveur{d.follower_count !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="default" onClick={() => handleFollowTicket(d.id)} className="text-xs">
-                        Rejoindre ce ticket
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setDuplicatesDismissed(true)} className="text-xs">
-                        Non, c'est différent
-                      </Button>
-                    </div>
+                    {/* Inline follow form for anonymous users */}
+                    {followFormTicketId === d.id ? (
+                      <div className="space-y-2 border-t pt-2 mt-2">
+                        <p className="text-xs font-medium text-foreground">Pour recevoir les mises à jour :</p>
+                        <Input
+                          type="email"
+                          placeholder="Email *"
+                          value={followEmail}
+                          onChange={e => setFollowEmail(e.target.value)}
+                          className="text-sm"
+                        />
+                        <Input
+                          type="tel"
+                          placeholder="Téléphone (optionnel)"
+                          value={followPhone}
+                          onChange={e => setFollowPhone(e.target.value)}
+                          className="text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={handleAnonymousFollow}
+                            disabled={followSubmitting || !followEmail.trim()}
+                            className="text-xs"
+                          >
+                            {followSubmitting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                            Suivre ce ticket
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setFollowFormTicketId(null)} className="text-xs">
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="default" onClick={() => handleFollowTicket(d.id)} className="text-xs">
+                          Rejoindre ce ticket
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setDuplicatesDismissed(true)} className="text-xs">
+                          Non, c'est différent
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

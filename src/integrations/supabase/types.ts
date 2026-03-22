@@ -1995,16 +1995,28 @@ export type Database = {
       }
       ticket_followers: {
         Row: {
+          follower_email: string | null
+          follower_name: string | null
+          follower_phone: string | null
+          id: string
           ticket_id: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          follower_email?: string | null
+          follower_name?: string | null
+          follower_phone?: string | null
+          id?: string
           ticket_id: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          follower_email?: string | null
+          follower_name?: string | null
+          follower_phone?: string | null
+          id?: string
           ticket_id?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

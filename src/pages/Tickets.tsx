@@ -15,7 +15,7 @@ import { useTickets, TicketFilters as ITicketFilters, Ticket, TicketStatus } fro
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchOrganizationEnsembles } from '@/services/tickets';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { notifyStatusChange } from '@/services/tickets/notifications';
@@ -26,11 +26,10 @@ const log = createLogger('page:tickets');
 
 type ViewMode = 'list' | 'kanban';
 
-interface Building {
+interface Ensemble {
   id: string;
   name: string;
-  address?: string | null;
-  city?: string | null;
+  description?: string | null;
 }
 
 export const Tickets = () => {
@@ -41,30 +40,25 @@ export const Tickets = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useState<ITicketFilters>({});
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
-  const [buildings, setBuildings] = useState<Building[]>([]);
-  const [buildingsLoading, setBuildingsLoading] = useState(false);
+  const [selectedEnsembleId, setSelectedEnsembleId] = useState<string | null>(null);
+  const [ensembles, setEnsembles] = useState<Ensemble[]>([]);
+  const [ensemblesLoading, setEnsemblesLoading] = useState(false);
 
-  // Load buildings for the selected organization
+  // Load ensembles for the selected organization
   useEffect(() => {
     if (!selectedOrganization) {
-      setBuildings([]);
+      setEnsembles([]);
       return;
     }
     const load = async () => {
-      setBuildingsLoading(true);
+      setEnsemblesLoading(true);
       try {
-        const { data } = await supabase
-          .from('buildings')
-          .select('id, name, address, city')
-          .eq('organization_id', selectedOrganization.id)
-          .eq('is_active', true)
-          .order('name');
-        setBuildings(data || []);
+        const data = await fetchOrganizationEnsembles(selectedOrganization.id);
+        setEnsembles(data);
       } catch (err) {
-        log.error('Failed to load buildings', err);
+        log.error('Failed to load ensembles', err);
       } finally {
-        setBuildingsLoading(false);
+        setEnsemblesLoading(false);
       }
     };
     load();
@@ -81,9 +75,9 @@ export const Tickets = () => {
     
   const { tickets, loading, totalCount, refresh, updateTicket } = useTickets(ticketFilters);
 
-  // Filter tickets by selected building (client-side for instant feedback)
-  const displayedTickets = selectedBuildingId
-    ? tickets.filter(t => t.building_id === selectedBuildingId)
+  // Filter tickets by selected ensemble (client-side for instant feedback)
+  const displayedTickets = selectedEnsembleId
+    ? tickets.filter(t => (t.location as any)?.ensemble_id === selectedEnsembleId)
     : tickets;
 
   const handleFiltersChange = (newFilters: ITicketFilters) => setFilters(newFilters);
@@ -165,11 +159,11 @@ export const Tickets = () => {
         {/* Portfolio view — only for managers */}
         {canViewAllOrgTickets && (
           <TicketsPortfolio
-            buildings={buildings}
+            buildings={ensembles}
             tickets={tickets}
-            selectedBuildingId={selectedBuildingId}
-            onBuildingSelect={setSelectedBuildingId}
-            loading={buildingsLoading}
+            selectedBuildingId={selectedEnsembleId}
+            onBuildingSelect={setSelectedEnsembleId}
+            loading={ensemblesLoading}
           />
         )}
 
@@ -238,7 +232,7 @@ export const Tickets = () => {
         {/* Count */}
         <p className="text-xs text-muted-foreground">
           {displayedTickets.length} ticket{displayedTickets.length !== 1 ? 's' : ''} trouvé{displayedTickets.length !== 1 ? 's' : ''}
-          {selectedBuildingId && ` (filtré par site)`}
+          {selectedEnsembleId && ` (filtré par site)`}
           {loading && ' · Chargement...'}
         </p>
 

@@ -418,21 +418,26 @@ export function TicketForm() {
       setSubmitting(true);
       const ticket = await createTicketService(ticketData as any);
 
-      // Store short ID for confirmation screen
+      // Store IDs for confirmation screen
       setTicketShortId(ticket.id.substring(0, 8).toUpperCase());
+      if (newTrackingCode) setTrackingCode(newTrackingCode);
 
-      // Post-creation notification
+      // Post-creation notification (include tracking code)
       if (notifChannel === 'email' && profile.email) {
         try {
+          const emailMessage = newTrackingCode
+            ? `Votre ticket "${title}" a bien été créé. Votre code de suivi : ${newTrackingCode}. Conservez-le pour suivre votre demande.`
+            : `Votre ticket "${title}" a bien été créé. Vous recevrez des mises à jour par email.`;
           await sendEmail({
             template: 'notification',
             to: [profile.email],
             data: {
               recipientName: `${profile.first_name} ${profile.last_name}`.trim(),
               title: 'Votre signalement a été enregistré',
-              message: `Votre ticket "${title}" a bien été créé. Vous recevrez des mises à jour par email.`,
+              message: emailMessage,
               ticketId: ticket.id,
               ticketTitle: title,
+              trackingCode: newTrackingCode || undefined,
             },
           });
           log.info('Confirmation email sent', { ticketId: ticket.id, to: profile.email });

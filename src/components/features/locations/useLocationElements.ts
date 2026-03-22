@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl, openExternalLink } from '@/lib/navigation';
+import { createLogger } from '@/lib/logger';
+import { createQRCode as createQRCodeService } from '@/services/locations';
 import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
+
+const log = createLogger('hook:locationElements');
 
 export function useLocationElements(organizationId: string) {
   const [elements, setElements] = useState<LocationElement[]>([]);
@@ -27,7 +31,7 @@ export function useLocationElements(organizationId: string) {
 
       setElements(elementsWithTags);
     } catch (error) {
-      console.error('Error fetching elements:', error);
+      log.error('Error fetching elements', { error });
       toast({ title: 'Erreur', description: 'Impossible de charger les éléments', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -45,7 +49,7 @@ export function useLocationElements(organizationId: string) {
       if (error) throw error;
       setAvailableTags((data as any) || []);
     } catch (error) {
-      console.error('Error fetching tags:', error);
+      log.error('Error fetching tags', { error });
     }
   }, [organizationId]);
 
@@ -96,15 +100,15 @@ export function useLocationElements(organizationId: string) {
     // Auto-generate QR code for new elements
     if (!editingElement) {
       try {
-        await supabase.from('qr_codes' as any).insert({
+        await createQRCodeService({
           location_element_id: elementId,
           display_label: `QR Code - ${formData.name}`,
-          target_slug: `element/${elementId}`,
+          target_slug: `element-${elementId}-${Date.now()}`,
+          organization_id: organizationId,
           location: { description: formData.qrLocation || 'Localisation non spécifiée' },
-          is_active: true,
         });
       } catch (qrError) {
-        console.error('Error auto-generating QR code:', qrError);
+        log.error('Error auto-generating QR code', { elementId, error: qrError });
       }
     }
 
@@ -121,7 +125,7 @@ export function useLocationElements(organizationId: string) {
       toast({ title: 'Succès', description: 'Élément supprimé' });
       fetchElements();
     } catch (error) {
-      console.error('Error deleting element:', error);
+      log.error('Error deleting element', { elementId, error });
       toast({ title: 'Erreur', description: "Impossible de supprimer l'élément", variant: 'destructive' });
     }
   };
@@ -131,25 +135,19 @@ export function useLocationElements(organizationId: string) {
       const element = elements.find((e) => e.id === elementId);
       const locationData = element?.location_data as any;
 
-      const { data, error } = await supabase
-        .from('qr_codes' as any)
-        .insert({
-          location_element_id: elementId,
-          display_label: `QR Code - ${elementName}`,
-          target_slug: `element/${elementId}`,
-          location: { description: locationData?.qrLocation || 'Localisation non spécifiée' },
-          is_active: true,
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await createQRCodeService({
+        location_element_id: elementId,
+        display_label: `QR Code - ${elementName}`,
+        target_slug: `element-${elementId}-${Date.now()}`,
+        organization_id: organizationId,
+        location: { description: locationData?.qrLocation || 'Localisation non spécifiée' },
+      });
 
       toast({ title: 'Succès', description: `QR Code généré pour ${elementName}` });
-      const qrUrl = `${getBaseUrl()}/qr/${(data as any).id}`;
+      const qrUrl = `${getBaseUrl()}/qr/${data.id}`;
       openExternalLink(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`);
     } catch (error) {
-      console.error('Error generating QR code:', error);
+      log.error('Error generating QR code', { elementId, error });
       toast({ title: 'Erreur', description: 'Impossible de générer le QR code', variant: 'destructive' });
     }
   };
@@ -175,7 +173,7 @@ export function useLocationElements(organizationId: string) {
       setAvailableTags((prev) => [...prev, newTag]);
       toast({ title: 'Succès', description: 'Tag créé avec succès' });
     } catch (error) {
-      console.error('Error creating tag:', error);
+      log.error('Error creating tag', { error });
       toast({ title: 'Erreur', description: 'Impossible de créer le tag', variant: 'destructive' });
     }
   };

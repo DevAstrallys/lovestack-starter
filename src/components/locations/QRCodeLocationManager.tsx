@@ -9,12 +9,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { QrCode, Plus, FileText, Download, Settings } from 'lucide-react';
 import { openInternalRoute } from '@/lib/navigation';
-import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import { createQRCode, fetchQRCodesForOrganization } from '@/services/locations';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { QRCodeTemplates } from './QRCodeTemplates';
 import { QRCodeFormConfig } from './QRCodeFormConfig';
 import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
+
+const log = createLogger('component:QRCodeLocationManager');
 
 interface QRCodeLocationManagerProps {
   organizationId: string;
@@ -61,184 +64,60 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
   const loadData = async () => {
     try {
       setLoading(true);
+      const result = await fetchQRCodesForOrganization(organizationId);
       
-      // Charger les éléments, groupes et ensembles
-      const [elementsRes, groupsRes, ensemblesRes] = await Promise.all([
-        supabase.from('location_elements').select('*').eq('organization_id', organizationId),
-        supabase.from('location_groups').select('*').eq('organization_id', organizationId),
-        supabase.from('location_ensembles').select('*').eq('organization_id', organizationId)
-      ]);
-
-      if (elementsRes.error) throw elementsRes.error;
-      if (groupsRes.error) throw groupsRes.error;
-      if (ensemblesRes.error) throw ensemblesRes.error;
-
-      setElements(elementsRes.data || []);
-      setGroups(groupsRes.data || []);
-      setEnsembles(ensemblesRes.data || []);
-
-      // Charger les QR codes avec les informations de localisation
-      await loadQRCodes(elementsRes.data, groupsRes.data, ensemblesRes.data);
-
+      setElements(result.elements as unknown as LocationElement[]);
+      setGroups(result.groups as unknown as LocationGroup[]);
+      setEnsembles(result.ensembles as unknown as LocationEnsemble[]);
+      setQRCodes(result.qrCodes);
     } catch (error) {
-      console.error('Error loading data:', error);
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de charger les données',
-        variant: 'destructive'
-      });
+      log.error('Error loading data', { error });
+      toast({ title: 'Erreur', description: 'Impossible de charger les données', variant: 'destructive' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadQRCodes = async (elements: LocationElement[], groups: LocationGroup[], ensembles: LocationEnsemble[]) => {
-    try {
-      // Récupérer tous les QR codes liés aux éléments de l'organisation
-      const elementIds = elements.map(e => e.id);
-      const groupIds = groups.map(g => g.id);  
-      const ensembleIds = ensembles.map(e => e.id);
-      
-      const { data: qrData, error } = await supabase
-        .from('qr_codes')
-        .select(`
-          *,
-          location_elements(name),
-          location_groups(name),
-          location_ensembles(name)
-        `)
-        .or(`location_element_id.in.(${elementIds.join(',')}),location_group_id.in.(${groupIds.join(',')}),location_ensemble_id.in.(${ensembleIds.join(',')})`)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Enrichir les QR codes avec les informations de localisation
-      const enrichedQRCodes: QRCodeWithLocation[] = (qrData || []).map(qr => {
-        let location_type: 'element' | 'group' | 'ensemble' | null = null;
-        let location_name: string | null = null;
-
-        if (qr.location_element_id) {
-          const element = elements.find(e => e.id === qr.location_element_id);
-          if (element) {
-            location_type = 'element';
-            location_name = element.name;
-          }
-        } else if (qr.location_group_id) {
-          const group = groups.find(g => g.id === qr.location_group_id);
-          if (group) {
-            location_type = 'group';
-            location_name = group.name;
-          }
-        } else if (qr.location_ensemble_id) {
-          const ensemble = ensembles.find(e => e.id === qr.location_ensemble_id);
-          if (ensemble) {
-            location_type = 'ensemble';
-            location_name = ensemble.name;
-          }
-        }
-
-        return {
-          ...qr,
-          location_type,
-          location_name
-        };
-      });
-
-      setQRCodes(enrichedQRCodes);
-    } catch (error) {
-      console.error('Error loading QR codes:', error);
     }
   };
 
   const handleCreateQR = async () => {
     try {
       if (!newQRData.location_type || !newQRData.location_id) {
-        toast({
-          title: 'Erreur',
-          description: 'Veuillez sélectionner un type et un lieu',
-          variant: 'destructive'
-        });
+        toast({ title: 'Erreur', description: 'Veuillez sélectionner un type et un lieu', variant: 'destructive' });
         return;
       }
 
-      // Générer un slug unique
       const slug = `${newQRData.location_type}-${newQRData.location_id}-${Date.now()}`;
-      
-      // Désactiver les anciens QR codes pour ce lieu selon le type
-      if (newQRData.location_type === 'element') {
-        await supabase
-          .from('qr_codes')
-          .update({ is_active: false })
-          .eq('location_element_id', newQRData.location_id)
-          .eq('is_active', true);
-      } else if (newQRData.location_type === 'group') {
-        await supabase
-          .from('qr_codes')
-          .update({ is_active: false })
-          .eq('location_group_id', newQRData.location_id)
-          .eq('is_active', true);
-      } else if (newQRData.location_type === 'ensemble') {
-        await supabase
-          .from('qr_codes')
-          .update({ is_active: false })
-          .eq('location_ensemble_id', newQRData.location_id)
-          .eq('is_active', true);
-      }
 
-      // Créer le nouveau QR code
-      const qrCodeData: any = {
+      const payload: Parameters<typeof createQRCode>[0] = {
         display_label: newQRData.display_label,
         target_slug: slug,
-        version: 1,
-        is_active: true,
         organization_id: organizationId,
         created_by: user?.id,
-        last_regenerated_at: new Date().toISOString(),
         form_config: {
           action: '',
           category: '',
           object: '',
           title_template: '[{initiality}] - [{action}] - [{category}] - [{object}]'
-        }
+        },
       };
 
-      // Associer le QR code au bon type de lieu
       if (newQRData.location_type === 'element') {
-        qrCodeData.location_element_id = newQRData.location_id;
+        payload.location_element_id = newQRData.location_id;
       } else if (newQRData.location_type === 'group') {
-        qrCodeData.location_group_id = newQRData.location_id;
+        payload.location_group_id = newQRData.location_id;
       } else if (newQRData.location_type === 'ensemble') {
-        qrCodeData.location_ensemble_id = newQRData.location_id;
+        payload.location_ensemble_id = newQRData.location_id;
       }
 
-      const { error } = await supabase
-        .from('qr_codes')
-        .insert(qrCodeData);
-
-      if (error) throw error;
+      await createQRCode(payload);
 
       setIsCreateDialogOpen(false);
-      setNewQRData({
-        display_label: '',
-        location_type: '',
-        location_id: '',
-        template_id: 'default'
-      });
-
+      setNewQRData({ display_label: '', location_type: '', location_id: '', template_id: 'default' });
       await loadData();
 
-      toast({
-        title: 'QR Code créé',
-        description: 'Le QR Code a été créé avec succès'
-      });
-
+      toast({ title: 'QR Code créé', description: 'Le QR Code a été créé avec succès' });
     } catch (error) {
-      console.error('Error creating QR code:', error);
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de créer le QR Code',
-        variant: 'destructive'
-      });
+      log.error('Error creating QR code', { error });
+      toast({ title: 'Erreur', description: 'Impossible de créer le QR Code', variant: 'destructive' });
     }
   };
 

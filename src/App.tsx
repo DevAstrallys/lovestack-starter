@@ -15,6 +15,8 @@ import { Users } from "./pages/Users";
 import { Tickets } from "./pages/Tickets";
 import { TicketDetail } from "./pages/TicketDetail";
 import { TicketForm } from "./pages/TicketForm";
+import { TicketLanding } from "./pages/TicketLanding";
+import { TicketTracking } from "./pages/TicketTracking";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import Health from "./pages/Health";
@@ -39,8 +41,10 @@ const App = () => (
                 <Route path="/users" element={<ProtectedAdminRoute><Users /></ProtectedAdminRoute>} />
                 <Route path="/tickets" element={<Tickets />} />
                 <Route path="/tickets/:id" element={<TicketDetail />} />
-                <Route path="/ticket-form/:slug" element={<TicketForm />} />
+                <Route path="/ticket-form/:slug" element={<TicketLanding />} />
+                <Route path="/ticket-form/:slug/form" element={<TicketForm />} />
                 <Route path="/report/:slug" element={<TicketForm />} />
+                <Route path="/suivi/:slug" element={<TicketTracking />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/health" element={<Health />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />

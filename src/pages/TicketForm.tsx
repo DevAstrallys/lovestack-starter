@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { closeCurrentView } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, QrCode, ArrowLeft, ArrowRight, Send, Loader2, X, Camera, Video, Mic, FileText } from 'lucide-react';
+import { AlertCircle, CheckCircle, QrCode, ArrowLeft, ArrowRight, Send, Loader2, X, Camera, Video, Mic, FileText, Copy, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -27,6 +27,7 @@ import {
 import { getCurrentUser } from '@/services/auth';
 import { fetchProfile } from '@/services/users';
 import { sendEmail } from '@/services/notifications';
+import { generateTrackingCode } from '@/services/tickets/tracking';
 
 const log = createLogger('page:ticketForm');
 
@@ -49,6 +50,8 @@ interface UploadedFile {
 export function TicketForm() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') || 'guest';
   const { toast } = useToast();
 
   const [qrCode, setQrCode] = useState<any>(null);
@@ -57,6 +60,7 @@ export function TicketForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [ticketShortId, setTicketShortId] = useState('');
+  const [trackingCode, setTrackingCode] = useState('');
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
 
@@ -365,6 +369,9 @@ export function TicketForm() {
     const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
     const locationName = qrCode?._elName || qrCode?._grName || qrCode?._enName || null;
 
+    // Generate tracking code BEFORE creation (for guest mode)
+    const newTrackingCode = mode === 'guest' ? generateTrackingCode() : '';
+
     const ticketData: Record<string, unknown> = {
       title,
       description: desc,
@@ -401,30 +408,36 @@ export function TicketForm() {
         action_label: actionLabel,
         category_label: categoryLabel,
         object_label: objectLabel,
+        ...(newTrackingCode ? { tracking_code: newTrackingCode } : {}),
       },
     };
 
-    log.info('Submitting ticket', { title, priority, source: 'qr_code' });
+    log.info('Submitting ticket', { title, priority, source: 'qr_code', mode });
 
     try {
       setSubmitting(true);
       const ticket = await createTicketService(ticketData as any);
 
-      // Store short ID for confirmation screen
+      // Store IDs for confirmation screen
       setTicketShortId(ticket.id.substring(0, 8).toUpperCase());
+      if (newTrackingCode) setTrackingCode(newTrackingCode);
 
-      // Post-creation notification
+      // Post-creation notification (include tracking code)
       if (notifChannel === 'email' && profile.email) {
         try {
+          const emailMessage = newTrackingCode
+            ? `Votre ticket "${title}" a bien été créé. Votre code de suivi : ${newTrackingCode}. Conservez-le pour suivre votre demande.`
+            : `Votre ticket "${title}" a bien été créé. Vous recevrez des mises à jour par email.`;
           await sendEmail({
             template: 'notification',
             to: [profile.email],
             data: {
               recipientName: `${profile.first_name} ${profile.last_name}`.trim(),
               title: 'Votre signalement a été enregistré',
-              message: `Votre ticket "${title}" a bien été créé. Vous recevrez des mises à jour par email.`,
+              message: emailMessage,
               ticketId: ticket.id,
               ticketTitle: title,
+              trackingCode: newTrackingCode || undefined,
             },
           });
           log.info('Confirmation email sent', { ticketId: ticket.id, to: profile.email });
@@ -471,19 +484,54 @@ export function TicketForm() {
 
   // --- Render: Success ---
   if (submitted) {
+    const handleCopyCode = async () => {
+      try {
+        await navigator.clipboard.writeText(trackingCode);
+        toast({ title: 'Code copié !' });
+      } catch {
+        toast({ title: 'Impossible de copier', variant: 'destructive' });
+      }
+    };
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <CheckCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Ticket créé !</h3>
-            {ticketShortId && (
-              <p className="text-sm font-mono bg-muted rounded px-3 py-1 inline-block mb-3">
+          <CardContent className="pt-6 text-center space-y-4">
+            <CheckCircle className="h-12 w-12 text-primary mx-auto" />
+            <h3 className="text-lg font-semibold">Ticket créé !</h3>
+
+            {trackingCode && (
+              <div className="border-2 border-primary/20 rounded-lg p-4 bg-primary/5">
+                <p className="text-xs text-muted-foreground mb-1">Votre code de suivi</p>
+                <p className="text-2xl font-mono font-bold tracking-widest text-foreground">{trackingCode}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={handleCopyCode}>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" /> Copier le code
+                </Button>
+              </div>
+            )}
+
+            {!trackingCode && ticketShortId && (
+              <p className="text-sm font-mono bg-muted rounded px-3 py-1 inline-block">
                 N° {ticketShortId}
               </p>
             )}
-            <p className="text-muted-foreground mb-4">Votre signalement a été enregistré.</p>
-            <Button onClick={() => closeCurrentView(navigate)} className="min-h-[44px]">Fermer</Button>
+
+            <p className="text-muted-foreground text-sm">
+              {trackingCode
+                ? 'Conservez ce code pour suivre l\'avancement de votre demande.'
+                : 'Votre signalement a été enregistré.'}
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {trackingCode && slug && (
+                <Button variant="default" className="w-full min-h-[44px]" onClick={() => navigate(`/suivi/${slug}`)}>
+                  <ExternalLink className="h-4 w-4 mr-2" /> Suivre ma demande
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => closeCurrentView(navigate)} className="w-full min-h-[44px]">
+                Fermer
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

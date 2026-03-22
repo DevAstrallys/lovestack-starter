@@ -41,11 +41,14 @@ function KanbanCard({
 
   return (
     <Card
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      draggable={canChangeStatus}
+      onDragStart={canChangeStatus ? onDragStart : undefined}
+      onDragEnd={canChangeStatus ? onDragEnd : undefined}
       onClick={onClick}
-      className="group relative overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200 rounded-lg border border-border/60"
+      className={cn(
+        "group relative overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 rounded-lg border border-border/60",
+        canChangeStatus && "cursor-grab active:cursor-grabbing"
+      )}
     >
       <div
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"

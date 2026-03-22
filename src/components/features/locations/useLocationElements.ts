@@ -49,7 +49,7 @@ export function useLocationElements(organizationId: string) {
       if (error) throw error;
       setAvailableTags((data as any) || []);
     } catch (error) {
-      console.error('Error fetching tags:', error);
+      log.error('Error fetching tags', { error });
     }
   }, [organizationId]);
 

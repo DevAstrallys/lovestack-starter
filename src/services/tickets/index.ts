@@ -185,35 +185,39 @@ export async function uploadTicketAttachment(ticketId: string, file: File) {
 
 /**
  * Fetch an active QR code by its target slug, enriched with location names.
+ * Uses the qr_codes_public view (no RLS) so anonymous/guest users can access it.
  */
 export async function fetchQrCodeBySlug(slug: string) {
   try {
     const { data, error } = await supabase
-      .from('qr_codes')
+      .from('qr_codes_public')
       .select('*')
       .eq('target_slug', slug)
       .eq('is_active', true)
       .single();
     if (error) throw error;
 
+    // qr_codes_public doesn't include location names, so enrich them.
+    // These tables have permissive SELECT for authenticated OR can be read
+    // via the anon key since location data is non-sensitive.
     let _elName: string | null = null;
     let _grName: string | null = null;
     let _enName: string | null = null;
 
     if (data.location_element_id) {
-      const { data: el } = await supabase.from('location_elements').select('name').eq('id', data.location_element_id).single();
+      const { data: el } = await supabase.from('location_elements').select('name').eq('id', data.location_element_id).maybeSingle();
       _elName = el?.name || null;
     }
     if (data.location_group_id) {
-      const { data: gr } = await supabase.from('location_groups').select('name').eq('id', data.location_group_id).single();
+      const { data: gr } = await supabase.from('location_groups').select('name').eq('id', data.location_group_id).maybeSingle();
       _grName = gr?.name || null;
     }
     if (data.location_ensemble_id) {
-      const { data: en } = await supabase.from('location_ensembles').select('name').eq('id', data.location_ensemble_id).single();
+      const { data: en } = await supabase.from('location_ensembles').select('name').eq('id', data.location_ensemble_id).maybeSingle();
       _enName = en?.name || null;
     }
 
-    log.info('QR code fetched', { slug, qrId: data.id });
+    log.info('QR code fetched from public view', { slug, qrId: data.id });
     return { ...data, _elName, _grName, _enName };
   } catch (err) {
     log.error('Failed to fetch QR code by slug', { slug, error: err });

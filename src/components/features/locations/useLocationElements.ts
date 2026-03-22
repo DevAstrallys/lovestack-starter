@@ -173,7 +173,7 @@ export function useLocationElements(organizationId: string) {
       setAvailableTags((prev) => [...prev, newTag]);
       toast({ title: 'Succès', description: 'Tag créé avec succès' });
     } catch (error) {
-      console.error('Error creating tag:', error);
+      log.error('Error creating tag', { error });
       toast({ title: 'Erreur', description: 'Impossible de créer le tag', variant: 'destructive' });
     }
   };

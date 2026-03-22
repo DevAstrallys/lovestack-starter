@@ -13,9 +13,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent } from '@/components/ui/card';
 import { useTickets, TicketFilters as ITicketFilters, Ticket, TicketStatus } from '@/hooks/useTickets';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { notifyStatusChange } from '@/services/tickets/notifications';
+import { extractSubject } from '@/utils/ticketUtils';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('page:tickets');
 
 type ViewMode = 'list' | 'kanban';
 
@@ -28,7 +35,9 @@ interface Building {
 
 export const Tickets = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { selectedOrganization, loading: orgLoading, isplatformAdmin } = useOrganization();
+  const { canViewAllOrgTickets, canViewOwnOnly, canViewAssignedOnly, canManageTicket, loading: roleLoading } = useUserTicketRole();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useState<ITicketFilters>({});
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
@@ -44,21 +53,30 @@ export const Tickets = () => {
     }
     const load = async () => {
       setBuildingsLoading(true);
-      const { data } = await supabase
-        .from('buildings')
-        .select('id, name, address, city')
-        .eq('organization_id', selectedOrganization.id)
-        .eq('is_active', true)
-        .order('name');
-      setBuildings(data || []);
-      setBuildingsLoading(false);
+      try {
+        const { data } = await supabase
+          .from('buildings')
+          .select('id, name, address, city')
+          .eq('organization_id', selectedOrganization.id)
+          .eq('is_active', true)
+          .order('name');
+        setBuildings(data || []);
+      } catch (err) {
+        log.error('Failed to load buildings', err);
+      } finally {
+        setBuildingsLoading(false);
+      }
     };
     load();
   }, [selectedOrganization?.id]);
 
+  // Build filters based on role
   const ticketFilters: ITicketFilters = {
     ...filters,
     ...(selectedOrganization ? { organizationId: selectedOrganization.id } : {}),
+    // Role-based scoping
+    ...(canViewOwnOnly && user ? { createdBy: user.id } : {}),
+    ...(canViewAssignedOnly && user ? { assignedTo: user.id } : {}),
   };
     
   const { tickets, loading, totalCount, refresh, updateTicket } = useTickets(ticketFilters);
@@ -70,16 +88,36 @@ export const Tickets = () => {
 
   const handleFiltersChange = (newFilters: ITicketFilters) => setFilters(newFilters);
   const handleTicketClick = (ticket: Ticket) => navigate(`/tickets/${ticket.id}`);
+
   const handleStatusChange = async (ticketId: string, newStatus: TicketStatus) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (!canManageTicket) {
+      toast.error('Vous n\'avez pas les droits pour modifier le statut');
+      return;
+    }
     try {
+      const oldStatus = ticket?.status || 'open';
       await updateTicket(ticketId, { status: newStatus });
       toast.success('Statut mis à jour');
+
+      // Send notification to reporter
+      if (ticket) {
+        notifyStatusChange({
+          ticketId,
+          ticketTitle: extractSubject(ticket.title),
+          oldStatus,
+          newStatus,
+          reporterEmail: ticket.reporter_email,
+          reporterName: ticket.reporter_name,
+          communicationMode: ticket.communication_mode,
+        });
+      }
     } catch {
       toast.error('Erreur lors de la mise à jour');
     }
   };
 
-  if (orgLoading) {
+  if (orgLoading || roleLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">
@@ -117,19 +155,23 @@ export const Tickets = () => {
               Tickets{selectedOrganization ? ` — ${selectedOrganization.name}` : ''}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Gérez les demandes et interventions
+              {canViewOwnOnly && 'Vos demandes'}
+              {canViewAssignedOnly && 'Tickets qui vous sont assignés'}
+              {canViewAllOrgTickets && 'Gérez les demandes et interventions'}
             </p>
           </div>
         </div>
 
-        {/* Portfolio view */}
-        <TicketsPortfolio
-          buildings={buildings}
-          tickets={tickets}
-          selectedBuildingId={selectedBuildingId}
-          onBuildingSelect={setSelectedBuildingId}
-          loading={buildingsLoading}
-        />
+        {/* Portfolio view — only for managers */}
+        {canViewAllOrgTickets && (
+          <TicketsPortfolio
+            buildings={buildings}
+            tickets={tickets}
+            selectedBuildingId={selectedBuildingId}
+            onBuildingSelect={setSelectedBuildingId}
+            loading={buildingsLoading}
+          />
+        )}
 
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -213,6 +255,7 @@ export const Tickets = () => {
             onTicketClick={handleTicketClick}
             onStatusChange={handleStatusChange}
             loading={loading}
+            canChangeStatus={canManageTicket}
           />
         )}
       </div>

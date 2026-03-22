@@ -1969,11 +1969,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
-          duplicate_of: string | null
           duplicate_of_id: string | null
           first_opened_at: string | null
           first_responded_at: string | null
-          first_response_at: string | null
           follow_up_of_id: string | null
           id: string
           initiality: string | null
@@ -2009,11 +2007,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
-          duplicate_of?: string | null
           duplicate_of_id?: string | null
           first_opened_at?: string | null
           first_responded_at?: string | null
-          first_response_at?: string | null
           follow_up_of_id?: string | null
           id?: string
           initiality?: string | null
@@ -2049,11 +2045,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
-          duplicate_of?: string | null
           duplicate_of_id?: string | null
           first_opened_at?: string | null
           first_responded_at?: string | null
-          first_response_at?: string | null
           follow_up_of_id?: string | null
           id?: string
           initiality?: string | null
@@ -2103,20 +2097,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tickets_duplicate_of_fkey"
-            columns: ["duplicate_of"]
-            isOneToOne: false
-            referencedRelation: "tickets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tickets_duplicate_of_fkey"
-            columns: ["duplicate_of"]
-            isOneToOne: false
-            referencedRelation: "tickets_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2274,6 +2254,7 @@ export type Database = {
       tickets_safe: {
         Row: {
           action_code: string | null
+          assigned_at: string | null
           assigned_to: string | null
           attachments: Json | null
           building_id: string | null
@@ -2284,8 +2265,9 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           description: string | null
-          duplicate_of: string | null
-          first_response_at: string | null
+          duplicate_of_id: string | null
+          first_opened_at: string | null
+          first_responded_at: string | null
           follow_up_of_id: string | null
           id: string | null
           initiality: string | null
@@ -2295,8 +2277,10 @@ export type Database = {
           meta: Json | null
           nature_code: string | null
           object_id: string | null
+          organization_id: string | null
           priority: Database["public"]["Enums"]["ticket_priority"] | null
           relance_index: number | null
+          resolved_at: string | null
           sla_due_at: string | null
           source: string | null
           status: Database["public"]["Enums"]["ticket_status"] | null
@@ -2305,6 +2289,7 @@ export type Database = {
         }
         Insert: {
           action_code?: string | null
+          assigned_at?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           building_id?: string | null
@@ -2315,8 +2300,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
-          duplicate_of?: string | null
-          first_response_at?: string | null
+          duplicate_of_id?: string | null
+          first_opened_at?: string | null
+          first_responded_at?: string | null
           follow_up_of_id?: string | null
           id?: string | null
           initiality?: string | null
@@ -2326,8 +2312,10 @@ export type Database = {
           meta?: Json | null
           nature_code?: string | null
           object_id?: string | null
+          organization_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
           relance_index?: number | null
+          resolved_at?: string | null
           sla_due_at?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["ticket_status"] | null
@@ -2336,6 +2324,7 @@ export type Database = {
         }
         Update: {
           action_code?: string | null
+          assigned_at?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           building_id?: string | null
@@ -2346,8 +2335,9 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
-          duplicate_of?: string | null
-          first_response_at?: string | null
+          duplicate_of_id?: string | null
+          first_opened_at?: string | null
+          first_responded_at?: string | null
           follow_up_of_id?: string | null
           id?: string | null
           initiality?: string | null
@@ -2357,8 +2347,10 @@ export type Database = {
           meta?: Json | null
           nature_code?: string | null
           object_id?: string | null
+          organization_id?: string | null
           priority?: Database["public"]["Enums"]["ticket_priority"] | null
           relance_index?: number | null
+          resolved_at?: string | null
           sla_due_at?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["ticket_status"] | null
@@ -2395,15 +2387,15 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tickets_duplicate_of_fkey"
-            columns: ["duplicate_of"]
+            foreignKeyName: "tickets_duplicate_of_id_fkey"
+            columns: ["duplicate_of_id"]
             isOneToOne: false
             referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tickets_duplicate_of_fkey"
-            columns: ["duplicate_of"]
+            foreignKeyName: "tickets_duplicate_of_id_fkey"
+            columns: ["duplicate_of_id"]
             isOneToOne: false
             referencedRelation: "tickets_safe"
             referencedColumns: ["id"]
@@ -2427,6 +2419,13 @@ export type Database = {
             columns: ["object_id"]
             isOneToOne: false
             referencedRelation: "tax_objects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

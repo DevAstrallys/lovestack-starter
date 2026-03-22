@@ -13,6 +13,7 @@ interface TicketsKanbanProps {
   onTicketClick: (ticket: Ticket) => void;
   onStatusChange: (ticketId: string, newStatus: TicketStatus) => void;
   loading?: boolean;
+  canChangeStatus?: boolean;
 }
 
 const KANBAN_COLUMNS: { key: TicketStatus; label: string }[] = [
@@ -28,11 +29,13 @@ function KanbanCard({
   onClick,
   onDragStart,
   onDragEnd,
+  canChangeStatus = true,
 }: {
   ticket: Ticket;
   onClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  canChangeStatus?: boolean;
 }) {
   const urgency =
     URGENCY_CONFIG[(ticket.priority as keyof typeof URGENCY_CONFIG)] ??
@@ -40,11 +43,14 @@ function KanbanCard({
 
   return (
     <Card
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      draggable={canChangeStatus}
+      onDragStart={canChangeStatus ? onDragStart : undefined}
+      onDragEnd={canChangeStatus ? onDragEnd : undefined}
       onClick={onClick}
-      className="group relative overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200 rounded-lg border border-border/60"
+      className={cn(
+        "group relative overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 rounded-lg border border-border/60",
+        canChangeStatus && "cursor-grab active:cursor-grabbing"
+      )}
     >
       <div
         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
@@ -99,6 +105,7 @@ export function TicketsKanban({
   onTicketClick,
   onStatusChange,
   loading,
+  canChangeStatus = true,
 }: TicketsKanbanProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -218,6 +225,7 @@ export function TicketsKanban({
                   onClick={() => onTicketClick(ticket)}
                   onDragStart={(e) => handleDragStart(e, ticket.id)}
                   onDragEnd={handleDragEnd}
+                  canChangeStatus={canChangeStatus}
                 />
               ))}
             </div>

@@ -10,15 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   ArrowLeft, Calendar, MapPin, User, Mail,
   QrCode, Image, Mic, Video, Paperclip, Copy, Link2, Tag,
-  Wrench, Send, FileText, Clock,
+  Wrench, Send, FileText, Clock, Bell, BellOff,
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivities, TicketStatus } from '@/hooks/useTickets';
+import { useUserTicketRole } from '@/hooks/useUserTicketRole';
+import { useAuth } from '@/contexts/AuthContext';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
 import { TICKET_PRIORITIES, extractSubject, extractTitleBadges } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { updateTicket as updateTicketService } from '@/services/tickets';
+import { notifyStatusChange } from '@/services/tickets/notifications';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 
@@ -35,15 +39,63 @@ const getMediaIcon = (type: string) => {
   return <Paperclip className="h-5 w-5" />;
 };
 
-// Use centralized extractSubject and extractTitleBadges from ticketUtils
-
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { ticket, loading, error, refresh } = useTicket(id);
   const { activities, loading: activitiesLoading } = useTicketActivities(id || '');
+  const { canManageTicket, canAddPrivateNote, canMarkDuplicate, canDispatch } = useUserTicketRole();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  // Check follow status on mount
+  React.useEffect(() => {
+    if (!id || !user) return;
+    const checkFollow = async () => {
+      try {
+        const { data } = await supabase
+          .from('ticket_followers')
+          .select('user_id')
+          .eq('ticket_id', id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setIsFollowing(!!data);
+      } catch (err) {
+        log.error('Failed to check follow status', err);
+      }
+    };
+    checkFollow();
+  }, [id, user?.id]);
+
+  const handleToggleFollow = async () => {
+    if (!id || !user) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await supabase
+          .from('ticket_followers')
+          .delete()
+          .eq('ticket_id', id)
+          .eq('user_id', user.id);
+        setIsFollowing(false);
+        toast.success('Vous ne suivez plus ce ticket');
+      } else {
+        await supabase
+          .from('ticket_followers')
+          .insert({ ticket_id: id, user_id: user.id });
+        setIsFollowing(true);
+        toast.success('Vous suivez ce ticket');
+      }
+    } catch (err) {
+      log.error('Failed to toggle follow', err);
+      toast.error('Erreur');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const handleRefresh = () => {
     setRefreshKey(k => k + 1);
@@ -100,7 +152,12 @@ export function TicketDetail() {
     .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
 
   const handleStatusChange = async (newStatus: string) => {
+    if (!canManageTicket) {
+      toast.error('Vous n\'avez pas les droits pour modifier le statut');
+      return;
+    }
     try {
+      const oldStatus = ticket.status;
       const updates: any = { status: newStatus };
       if (!ticketAny.first_opened_at && newStatus !== 'open') {
         updates.first_opened_at = new Date().toISOString();
@@ -108,13 +165,37 @@ export function TicketDetail() {
       await updateTicketService(ticket.id, updates);
       toast.success('Statut mis à jour');
       refresh();
+
+      // Send notification
+      notifyStatusChange({
+        ticketId: ticket.id,
+        ticketTitle: subject,
+        oldStatus,
+        newStatus,
+        reporterEmail: ticket.reporter_email,
+        reporterName: ticket.reporter_name,
+        communicationMode: ticket.communication_mode,
+      });
     } catch (err) {
       log.error('Failed to update status', err);
       toast.error('Erreur');
     }
   };
 
+  const handlePriorityChange = async (newPriority: string) => {
+    if (!canManageTicket) return;
+    try {
+      await updateTicketService(ticket.id, { priority: newPriority as any });
+      toast.success('Priorité mise à jour');
+      refresh();
+    } catch (err) {
+      log.error('Failed to update priority', err);
+      toast.error('Erreur');
+    }
+  };
+
   const handleMarkDuplicate = async () => {
+    if (!canMarkDuplicate) return;
     const dupId = prompt('ID du ticket original (UUID) :');
     if (!dupId?.trim()) return;
     try {
@@ -127,7 +208,6 @@ export function TicketDetail() {
     }
   };
 
-  // Short ID for display
   const shortId = ticket.id?.slice(0, 8) || '';
 
   return (
@@ -136,23 +216,33 @@ export function TicketDetail() {
         {/* ── TOP HEADER BAR ── */}
         <div className="bg-card border-b px-6 py-5">
           <div className="max-w-[1400px] mx-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="-ml-2 text-muted-foreground hover:text-foreground mb-4"
-              onClick={() => navigate('/tickets')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-1.5" /> Retour aux tickets
-            </Button>
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-ml-2 text-muted-foreground hover:text-foreground"
+                onClick={() => navigate('/tickets')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" /> Retour aux tickets
+              </Button>
+              {/* Follow button — available for all connected users */}
+              <Button
+                variant={isFollowing ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={handleToggleFollow}
+                disabled={followLoading}
+              >
+                {isFollowing ? <BellOff className="h-4 w-4 mr-1.5" /> : <Bell className="h-4 w-4 mr-1.5" />}
+                {isFollowing ? 'Ne plus suivre' : 'Suivre'}
+              </Button>
+            </div>
 
             <div className="flex items-start justify-between gap-6">
-              {/* Left: Title + meta badges */}
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
                   {subject}
                 </h1>
 
-                {/* Building & Organisation */}
                 {(ticket.building_name || ticket.organization_name) && (
                   <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                     {ticket.building_name && (
@@ -177,7 +267,6 @@ export function TicketDetail() {
                   </span>
                 )}
 
-                {/* Meta badges row */}
                 <div className="flex flex-wrap items-center gap-2 mt-3">
                   {ticketAny.assigned_to && (
                     <Badge variant="secondary" className="text-xs px-3 py-1">
@@ -201,7 +290,6 @@ export function TicketDetail() {
                 </div>
               </div>
 
-              {/* Right: Status badge large */}
               <div className="shrink-0">
                 <div
                   className="rounded-xl border-2 px-5 py-3 text-center min-w-[180px]"
@@ -222,14 +310,12 @@ export function TicketDetail() {
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
             {/* ── LEFT: Main content ── */}
             <div className="space-y-6" key={refreshKey}>
-              {/* Détails du Signalement card */}
               <Card className="rounded-xl overflow-hidden">
                 <CardContent className="p-6">
                   <h2 className="text-lg font-bold text-foreground mb-3">
                     Détails du Signalement
                   </h2>
 
-                  {/* Badges: Priority, Category, Location */}
                   <div className="flex flex-wrap items-center gap-2 mb-4">
                     <span
                       className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border"
@@ -263,7 +349,6 @@ export function TicketDetail() {
                     ))}
                   </div>
 
-                  {/* Photo thumbnails gallery */}
                   {ticket.attachments && ticket.attachments.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
                       {ticket.attachments.map((att: any, i: number) => (
@@ -294,7 +379,6 @@ export function TicketDetail() {
 
                   <Separator className="my-4" />
 
-                  {/* Détails de la Demande */}
                   <h3 className="text-base font-bold text-foreground mb-2">
                     Détails de la Demande
                   </h3>
@@ -328,7 +412,6 @@ export function TicketDetail() {
                   </div>
 
                   <div className="px-6 py-4 space-y-4 max-h-[400px] overflow-y-auto">
-                    {/* Original message */}
                     <div className="flex items-start gap-2 justify-end">
                       <Checkbox
                         checked={selectedMessages.has('original')}
@@ -406,111 +489,150 @@ export function TicketDetail() {
                     )}
                   </div>
 
-                  {/* Chat bar */}
-                  <ChatBar ticket={ticket} onSent={handleRefresh} />
+                  {/* Chat bar — all connected users can reply publicly; private notes gated */}
+                  <ChatBar ticket={ticket} onSent={handleRefresh} canAddPrivateNote={canAddPrivateNote} />
                 </CardContent>
               </Card>
 
-              {/* Bottom action buttons like mockup */}
-              <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-12 text-sm font-semibold uppercase tracking-wide"
-                  onClick={handleMarkDuplicate}
-                >
-                  <Link2 className="h-4 w-4 mr-2" /> Marquer comme doublon
-                </Button>
-              </div>
+              {/* Bottom actions — manager only */}
+              {canMarkDuplicate && (
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-12 text-sm font-semibold uppercase tracking-wide"
+                    onClick={handleMarkDuplicate}
+                  >
+                    <Link2 className="h-4 w-4 mr-2" /> Marquer comme doublon
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* ── RIGHT SIDEBAR ── */}
             <div className="space-y-4">
-              {/* Emergency */}
+              {/* Emergency — available for all */}
               <EmergencyButton ticket={ticket} />
 
-              {/* Prestataire / Status card */}
-              <Card className="rounded-xl">
-                <CardContent className="p-5 space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Prestataire
-                    </label>
-                    <Select>
-                      <SelectTrigger className="mt-1.5 h-10">
-                        <SelectValue placeholder="Sélectionner…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Non assigné</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {/* Management card — only for managers */}
+              {canManageTicket && (
+                <Card className="rounded-xl">
+                  <CardContent className="p-5 space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Prestataire
+                      </label>
+                      <Select>
+                        <SelectTrigger className="mt-1.5 h-10">
+                          <SelectValue placeholder="Sélectionner…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Non assigné</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <Separator />
+                    <Separator />
 
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Statut
-                    </label>
-                    <Select value={ticket.status} onValueChange={handleStatusChange}>
-                      <SelectTrigger className="mt-1.5 h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                          <SelectItem key={key} value={key}>
-                            <span className="flex items-center gap-2">
-                              {React.createElement(cfg.icon, { className: 'h-3.5 w-3.5', style: { color: cfg.text } })}
-                              {cfg.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Statut
+                      </label>
+                      <Select value={ticket.status} onValueChange={handleStatusChange}>
+                        <SelectTrigger className="mt-1.5 h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                            <SelectItem key={key} value={key}>
+                              <span className="flex items-center gap-2">
+                                {React.createElement(cfg.icon, { className: 'h-3.5 w-3.5', style: { color: cfg.text } })}
+                                {cfg.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <Separator />
+                    <Separator />
 
-                  <div className="space-y-2 text-xs">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Priorité
+                      </label>
+                      <Select value={ticket.priority || 'medium'} onValueChange={handlePriorityChange}>
+                        <SelectTrigger className="mt-1.5 h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TICKET_PRIORITIES).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Source</span>
+                        <span className="font-medium">{ticket.source === 'qr_code' ? 'QR Code' : 'Dashboard'}</span>
+                      </div>
+                      {ticket.category_code && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Catégorie</span>
+                          <span className="font-medium">{ticket.category_code}</span>
+                        </div>
+                      )}
+                      {ticket.nature_code && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Nature</span>
+                          <span className="font-medium">{ticket.nature_code}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Créé le</span>
+                        <span className="font-medium">{format(new Date(ticket.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Info card for non-managers (read-only) */}
+              {!canManageTicket && (
+                <Card className="rounded-xl">
+                  <CardContent className="p-5 space-y-3 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Priorité</span>
-                      <span
-                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-semibold border"
-                        style={{ backgroundColor: urgency.bg, color: urgency.text, borderColor: urgency.border }}
-                      >
-                        {urgency.label}
+                      <span className="text-muted-foreground">Statut</span>
+                      <span className="font-medium flex items-center gap-1" style={{ color: status.text }}>
+                        <StatusIcon className="h-3.5 w-3.5" /> {status.label}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Source</span>
-                      <span className="font-medium">{ticket.source === 'qr_code' ? 'QR Code' : 'Dashboard'}</span>
+                      <span className="text-muted-foreground">Priorité</span>
+                      <span className="font-medium" style={{ color: urgency.text }}>
+                        {urgency.dot} {priorityLabel}
+                      </span>
                     </div>
-                    {ticket.category_code && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Catégorie</span>
-                        <span className="font-medium">{ticket.category_code}</span>
-                      </div>
-                    )}
-                    {ticket.nature_code && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Nature</span>
-                        <span className="font-medium">{ticket.nature_code}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Créé le</span>
                       <span className="font-medium">{format(new Date(ticket.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}</span>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
-              {/* Dispatcher */}
-              <SmartDispatcher
-                ticket={ticket}
-                activities={activities || []}
-                onDispatched={handleRefresh}
-                selectedMessageIds={selectedMessages}
-              />
+              {/* Dispatcher — managers only */}
+              {canDispatch && (
+                <SmartDispatcher
+                  ticket={ticket}
+                  activities={activities || []}
+                  onDispatched={handleRefresh}
+                  selectedMessageIds={selectedMessages}
+                />
+              )}
             </div>
           </div>
         </div>

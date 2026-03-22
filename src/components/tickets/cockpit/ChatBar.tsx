@@ -8,13 +8,18 @@ import { addTicketActivity, updateTicket, uploadTicketAttachment } from '@/servi
 import { sendEmail } from '@/services/notifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:chat-bar');
 
 interface ChatBarProps {
   ticket: Ticket;
   onSent?: () => void;
+  /** Whether the user can toggle private note mode (managers only) */
+  canAddPrivateNote?: boolean;
 }
 
-export function ChatBar({ ticket, onSent }: ChatBarProps) {
+export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarProps) {
   const [content, setContent] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [sending, setSending] = useState(false);
@@ -26,11 +31,14 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
 
   const QUICK_EMOJIS = ['👍', '👎', '✅', '❌', '⚠️', '🔧', '📞', '💧', '🔥', '🏠'];
 
+  // If user can't add private notes, force public mode
+  const effectivePrivate = canAddPrivateNote && isPrivate;
+
   const handleSend = async () => {
     if (!content.trim()) return;
     setSending(true);
     try {
-      if (isPrivate) {
+      if (effectivePrivate) {
         await addTicketActivity({
           ticket_id: ticket.id,
           actor_id: user?.id || null,
@@ -76,7 +84,7 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
       setContent('');
       onSent?.();
     } catch (err) {
-      console.error(err);
+      log.error('Failed to send message', err);
       toast.error("Erreur lors de l'envoi");
     } finally {
       setSending(false);
@@ -102,29 +110,32 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
       });
       toast.success('Fichier envoyé');
       onSent?.();
-    } catch {
+    } catch (err) {
+      log.error('Failed to upload file', err);
       toast.error("Erreur d'upload");
     }
   };
 
   return (
     <div className="border-t bg-card p-3 space-y-2">
-      {/* Mode toggle */}
+      {/* Mode toggle — only show private switch if user has permission */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs">
-          {isPrivate ? (
+          {effectivePrivate ? (
             <Lock className="h-3 w-3 text-yellow-600" />
           ) : (
             <Globe className="h-3 w-3 text-green-600" />
           )}
-          <span className={isPrivate ? 'text-yellow-700 font-medium' : 'text-green-700 font-medium'}>
-            {isPrivate ? 'Note interne' : 'Message public'}
+          <span className={effectivePrivate ? 'text-yellow-700 font-medium' : 'text-green-700 font-medium'}>
+            {effectivePrivate ? 'Note interne' : 'Message public'}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">Privé</span>
-          <Switch checked={isPrivate} onCheckedChange={setIsPrivate} className="scale-75" />
-        </div>
+        {canAddPrivateNote && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">Privé</span>
+            <Switch checked={isPrivate} onCheckedChange={setIsPrivate} className="scale-75" />
+          </div>
+        )}
       </div>
 
       {/* Emoji quick bar */}
@@ -167,7 +178,7 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
         </div>
 
         <Textarea
-          placeholder={isPrivate ? 'Écrire une note interne…' : `Répondre à ${ticket.reporter_name || ticket.reporter_email || 'Demandeur'}…`}
+          placeholder={effectivePrivate ? 'Écrire une note interne…' : `Répondre à ${ticket.reporter_name || ticket.reporter_email || 'Demandeur'}…`}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={2}
@@ -183,7 +194,7 @@ export function ChatBar({ ticket, onSent }: ChatBarProps) {
           onClick={handleSend}
           disabled={!content.trim() || sending}
           size="icon"
-          className={`h-11 w-11 shrink-0 ${isPrivate ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
+          className={`h-11 w-11 shrink-0 ${effectivePrivate ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
         >
           <Send className="h-4 w-4" />
         </Button>

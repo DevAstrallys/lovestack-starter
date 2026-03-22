@@ -63,3 +63,17 @@ export function onAuthStateChange(callback: Parameters<typeof supabase.auth.onAu
   const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
   return subscription;
 }
+
+/**
+ * Get the currently authenticated user (if any).
+ */
+export async function getCurrentUser() {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return data.user;
+  } catch (err) {
+    log.debug('No current user', { error: err });
+    return null;
+  }
+}

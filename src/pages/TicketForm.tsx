@@ -1038,14 +1038,50 @@ export function TicketForm() {
                         <Users className="h-3 w-3" /> {d.follower_count} suiveur{d.follower_count !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="default" onClick={() => handleFollowTicket(d.id)} className="text-xs">
-                        Rejoindre ce ticket
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setDuplicatesDismissed(true)} className="text-xs">
-                        Non, c'est différent
-                      </Button>
-                    </div>
+                    {/* Inline follow form for anonymous users */}
+                    {followFormTicketId === d.id ? (
+                      <div className="space-y-2 border-t pt-2 mt-2">
+                        <p className="text-xs font-medium text-foreground">Pour recevoir les mises à jour :</p>
+                        <Input
+                          type="email"
+                          placeholder="Email *"
+                          value={followEmail}
+                          onChange={e => setFollowEmail(e.target.value)}
+                          className="text-sm"
+                        />
+                        <Input
+                          type="tel"
+                          placeholder="Téléphone (optionnel)"
+                          value={followPhone}
+                          onChange={e => setFollowPhone(e.target.value)}
+                          className="text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={handleAnonymousFollow}
+                            disabled={followSubmitting || !followEmail.trim()}
+                            className="text-xs"
+                          >
+                            {followSubmitting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                            Suivre ce ticket
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setFollowFormTicketId(null)} className="text-xs">
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="default" onClick={() => handleFollowTicket(d.id)} className="text-xs">
+                          Rejoindre ce ticket
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setDuplicatesDismissed(true)} className="text-xs">
+                          Non, c'est différent
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

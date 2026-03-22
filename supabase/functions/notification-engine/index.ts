@@ -90,7 +90,7 @@ serve(async (req) => {
           // Resolve actual email from auth.users
           const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
           if (userError || !userData?.user?.email) {
-            console.error(`Could not resolve email for user ${profile.id}`);
+            // Email not found for user - skip silently
             results.push({ userId: profile.id, channel: 'email', success: false, error: 'Email not found' });
             continue;
           }

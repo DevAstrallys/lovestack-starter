@@ -189,17 +189,24 @@ export async function uploadTicketAttachment(ticketId: string, file: File) {
  */
 export async function fetchQrCodeBySlug(slug: string) {
   try {
+    log.info('fetchQrCodeBySlug called', { slug });
+
     const { data, error } = await supabase
       .from('qr_codes_public')
       .select('*')
       .eq('target_slug', slug)
       .eq('is_active', true)
-      .single();
-    if (error) throw error;
+      .maybeSingle();
 
-    // qr_codes_public doesn't include location names, so enrich them.
-    // These tables have permissive SELECT for authenticated OR can be read
-    // via the anon key since location data is non-sensitive.
+    log.info('fetchQrCodeBySlug result', { slug, data, error });
+
+    if (error) throw error;
+    if (!data) {
+      log.warn('fetchQrCodeBySlug: no active QR found', { slug });
+      return null;
+    }
+
+    // Enrich with location names
     let _elName: string | null = null;
     let _grName: string | null = null;
     let _enName: string | null = null;

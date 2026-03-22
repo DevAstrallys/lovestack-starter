@@ -27,6 +27,7 @@ import {
 import { getCurrentUser } from '@/services/auth';
 import { fetchProfile } from '@/services/users';
 import { sendEmail } from '@/services/notifications';
+import { generateTrackingCode } from '@/services/tickets/tracking';
 
 const log = createLogger('page:ticketForm');
 

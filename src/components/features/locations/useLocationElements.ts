@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl, openExternalLink } from '@/lib/navigation';
+import { createLogger } from '@/lib/logger';
+import { createQRCode as createQRCodeService } from '@/services/locations';
+import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
 import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
 
 export function useLocationElements(organizationId: string) {

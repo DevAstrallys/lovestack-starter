@@ -74,22 +74,24 @@ export async function createQRCode(payload: QRCodeCreatePayload) {
     });
 
     // 2. Insert the new QR code
+    const insertData: Record<string, unknown> = {
+      display_label: payload.display_label,
+      target_slug: payload.target_slug,
+      organization_id: payload.organization_id,
+      created_by: payload.created_by ?? null,
+      location_element_id: payload.location_element_id ?? null,
+      location_group_id: payload.location_group_id ?? null,
+      location_ensemble_id: payload.location_ensemble_id ?? null,
+      form_config: payload.form_config ?? {},
+      location: payload.location ?? null,
+      version: 1,
+      is_active: true,
+      last_regenerated_at: new Date().toISOString(),
+    };
+
     const { data, error } = await supabase
       .from('qr_codes')
-      .insert({
-        display_label: payload.display_label,
-        target_slug: payload.target_slug,
-        organization_id: payload.organization_id,
-        created_by: payload.created_by ?? null,
-        location_element_id: payload.location_element_id ?? null,
-        location_group_id: payload.location_group_id ?? null,
-        location_ensemble_id: payload.location_ensemble_id ?? null,
-        form_config: payload.form_config ?? {},
-        location: payload.location ?? null,
-        version: 1,
-        is_active: true,
-        last_regenerated_at: new Date().toISOString(),
-      })
+      .insert(insertData as any)
       .select()
       .single();
 

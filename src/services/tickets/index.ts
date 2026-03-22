@@ -182,3 +182,59 @@ export async function uploadTicketAttachment(ticketId: string, file: File) {
     throw err;
   }
 }
+
+/**
+ * Fetch an active QR code by its target slug, enriched with location names.
+ */
+export async function fetchQrCodeBySlug(slug: string) {
+  try {
+    const { data, error } = await supabase
+      .from('qr_codes')
+      .select('*')
+      .eq('target_slug', slug)
+      .eq('is_active', true)
+      .single();
+    if (error) throw error;
+
+    let _elName: string | null = null;
+    let _grName: string | null = null;
+    let _enName: string | null = null;
+
+    if (data.location_element_id) {
+      const { data: el } = await supabase.from('location_elements').select('name').eq('id', data.location_element_id).single();
+      _elName = el?.name || null;
+    }
+    if (data.location_group_id) {
+      const { data: gr } = await supabase.from('location_groups').select('name').eq('id', data.location_group_id).single();
+      _grName = gr?.name || null;
+    }
+    if (data.location_ensemble_id) {
+      const { data: en } = await supabase.from('location_ensembles').select('name').eq('id', data.location_ensemble_id).single();
+      _enName = en?.name || null;
+    }
+
+    log.info('QR code fetched', { slug, qrId: data.id });
+    return { ...data, _elName, _grName, _enName };
+  } catch (err) {
+    log.error('Failed to fetch QR code by slug', { slug, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Check if an organization is premium.
+ */
+export async function fetchOrganizationPremiumStatus(organizationId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('is_premium')
+      .eq('id', organizationId)
+      .single();
+    if (error) throw error;
+    return data?.is_premium ?? false;
+  } catch (err) {
+    log.error('Failed to fetch org premium status', { organizationId, error: err });
+    return false;
+  }
+}

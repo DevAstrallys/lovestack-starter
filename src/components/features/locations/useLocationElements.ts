@@ -125,7 +125,7 @@ export function useLocationElements(organizationId: string) {
       toast({ title: 'Succès', description: 'Élément supprimé' });
       fetchElements();
     } catch (error) {
-      console.error('Error deleting element:', error);
+      log.error('Error deleting element', { elementId, error });
       toast({ title: 'Erreur', description: "Impossible de supprimer l'élément", variant: 'destructive' });
     }
   };

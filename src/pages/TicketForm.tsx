@@ -484,19 +484,54 @@ export function TicketForm() {
 
   // --- Render: Success ---
   if (submitted) {
+    const handleCopyCode = async () => {
+      try {
+        await navigator.clipboard.writeText(trackingCode);
+        toast({ title: 'Code copié !' });
+      } catch {
+        toast({ title: 'Impossible de copier', variant: 'destructive' });
+      }
+    };
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <CheckCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Ticket créé !</h3>
-            {ticketShortId && (
-              <p className="text-sm font-mono bg-muted rounded px-3 py-1 inline-block mb-3">
+          <CardContent className="pt-6 text-center space-y-4">
+            <CheckCircle className="h-12 w-12 text-primary mx-auto" />
+            <h3 className="text-lg font-semibold">Ticket créé !</h3>
+
+            {trackingCode && (
+              <div className="border-2 border-primary/20 rounded-lg p-4 bg-primary/5">
+                <p className="text-xs text-muted-foreground mb-1">Votre code de suivi</p>
+                <p className="text-2xl font-mono font-bold tracking-widest text-foreground">{trackingCode}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={handleCopyCode}>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" /> Copier le code
+                </Button>
+              </div>
+            )}
+
+            {!trackingCode && ticketShortId && (
+              <p className="text-sm font-mono bg-muted rounded px-3 py-1 inline-block">
                 N° {ticketShortId}
               </p>
             )}
-            <p className="text-muted-foreground mb-4">Votre signalement a été enregistré.</p>
-            <Button onClick={() => closeCurrentView(navigate)} className="min-h-[44px]">Fermer</Button>
+
+            <p className="text-muted-foreground text-sm">
+              {trackingCode
+                ? 'Conservez ce code pour suivre l\'avancement de votre demande.'
+                : 'Votre signalement a été enregistré.'}
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {trackingCode && slug && (
+                <Button variant="default" className="w-full min-h-[44px]" onClick={() => navigate(`/suivi/${slug}`)}>
+                  <ExternalLink className="h-4 w-4 mr-2" /> Suivre ma demande
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => closeCurrentView(navigate)} className="w-full min-h-[44px]">
+                Fermer
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

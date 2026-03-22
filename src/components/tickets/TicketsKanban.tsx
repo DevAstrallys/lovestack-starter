@@ -13,6 +13,7 @@ interface TicketsKanbanProps {
   onTicketClick: (ticket: Ticket) => void;
   onStatusChange: (ticketId: string, newStatus: TicketStatus) => void;
   loading?: boolean;
+  canChangeStatus?: boolean;
 }
 
 const KANBAN_COLUMNS: { key: TicketStatus; label: string }[] = [

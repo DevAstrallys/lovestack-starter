@@ -11,13 +11,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { TicketFormStep } from '@/components/tickets/TicketFormStep';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { ReportStepProfile, ProfileData } from '@/components/report/ReportStepProfile';
 import { SignaturePad } from '@/components/report/SignaturePad';
 import { AdBanner } from '@/components/report/AdBanner';
 import DOMPurify from 'dompurify';
+import { createLogger } from '@/lib/logger';
+import {
+  createTicket as createTicketService,
+  uploadTicketAttachment,
+  fetchQrCodeBySlug,
+  fetchOrganizationPremiumStatus,
+} from '@/services/tickets';
+import { getCurrentUser } from '@/services/auth';
+import { fetchProfile } from '@/services/users';
+import { sendEmail } from '@/services/notifications';
+
+const log = createLogger('page:ticketForm');
 
 const TOTAL_STEPS = 3;
 
@@ -41,10 +52,11 @@ export function TicketForm() {
   const { toast } = useToast();
 
   const [qrCode, setQrCode] = useState<any>(null);
-  const [isPremium, setIsPremium] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [ticketShortId, setTicketShortId] = useState('');
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
 
@@ -103,48 +115,21 @@ export function TicketForm() {
     (async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('qr_codes')
-          .select('*')
-          .eq('target_slug', slug)
-          .eq('is_active', true)
-          .single();
+        const data = await fetchQrCodeBySlug(slug);
 
-        if (error || !data) {
+        if (!data) {
           toast({ title: 'QR Code non trouvé', variant: 'destructive' });
           return;
         }
 
-        let elName: string | null = null;
-        let grName: string | null = null;
-        let enName: string | null = null;
-
-        if (data.location_element_id) {
-          const { data: el } = await supabase.from('location_elements').select('name').eq('id', data.location_element_id).single();
-          elName = el?.name || null;
-        }
-        if (data.location_group_id) {
-          const { data: gr } = await supabase.from('location_groups').select('name').eq('id', data.location_group_id).single();
-          grName = gr?.name || null;
-        }
-        if (data.location_ensemble_id) {
-          const { data: en } = await supabase.from('location_ensembles').select('name').eq('id', data.location_ensemble_id).single();
-          enName = en?.name || null;
-        }
-
-        setQrCode({
-          ...data,
-          _elName: elName,
-          _grName: grName,
-          _enName: enName,
-        });
+        setQrCode(data);
 
         if (data.organization_id) {
-          const { data: org } = await supabase.from('organizations').select('is_premium').eq('id', data.organization_id).single();
-          setIsPremium(org?.is_premium ?? false);
+          const premium = await fetchOrganizationPremiumStatus(data.organization_id);
+          setIsPremium(premium);
         }
       } catch (err) {
-        console.error('Error loading QR code:', err);
+        log.error('Error loading QR code', { slug, error: err });
       } finally {
         setLoading(false);
       }
@@ -154,19 +139,23 @@ export function TicketForm() {
   // --- Auto-fill profile ---
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: prof } = await supabase.from('profiles').select('full_name, phone').eq('id', user.id).single();
-        if (prof) {
-          const parts = (prof.full_name || '').split(' ');
-          setProfile(prev => ({
-            ...prev,
-            first_name: parts.slice(1).join(' ') || prev.first_name,
-            last_name: parts[0] || prev.last_name,
-            email: user.email || prev.email,
-            phone: prof.phone || prev.phone,
-          }));
+      try {
+        const user = await getCurrentUser();
+        if (user) {
+          const prof = await fetchProfile(user.id);
+          if (prof) {
+            const parts = (prof.full_name || '').split(' ');
+            setProfile(prev => ({
+              ...prev,
+              first_name: parts.slice(1).join(' ') || prev.first_name,
+              last_name: parts[0] || prev.last_name,
+              email: user.email || prev.email,
+              phone: prof.phone || prev.phone,
+            }));
+          }
         }
+      } catch (err) {
+        log.debug('Auto-fill profile skipped', { error: err });
       }
     })();
   }, []);
@@ -232,7 +221,7 @@ export function TicketForm() {
     setDetailLabel(det?.label || '');
   };
 
-  // --- File upload (raw) ---
+  // --- File upload (via service) ---
   const uploadFile = async (file: File, fileType: string) => {
     if (file.size > 20 * 1024 * 1024) {
       toast({ title: 'Fichier trop volumineux (max 20 Mo)', variant: 'destructive' });
@@ -241,15 +230,16 @@ export function TicketForm() {
 
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop() || 'bin';
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from('ticket-attachments').upload(path, file, { contentType: file.type });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from('ticket-attachments').getPublicUrl(path);
-      setUploadedFiles(prev => [...prev, { name: file.name, url: urlData.publicUrl, type: fileType, storagePath: path }]);
-      console.log('[Upload OK]', file.name, urlData.publicUrl);
+      const result = await uploadTicketAttachment(crypto.randomUUID(), file);
+      setUploadedFiles(prev => [...prev, {
+        name: file.name,
+        url: result.publicUrl,
+        type: fileType,
+        storagePath: result.publicUrl,
+      }]);
+      log.info('File uploaded', { fileName: file.name, fileType });
     } catch (err) {
-      console.error('[Upload ERROR]', err);
+      log.error('File upload failed', { fileName: file.name, error: err });
       toast({ title: 'Erreur upload', variant: 'destructive' });
     } finally {
       setUploading(false);
@@ -288,7 +278,7 @@ export function TicketForm() {
         if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
       });
     } catch (error) {
-      console.error('[Camera ERROR]', error);
+      log.error('Camera access denied', { error });
       toast({ title: 'Accès caméra refusé ou indisponible', variant: 'destructive' });
     }
   };
@@ -348,7 +338,7 @@ export function TicketForm() {
       recorder.start();
       setRecordingAudio(true);
     } catch (error) {
-      console.error('[Audio ERROR]', error);
+      log.error('Audio recording failed', { error });
       toast({ title: 'Accès micro refusé ou indisponible', variant: 'destructive' });
     }
   };
@@ -369,7 +359,7 @@ export function TicketForm() {
   const handleSubmit = async () => {
     if (!canProceed()) return;
 
-    const { data: userData } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     const title = DOMPurify.sanitize(buildTitle());
     const desc = DOMPurify.sanitize(description);
     const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
@@ -380,7 +370,7 @@ export function TicketForm() {
       description: desc,
       priority,
       status: 'open',
-      created_by: userData?.user?.id || null,
+      created_by: user?.id || null,
       building_id: qrCode?.building_id || null,
       organization_id: qrCode?.organization_id || null,
       source: 'qr_code',
@@ -414,19 +404,41 @@ export function TicketForm() {
       },
     };
 
-    // *** ALERT DEBUG pour vérifier les données ***
-    alert(JSON.stringify(ticketData, null, 2));
-
-    console.log('[TicketForm] SUBMIT PAYLOAD:', ticketData);
+    log.info('Submitting ticket', { title, priority, source: 'qr_code' });
 
     try {
       setSubmitting(true);
-      const { error } = await supabase.from('tickets').insert(ticketData as any);
-      if (error) throw error;
+      const ticket = await createTicketService(ticketData as any);
+
+      // Store short ID for confirmation screen
+      setTicketShortId(ticket.id.substring(0, 8).toUpperCase());
+
+      // Post-creation notification
+      if (notifChannel === 'email' && profile.email) {
+        try {
+          await sendEmail({
+            template: 'notification',
+            to: [profile.email],
+            data: {
+              recipientName: `${profile.first_name} ${profile.last_name}`.trim(),
+              title: 'Votre signalement a été enregistré',
+              message: `Votre ticket "${title}" a bien été créé. Vous recevrez des mises à jour par email.`,
+              ticketId: ticket.id,
+              ticketTitle: title,
+            },
+          });
+          log.info('Confirmation email sent', { ticketId: ticket.id, to: profile.email });
+        } catch (notifErr) {
+          log.warn('Confirmation email failed (non-blocking)', { ticketId: ticket.id, error: notifErr });
+        }
+      } else if (notifChannel === 'sms' && profile.phone) {
+        log.info('SMS notification requested but not yet implemented', { ticketId: ticket.id, phone: profile.phone });
+      }
+
       setSubmitted(true);
       toast({ title: 'Ticket créé avec succès !' });
     } catch (err: any) {
-      console.error('[TicketForm] INSERT ERROR:', err);
+      log.error('Ticket creation failed', { error: err });
       toast({ title: 'Erreur', description: err?.message || 'Impossible de créer le ticket', variant: 'destructive' });
     } finally {
       setSubmitting(false);
@@ -465,6 +477,11 @@ export function TicketForm() {
           <CardContent className="pt-6 text-center">
             <CheckCircle className="h-12 w-12 text-primary mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Ticket créé !</h3>
+            {ticketShortId && (
+              <p className="text-sm font-mono bg-muted rounded px-3 py-1 inline-block mb-3">
+                N° {ticketShortId}
+              </p>
+            )}
             <p className="text-muted-foreground mb-4">Votre signalement a été enregistré.</p>
             <Button onClick={() => closeCurrentView(navigate)} className="min-h-[44px]">Fermer</Button>
           </CardContent>

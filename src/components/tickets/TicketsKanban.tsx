@@ -29,11 +29,13 @@ function KanbanCard({
   onClick,
   onDragStart,
   onDragEnd,
+  canChangeStatus = true,
 }: {
   ticket: Ticket;
   onClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  canChangeStatus?: boolean;
 }) {
   const urgency =
     URGENCY_CONFIG[(ticket.priority as keyof typeof URGENCY_CONFIG)] ??

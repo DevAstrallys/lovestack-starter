@@ -15,7 +15,7 @@ import { useTickets, TicketFilters as ITicketFilters, Ticket, TicketStatus } fro
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchOrganizationEnsembles } from '@/services/tickets';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { notifyStatusChange } from '@/services/tickets/notifications';

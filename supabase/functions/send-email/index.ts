@@ -25,26 +25,58 @@ interface EmailRequest {
   replyTo?: string;
 }
 
-const supabase = createClient(
+const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+/**
+ * Authenticate the caller: accepts either a valid JWT (user)
+ * or a service-role key (internal edge-function-to-edge-function calls).
+ */
+async function authenticateCaller(req: Request): Promise<{ authenticated: boolean; userId?: string; isServiceRole?: boolean }> {
+  // Check for service-role key (internal calls from notification-engine)
+  const apiKey = req.headers.get('apikey') || req.headers.get('x-supabase-service-role');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (apiKey && serviceRoleKey && apiKey === serviceRoleKey) {
+    return { authenticated: true, isServiceRole: true };
+  }
+
+  // Check for user JWT
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { authenticated: false };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user) {
+    return { authenticated: false };
+  }
+
+  return { authenticated: true, userId: data.user.id };
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { template, to, data, from = 'Votre App <onboarding@resend.dev>', replyTo }: EmailRequest = await req.json();
+    // --- AUTH CHECK ---
+    const auth = await authenticateCaller(req);
+    if (!auth.authenticated) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', success: false }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
 
-    console.log(`Sending ${template} email to:`, to);
+    const { template, to, data, from = 'Votre App <onboarding@resend.dev>', replyTo }: EmailRequest = await req.json();
 
     let html: string;
     let subject: string;
 
-    // Render template based on type
     switch (template) {
       case 'welcome':
         html = await renderAsync(React.createElement(WelcomeEmail, data));
@@ -66,13 +98,7 @@ serve(async (req) => {
         throw new Error(`Template non supporté: ${template}`);
     }
 
-    // Send email
-    const sendOptions: any = {
-      from,
-      to,
-      subject,
-      html,
-    };
+    const sendOptions: any = { from, to, subject, html };
     if (replyTo) sendOptions.reply_to = replyTo;
 
     const { data: emailData, error } = await resend.emails.send(sendOptions);
@@ -82,10 +108,8 @@ serve(async (req) => {
       throw error;
     }
 
-    console.log('Email envoyé avec succès:', emailData);
-
     // Log to outbox
-    await supabase.from('channels_outbox').insert({
+    await supabaseAdmin.from('channels_outbox').insert({
       channel: 'email',
       to_ref: { emails: to },
       subject,
@@ -101,17 +125,13 @@ serve(async (req) => {
       message: 'Email envoyé avec succès'
     }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (error: any) {
     console.error('Erreur dans send-email function:', error);
     
-    // Log error to outbox
     try {
-      await supabase.from('channels_outbox').insert({
+      await supabaseAdmin.from('channels_outbox').insert({
         channel: 'email',
         to_ref: { emails: [] },
         status: 'error',
@@ -123,14 +143,8 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false 
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      }
+      JSON.stringify({ error: 'Failed to send email', success: false }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
 });

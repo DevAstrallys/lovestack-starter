@@ -225,6 +225,7 @@ export function TicketsKanban({
                   onClick={() => onTicketClick(ticket)}
                   onDragStart={(e) => handleDragStart(e, ticket.id)}
                   onDragEnd={handleDragEnd}
+                  canChangeStatus={canChangeStatus}
                 />
               ))}
             </div>

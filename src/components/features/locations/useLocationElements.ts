@@ -100,13 +100,17 @@ export function useLocationElements(organizationId: string) {
     // Auto-generate QR code for new elements
     if (!editingElement) {
       try {
-        await createQRCodeService({
-          location_element_id: elementId,
-          display_label: `QR Code - ${formData.name}`,
-          target_slug: `element-${elementId}-${Date.now()}`,
-          organization_id: organizationId,
-          location: { description: formData.qrLocation || 'Localisation non spécifiée' },
-        });
+        if (!organizationId) {
+          log.warn('Skipping QR code auto-generation: no organization_id', { elementId });
+        } else {
+          await createQRCodeService({
+            location_element_id: elementId,
+            display_label: `QR Code - ${formData.name}`,
+            target_slug: `element-${elementId}-${Date.now()}`,
+            organization_id: organizationId,
+            location: { description: formData.qrLocation || 'Localisation non spécifiée' },
+          });
+        }
       } catch (qrError) {
         log.error('Error auto-generating QR code', { elementId, error: qrError });
       }

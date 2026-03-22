@@ -269,18 +269,6 @@ export function TicketForm() {
     };
   }, []);
 
-  // Parse form_config from QR code
-  const formConfig = useMemo(() => {
-    const raw = qrCode?.form_config;
-    if (!raw || typeof raw !== 'object') return null;
-    const obj = raw as Record<string, unknown>;
-    return {
-      allowed_action_ids: Array.isArray(obj.allowed_action_ids) ? obj.allowed_action_ids as string[] : [],
-      allowed_category_ids: Array.isArray(obj.allowed_category_ids) ? obj.allowed_category_ids as string[] : [],
-      default_action_id: typeof obj.default_action_id === 'string' ? obj.default_action_id : '',
-      default_urgency: typeof obj.default_urgency === 'number' ? obj.default_urgency : 0,
-    };
-  }, [qrCode?.form_config]);
 
   // Apply form_config defaults after QR + actions are loaded
   useEffect(() => {

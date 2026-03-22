@@ -7,6 +7,8 @@ import { createQRCode as createQRCodeService } from '@/services/locations';
 import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
 import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
 
+const log = createLogger('hook:locationElements');
+
 export function useLocationElements(organizationId: string) {
   const [elements, setElements] = useState<LocationElement[]>([]);
   const [availableTags, setAvailableTags] = useState<LocationTag[]>([]);

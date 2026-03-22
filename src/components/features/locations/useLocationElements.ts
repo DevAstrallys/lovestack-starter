@@ -5,7 +5,6 @@ import { getBaseUrl, openExternalLink } from '@/lib/navigation';
 import { createLogger } from '@/lib/logger';
 import { createQRCode as createQRCodeService } from '@/services/locations';
 import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
-import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
 
 const log = createLogger('hook:locationElements');
 

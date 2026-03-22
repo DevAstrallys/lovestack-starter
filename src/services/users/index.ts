@@ -52,3 +52,18 @@ export async function fetchUserMemberships(userId: string) {
     throw err;
   }
 }
+
+/**
+ * Invoke the RGPD edge function (export or delete user data).
+ */
+export async function invokeRgpd(action: 'export' | 'delete') {
+  try {
+    const { data, error } = await supabase.functions.invoke('rgpd', { body: { action } });
+    if (error) throw error;
+    log.info('RGPD action completed', { action });
+    return data;
+  } catch (err) {
+    log.error('RGPD action failed', { action, error: err });
+    throw err;
+  }
+}

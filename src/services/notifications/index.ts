@@ -46,3 +46,24 @@ export async function triggerNotification(params: {
     throw err;
   }
 }
+
+/**
+ * Send a test email (used by EmailTester admin component).
+ */
+export async function sendTestEmail(params: {
+  template: string;
+  to: string[];
+  data: Record<string, unknown>;
+}) {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: params,
+    });
+    if (error) throw error;
+    log.info('Test email sent', { template: params.template, to: params.to });
+    return data;
+  } catch (err) {
+    log.error('Test email send failed', { error: err });
+    throw err;
+  }
+}

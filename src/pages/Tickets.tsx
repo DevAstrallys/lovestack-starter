@@ -40,9 +40,9 @@ export const Tickets = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filters, setFilters] = useState<ITicketFilters>({});
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
-  const [buildings, setBuildings] = useState<Building[]>([]);
-  const [buildingsLoading, setBuildingsLoading] = useState(false);
+  const [selectedEnsembleId, setSelectedEnsembleId] = useState<string | null>(null);
+  const [ensembles, setEnsembles] = useState<Ensemble[]>([]);
+  const [ensemblesLoading, setEnsemblesLoading] = useState(false);
 
   // Load buildings for the selected organization
   useEffect(() => {

@@ -135,25 +135,19 @@ export function useLocationElements(organizationId: string) {
       const element = elements.find((e) => e.id === elementId);
       const locationData = element?.location_data as any;
 
-      const { data, error } = await supabase
-        .from('qr_codes' as any)
-        .insert({
-          location_element_id: elementId,
-          display_label: `QR Code - ${elementName}`,
-          target_slug: `element/${elementId}`,
-          location: { description: locationData?.qrLocation || 'Localisation non spécifiée' },
-          is_active: true,
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await createQRCodeService({
+        location_element_id: elementId,
+        display_label: `QR Code - ${elementName}`,
+        target_slug: `element-${elementId}-${Date.now()}`,
+        organization_id: organizationId,
+        location: { description: locationData?.qrLocation || 'Localisation non spécifiée' },
+      });
 
       toast({ title: 'Succès', description: `QR Code généré pour ${elementName}` });
-      const qrUrl = `${getBaseUrl()}/qr/${(data as any).id}`;
+      const qrUrl = `${getBaseUrl()}/qr/${data.id}`;
       openExternalLink(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`);
     } catch (error) {
-      console.error('Error generating QR code:', error);
+      log.error('Error generating QR code', { elementId, error });
       toast({ title: 'Erreur', description: 'Impossible de générer le QR code', variant: 'destructive' });
     }
   };

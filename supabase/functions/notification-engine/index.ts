@@ -78,8 +78,6 @@ serve(async (req) => {
     for (const profile of profiles) {
       const prefs = profile.notifications_prefs;
       const shouldSendEmail = channels.includes('email') && prefs?.email;
-      const shouldSendSms = channels.includes('sms') && prefs?.sms;
-      const shouldSendPush = channels.includes('push') && prefs?.push;
 
       const templateData = {
         name: profile.full_name,
@@ -89,8 +87,15 @@ serve(async (req) => {
 
       if (shouldSendEmail) {
         try {
+          // Resolve actual email from auth.users
+          const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+          if (userError || !userData?.user?.email) {
+            console.error(`Could not resolve email for user ${profile.id}`);
+            results.push({ userId: profile.id, channel: 'email', success: false, error: 'Email not found' });
+            continue;
+          }
+
           const emailTemplate = getEmailTemplate(type);
-          // Call send-email with service-role key for internal auth
           const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: 'POST',
             headers: {
@@ -100,7 +105,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               template: emailTemplate,
-              to: [profile.id],
+              to: [userData.user.email],
               data: templateData,
             }),
           });
@@ -114,7 +119,7 @@ serve(async (req) => {
             error: emailResult.error,
           });
         } catch (emailError: any) {
-          console.error(`Erreur email pour ${profile.id}:`, emailError);
+          console.error(`Email send error for user ${profile.id}:`, emailError);
           results.push({
             userId: profile.id,
             channel: 'email',
@@ -124,13 +129,7 @@ serve(async (req) => {
         }
       }
 
-      if (shouldSendSms) {
-        console.log(`SMS notification pour ${profile.id} (à implémenter)`);
-      }
-
-      if (shouldSendPush) {
-        console.log(`Push notification pour ${profile.id} (à implémenter)`);
-      }
+      // SMS and Push: not yet implemented, skipped silently
     }
 
     return new Response(JSON.stringify({

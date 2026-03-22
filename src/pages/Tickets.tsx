@@ -26,11 +26,10 @@ const log = createLogger('page:tickets');
 
 type ViewMode = 'list' | 'kanban';
 
-interface Building {
+interface Ensemble {
   id: string;
   name: string;
-  address?: string | null;
-  city?: string | null;
+  description?: string | null;
 }
 
 export const Tickets = () => {

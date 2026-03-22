@@ -977,8 +977,8 @@ export function TicketForm() {
           <TicketFormStep title="Étape 3 — Détails & Médias">
             {/* Duplicates detection */}
             {duplicates.length > 0 && !duplicatesDismissed && (
-              <div className="space-y-3 border-2 border-orange-300 rounded-lg p-4 bg-orange-50/50">
-                <div className="flex items-center gap-2 text-orange-700 font-medium text-sm">
+              <div className="space-y-3 border-2 border-destructive/30 rounded-lg p-4 bg-destructive/5">
+                <div className="flex items-center gap-2 text-destructive font-medium text-sm">
                   <Info className="h-4 w-4" />
                   Des tickets similaires existent déjà
                 </div>

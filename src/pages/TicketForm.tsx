@@ -50,6 +50,8 @@ interface UploadedFile {
 export function TicketForm() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') || 'guest';
   const { toast } = useToast();
 
   const [qrCode, setQrCode] = useState<any>(null);

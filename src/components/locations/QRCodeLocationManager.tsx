@@ -9,12 +9,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { QrCode, Plus, FileText, Download, Settings } from 'lucide-react';
 import { openInternalRoute } from '@/lib/navigation';
-import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import { createQRCode, fetchQRCodesForOrganization } from '@/services/locations';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { QRCodeTemplates } from './QRCodeTemplates';
 import { QRCodeFormConfig } from './QRCodeFormConfig';
 import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
+
+const log = createLogger('component:QRCodeLocationManager');
 
 interface QRCodeLocationManagerProps {
   organizationId: string;

@@ -180,7 +180,19 @@ export function TicketForm() {
     })();
   }, [slug, toast]);
 
-  // --- Load taxonomy actions ---
+  // Parse form_config from QR code
+  const formConfig = useMemo(() => {
+    const raw = qrCode?.form_config;
+    if (!raw || typeof raw !== 'object') return null;
+    const obj = raw as Record<string, unknown>;
+    return {
+      allowed_action_ids: Array.isArray(obj.allowed_action_ids) ? obj.allowed_action_ids as string[] : [],
+      allowed_category_ids: Array.isArray(obj.allowed_category_ids) ? obj.allowed_category_ids as string[] : [],
+      default_action_id: typeof obj.default_action_id === 'string' ? obj.default_action_id : '',
+      default_urgency: typeof obj.default_urgency === 'number' ? obj.default_urgency : 0,
+    };
+  }, [qrCode?.form_config]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -195,14 +207,18 @@ export function TicketForm() {
     })();
   }, []);
 
-  // --- Load categories when action changes ---
+  // --- Load categories when action changes (filtered by form_config) ---
   useEffect(() => {
     if (!actionId) { setCategories([]); return; }
     (async () => {
-      const data = await fetchTaxCategories(actionId);
+      let data = await fetchTaxCategories(actionId);
+      // Apply form_config category filter
+      if (formConfig?.allowed_category_ids.length) {
+        data = data.filter(c => formConfig.allowed_category_ids.includes(c.id));
+      }
       setCategories(data);
     })();
-  }, [actionId]);
+  }, [actionId, formConfig]);
 
   // --- Load objects when category changes ---
   useEffect(() => {
@@ -253,16 +269,34 @@ export function TicketForm() {
     };
   }, []);
 
-  // Deduplicate actions
+
+  // Apply form_config defaults after QR + actions are loaded
+  useEffect(() => {
+    if (!formConfig || actions.length === 0) return;
+    if (formConfig.default_action_id && !actionId) {
+      const a = actions.find(x => x.id === formConfig.default_action_id);
+      if (a) selectAction(a);
+    }
+    if (formConfig.default_urgency > 0 && urgency === 2) {
+      setUrgency(formConfig.default_urgency);
+    }
+  }, [formConfig, actions]);
+
+  // Deduplicate and filter actions by form_config
   const uniqueActions = useMemo(() => {
     const seen = new Set<string>();
-    return actions.filter((a) => {
+    let filtered = actions.filter((a) => {
       const k = (a.key || '').trim().toLowerCase();
       if (!k || seen.has(k)) return false;
       seen.add(k);
       return true;
     });
-  }, [actions]);
+    // Apply form_config filter
+    if (formConfig?.allowed_action_ids.length) {
+      filtered = filtered.filter(a => formConfig.allowed_action_ids.includes(a.id));
+    }
+    return filtered;
+  }, [actions, formConfig]);
 
   // --- Helpers ---
   const buildTitle = useCallback(() => {

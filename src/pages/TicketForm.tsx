@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { closeCurrentView } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, QrCode, ArrowLeft, ArrowRight, Send, Loader2, X, Camera, Video, Mic, FileText } from 'lucide-react';

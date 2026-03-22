@@ -15,6 +15,7 @@ import { Tickets } from "./pages/Tickets";
 import { TicketDetail } from "./pages/TicketDetail";
 import { TicketForm } from "./pages/TicketForm";
 import NotFound from "./pages/NotFound";
+import Health from "./pages/Health";
 import { Profile } from "./pages/Profile";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
                 <Route path="/ticket-form/:slug" element={<TicketForm />} />
                 <Route path="/report/:slug" element={<TicketForm />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/health" element={<Health />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

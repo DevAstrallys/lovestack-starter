@@ -1739,6 +1739,81 @@ export type Database = {
           },
         ]
       }
+      tax_suggestions: {
+        Row: {
+          action_id: string | null
+          category_id: string | null
+          created_at: string
+          free_text: string
+          id: string
+          occurrences: number
+          organization_id: string | null
+          qr_code_id: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          action_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          free_text: string
+          id?: string
+          occurrences?: number
+          organization_id?: string | null
+          qr_code_id?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          action_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          free_text?: string
+          id?: string
+          occurrences?: number
+          organization_id?: string | null
+          qr_code_id?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_suggestions_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "tax_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_suggestions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "tax_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_suggestions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_suggestions_qr_code_id_fkey"
+            columns: ["qr_code_id"]
+            isOneToOne: false
+            referencedRelation: "qr_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_suggestions_qr_code_id_fkey"
+            columns: ["qr_code_id"]
+            isOneToOne: false
+            referencedRelation: "qr_codes_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       taxonomies: {
         Row: {
           code: string

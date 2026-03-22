@@ -1,21 +1,24 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { closeCurrentView } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, QrCode, ArrowLeft, ArrowRight, Send, Loader2, X, Camera, Video, Mic, FileText, Copy, ExternalLink } from 'lucide-react';
+import {
+  AlertCircle, CheckCircle, QrCode, ArrowLeft, ArrowRight, Send, Loader2,
+  X, Camera, Video, Mic, FileText, Copy, ExternalLink, MapPin, Users, Info,
+} from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
 import { TicketFormStep } from '@/components/tickets/TicketFormStep';
-import { useToast } from '@/hooks/use-toast';
-import { useTaxonomy } from '@/hooks/useTaxonomy';
-import { ReportStepProfile, ProfileData } from '@/components/report/ReportStepProfile';
 import { SignaturePad } from '@/components/report/SignaturePad';
 import { AdBanner } from '@/components/report/AdBanner';
+import { useToast } from '@/hooks/use-toast';
 import DOMPurify from 'dompurify';
 import { createLogger } from '@/lib/logger';
 import {
@@ -24,6 +27,16 @@ import {
   fetchQrCodeBySlug,
   fetchOrganizationPremiumStatus,
 } from '@/services/tickets';
+import {
+  fetchTaxActions,
+  fetchTaxCategories,
+  fetchTaxObjects,
+  upsertTaxSuggestion,
+  searchDuplicateTickets,
+  followTicket,
+  fetchOrganizationLocations,
+  type DuplicateCandidate,
+} from '@/services/tickets/taxonomy';
 import { getCurrentUser } from '@/services/auth';
 import { fetchProfile } from '@/services/users';
 import { sendEmail } from '@/services/notifications';
@@ -34,17 +47,37 @@ const log = createLogger('page:ticketForm');
 const TOTAL_STEPS = 3;
 
 const URGENCY_LEVELS = [
-  { value: 4, label: 'Personnes', dot: '🔴', cls: 'border-red-500 bg-red-500/10 text-red-700' },
-  { value: 3, label: 'Immeuble', dot: '🟠', cls: 'border-orange-500 bg-orange-500/10 text-orange-700' },
-  { value: 2, label: 'Moyen', dot: '🟡', cls: 'border-yellow-500 bg-yellow-500/10 text-yellow-700' },
-  { value: 1, label: 'Faible', dot: '🟢', cls: 'border-green-500 bg-green-500/10 text-green-700' },
+  { value: 4, label: 'Personnes', sla: '< 1h', dot: '🔴', cls: 'border-red-500 bg-red-500/10 text-red-700' },
+  { value: 3, label: 'Immeuble', sla: '< 24h', dot: '🟠', cls: 'border-orange-500 bg-orange-500/10 text-orange-700' },
+  { value: 2, label: 'Moyen', sla: '< 72h', dot: '🟡', cls: 'border-yellow-500 bg-yellow-500/10 text-yellow-700' },
+  { value: 1, label: 'Faible', sla: '< 7 jours', dot: '🟢', cls: 'border-green-500 bg-green-500/10 text-green-700' },
 ] as const;
+
+const PROFILE_ROLES = [
+  { value: 'locataire', label: 'Locataire' },
+  { value: 'proprietaire', label: 'Propriétaire occupant' },
+  { value: 'proprietaire_bailleur', label: 'Propriétaire bailleur' },
+  { value: 'gardien', label: 'Gardien / Concierge' },
+  { value: 'conseil_syndical', label: 'Membre du conseil syndical' },
+  { value: 'prestataire', label: 'Prestataire / Technicien' },
+  { value: 'visiteur', label: 'Visiteur' },
+];
 
 interface UploadedFile {
   name: string;
   url: string;
   type: string;
   storagePath: string;
+}
+
+interface TaxAction {
+  id: string; key: string; label: string; icon?: string | null; color?: string | null; description?: string | null;
+}
+interface TaxCategory {
+  id: string; key: string; label: string; action_id: string;
+}
+interface TaxObject {
+  id: string; key: string; label: string; category_id: string; urgency_level?: number | null; is_private?: boolean | null;
 }
 
 export function TicketForm() {
@@ -54,6 +87,7 @@ export function TicketForm() {
   const mode = searchParams.get('mode') || 'guest';
   const { toast } = useToast();
 
+  // --- Core state ---
   const [qrCode, setQrCode] = useState<any>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -64,6 +98,13 @@ export function TicketForm() {
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
 
+  // --- Taxonomy data ---
+  const [actions, setActions] = useState<TaxAction[]>([]);
+  const [categories, setCategories] = useState<TaxCategory[]>([]);
+  const [objects, setObjects] = useState<TaxObject[]>([]);
+  const [taxLoading, setTaxLoading] = useState(true);
+
+  // --- Camera / Audio refs ---
   const cameraVideoRef = React.useRef<HTMLVideoElement>(null);
   const cameraStreamRef = React.useRef<MediaStream | null>(null);
   const audioRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -72,46 +113,44 @@ export function TicketForm() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [recordingAudio, setRecordingAudio] = useState(false);
 
-  const { actions, getFilteredCategories, getFilteredObjects, getFilteredDetails, loading: taxLoading } = useTaxonomy();
+  // --- Step 1: Profile ---
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [profileRole, setProfileRole] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
 
-  // --- Profile state ---
-  const [profile, setProfile] = useState<ProfileData>({
-    first_name: '', last_name: '', role: '', phone: '', email: '',
-  });
-
-  // --- Diagnostic state ---
+  // --- Step 2: Diagnostic ---
   const [actionId, setActionId] = useState('');
   const [actionKey, setActionKey] = useState('');
   const [actionLabel, setActionLabel] = useState('');
   const [initiality, setInitiality] = useState<'initial' | 'relance'>('initial');
+  const [relanceCode, setRelanceCode] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [categoryLabel, setCategoryLabel] = useState('');
+  const [freeCategory, setFreeCategory] = useState('');
+  const [showFreeCategory, setShowFreeCategory] = useState(false);
   const [objectId, setObjectId] = useState('');
   const [objectLabel, setObjectLabel] = useState('');
-  const [detailId, setDetailId] = useState('');
-  const [detailLabel, setDetailLabel] = useState('');
+  const [freeObject, setFreeObject] = useState('');
+  const [showFreeObject, setShowFreeObject] = useState(false);
   const [urgency, setUrgency] = useState(2);
+  const [locationMode, setLocationMode] = useState<'here' | 'other' | 'free'>('here');
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [selectedLocationType, setSelectedLocationType] = useState<'element' | 'group'>('element');
+  const [freeLocation, setFreeLocation] = useState('');
+  const [orgLocations, setOrgLocations] = useState<{ elements: any[]; groups: any[] }>({ elements: [], groups: [] });
 
-  // --- Media state ---
+  // --- Step 3: Media & Details ---
   const [description, setDescription] = useState('');
-  const [notifChannel, setNotifChannel] = useState<'email' | 'sms' | 'none'>('email');
+  const [notifChannel, setNotifChannel] = useState<'email' | 'sms' | 'app' | 'none'>('email');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
-  // Deduplicate actions
-  const uniqueActions = useMemo(() => {
-    const seen = new Set<string>();
-    return actions.filter((a) => {
-      const k = (a.key || '').trim().toLowerCase();
-      if (!k || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-  }, [actions]);
-
-  const filteredCategories = actionId ? getFilteredCategories(actionId) : [];
-  const filteredObjects = categoryId ? getFilteredObjects(categoryId) : [];
-  const filteredDetails = objectId ? getFilteredDetails(objectId) : [];
+  // --- Duplicates ---
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
+  const [duplicatesChecked, setDuplicatesChecked] = useState(false);
+  const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
 
   // --- Load QR code ---
   useEffect(() => {
@@ -120,14 +159,11 @@ export function TicketForm() {
       try {
         setLoading(true);
         const data = await fetchQrCodeBySlug(slug);
-
         if (!data) {
           toast({ title: 'QR Code non trouvé', variant: 'destructive' });
           return;
         }
-
         setQrCode(data);
-
         if (data.organization_id) {
           const premium = await fetchOrganizationPremiumStatus(data.organization_id);
           setIsPremium(premium);
@@ -140,6 +176,49 @@ export function TicketForm() {
     })();
   }, [slug, toast]);
 
+  // --- Load taxonomy actions ---
+  useEffect(() => {
+    (async () => {
+      try {
+        setTaxLoading(true);
+        const data = await fetchTaxActions();
+        setActions(data);
+      } catch (err) {
+        log.error('Failed to load actions', { error: err });
+      } finally {
+        setTaxLoading(false);
+      }
+    })();
+  }, []);
+
+  // --- Load categories when action changes ---
+  useEffect(() => {
+    if (!actionId) { setCategories([]); return; }
+    (async () => {
+      const data = await fetchTaxCategories(actionId);
+      setCategories(data);
+    })();
+  }, [actionId]);
+
+  // --- Load objects when category changes ---
+  useEffect(() => {
+    if (!categoryId) { setObjects([]); return; }
+    (async () => {
+      const data = await fetchTaxObjects(categoryId);
+      setObjects(data);
+    })();
+  }, [categoryId]);
+
+  // --- Load org locations when switching to 'other' ---
+  useEffect(() => {
+    if (locationMode === 'other' && qrCode?.organization_id && orgLocations.elements.length === 0) {
+      (async () => {
+        const locs = await fetchOrganizationLocations(qrCode.organization_id);
+        setOrgLocations(locs);
+      })();
+    }
+  }, [locationMode, qrCode?.organization_id]);
+
   // --- Auto-fill profile ---
   useEffect(() => {
     (async () => {
@@ -149,13 +228,10 @@ export function TicketForm() {
           const prof = await fetchProfile(user.id);
           if (prof) {
             const parts = (prof.full_name || '').split(' ');
-            setProfile(prev => ({
-              ...prev,
-              first_name: parts.slice(1).join(' ') || prev.first_name,
-              last_name: parts[0] || prev.last_name,
-              email: user.email || prev.email,
-              phone: prof.phone || prev.phone,
-            }));
+            setLastName(parts[0] || '');
+            setFirstName(parts.slice(1).join(' ') || '');
+            setEmail(user.email || '');
+            setPhone(prof.phone || '');
           }
         }
       } catch (err) {
@@ -164,18 +240,44 @@ export function TicketForm() {
     })();
   }, []);
 
+  // --- Cleanup streams on unmount ---
+  useEffect(() => {
+    return () => {
+      if (audioRecorderRef.current?.state === 'recording') audioRecorderRef.current.stop();
+      audioStreamRef.current?.getTracks().forEach(t => t.stop());
+      cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  // Deduplicate actions
+  const uniqueActions = useMemo(() => {
+    const seen = new Set<string>();
+    return actions.filter((a) => {
+      const k = (a.key || '').trim().toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [actions]);
+
   // --- Helpers ---
-  const buildTitle = () => {
-    const init = initiality === 'relance' ? 'RELANCE' : 'INITIAL';
-    const axis = actionKey.toUpperCase();
-    let t = `[${init}] [${axis}] ${categoryLabel} > ${objectLabel}`;
-    if (detailLabel) t += ` : ${detailLabel}`;
-    return t;
-  };
+  const buildTitle = useCallback(() => {
+    const catDisplay = showFreeCategory ? freeCategory : categoryLabel;
+    const objDisplay = showFreeObject ? freeObject : objectLabel;
+
+    if (initiality === 'relance' && relanceCode) {
+      return `relance ${actionLabel} #${relanceCode} — ${catDisplay} > ${objDisplay}`;
+    }
+    return `${actionLabel} — ${catDisplay} > ${objDisplay} · urgence ${urgency}`;
+  }, [initiality, relanceCode, actionLabel, categoryLabel, objectLabel, freeCategory, freeObject, showFreeCategory, showFreeObject, urgency]);
 
   const canProceed = () => {
-    if (step === 1) return !!(profile.last_name && profile.first_name && profile.role);
-    if (step === 2) return !!(actionId && categoryId && objectId && urgency > 0);
+    if (step === 1) return !!(lastName && firstName && profileRole);
+    if (step === 2) {
+      const hasCat = categoryId || (showFreeCategory && freeCategory.trim());
+      const hasObj = objectId || (showFreeObject && freeObject.trim());
+      return !!(actionId && hasCat && hasObj && urgency > 0);
+    }
     if (step === 3) {
       if (!description.trim()) return false;
       if (actionKey === 'verifier' && !signatureDataUrl) return false;
@@ -184,63 +286,44 @@ export function TicketForm() {
     return false;
   };
 
-  const selectAction = (a: typeof uniqueActions[0]) => {
+  const selectAction = (a: TaxAction) => {
     setActionId(a.id);
     setActionKey(a.key);
     setActionLabel(a.label);
-    setCategoryId('');
-    setCategoryLabel('');
-    setObjectId('');
-    setObjectLabel('');
-    setDetailId('');
-    setDetailLabel('');
+    setCategoryId(''); setCategoryLabel(''); setShowFreeCategory(false); setFreeCategory('');
+    setObjectId(''); setObjectLabel(''); setShowFreeObject(false); setFreeObject('');
     setUrgency(2);
   };
 
   const selectCategory = (id: string) => {
-    const cat = filteredCategories.find(c => c.id === id);
+    const cat = categories.find(c => c.id === id);
     setCategoryId(id);
     setCategoryLabel(cat?.label || '');
-    setObjectId('');
-    setObjectLabel('');
-    setDetailId('');
-    setDetailLabel('');
+    setObjectId(''); setObjectLabel(''); setShowFreeObject(false); setFreeObject('');
     setUrgency(2);
+    setShowFreeCategory(false);
+    setFreeCategory('');
   };
 
   const selectObject = (id: string) => {
-    const obj = filteredObjects.find(o => o.id === id);
+    const obj = objects.find(o => o.id === id);
     setObjectId(id);
     setObjectLabel(obj?.label || '');
-    setDetailId('');
-    setDetailLabel('');
-    if (obj && 'urgency_level' in obj && obj.urgency_level) {
-      setUrgency(obj.urgency_level);
-    }
+    if (obj?.urgency_level) setUrgency(obj.urgency_level);
+    setShowFreeObject(false);
+    setFreeObject('');
   };
 
-  const selectDetail = (id: string) => {
-    const det = filteredDetails.find(d => d.id === id);
-    setDetailId(id);
-    setDetailLabel(det?.label || '');
-  };
-
-  // --- File upload (via service) ---
+  // --- File upload ---
   const uploadFile = async (file: File, fileType: string) => {
     if (file.size > 20 * 1024 * 1024) {
       toast({ title: 'Fichier trop volumineux (max 20 Mo)', variant: 'destructive' });
       return;
     }
-
     setUploading(true);
     try {
       const result = await uploadTicketAttachment(crypto.randomUUID(), file);
-      setUploadedFiles(prev => [...prev, {
-        name: file.name,
-        url: result.publicUrl,
-        type: fileType,
-        storagePath: result.publicUrl,
-      }]);
+      setUploadedFiles(prev => [...prev, { name: file.name, url: result.publicUrl, type: fileType, storagePath: result.publicUrl }]);
       log.info('File uploaded', { fileName: file.name, fileType });
     } catch (err) {
       log.error('File upload failed', { fileName: file.name, error: err });
@@ -258,22 +341,16 @@ export function TicketForm() {
   };
 
   const stopCameraStream = () => {
-    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
+    cameraStreamRef.current?.getTracks().forEach(t => t.stop());
     cameraStreamRef.current = null;
     setCameraOpen(false);
   };
 
-  const stopAudioStream = () => {
-    audioStreamRef.current?.getTracks().forEach(track => track.stop());
-    audioStreamRef.current = null;
-  };
-
   const startCameraCapture = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast({ title: 'Caméra non supportée sur ce navigateur', variant: 'destructive' });
+      toast({ title: 'Caméra non supportée', variant: 'destructive' });
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       cameraStreamRef.current = stream;
@@ -283,20 +360,18 @@ export function TicketForm() {
       });
     } catch (error) {
       log.error('Camera access denied', { error });
-      toast({ title: 'Accès caméra refusé ou indisponible', variant: 'destructive' });
+      toast({ title: 'Accès caméra refusé', variant: 'destructive' });
     }
   };
 
   const capturePhoto = async () => {
     const video = cameraVideoRef.current;
     if (!video) return;
-
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(async (blob) => {
       if (!blob) return;
@@ -312,52 +387,65 @@ export function TicketForm() {
       setRecordingAudio(false);
       return;
     }
-
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       const fallback = document.getElementById('upload-audio-fallback') as HTMLInputElement | null;
       fallback?.click();
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       audioRecorderRef.current = recorder;
       audioChunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         const mimeType = recorder.mimeType || 'audio/webm';
         const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType });
         await uploadFile(file, 'audio');
-        stopAudioStream();
+        audioStreamRef.current?.getTracks().forEach(t => t.stop());
       };
-
       recorder.start();
       setRecordingAudio(true);
     } catch (error) {
       log.error('Audio recording failed', { error });
-      toast({ title: 'Accès micro refusé ou indisponible', variant: 'destructive' });
+      toast({ title: 'Accès micro refusé', variant: 'destructive' });
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (audioRecorderRef.current?.state === 'recording') {
-        audioRecorderRef.current.stop();
-      }
-      stopAudioStream();
-      stopCameraStream();
-    };
-  }, []);
-
   const removeFile = (i: number) => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i));
+
+  // --- Check duplicates when entering step 3 ---
+  const checkDuplicates = useCallback(async () => {
+    if (!qrCode?.organization_id || !categoryId || duplicatesChecked) return;
+    setDuplicatesChecked(true);
+    const results = await searchDuplicateTickets({
+      organizationId: qrCode.organization_id,
+      categoryId,
+    });
+    if (results.length > 0) setDuplicates(results);
+  }, [qrCode?.organization_id, categoryId, duplicatesChecked]);
+
+  const handleFollowTicket = async (ticketId: string) => {
+    const user = await getCurrentUser();
+    if (!user) {
+      toast({ title: 'Connectez-vous pour suivre un ticket', variant: 'destructive' });
+      return;
+    }
+    const ok = await followTicket(ticketId, user.id);
+    if (ok) {
+      toast({ title: 'Vous suivez ce ticket !' });
+      setDuplicatesDismissed(true);
+    }
+  };
+
+  // --- Step navigation ---
+  const goToStep = (next: number) => {
+    if (next === 3) checkDuplicates();
+    setStep(next);
+  };
 
   // --- Submit ---
   const handleSubmit = async () => {
@@ -367,10 +455,31 @@ export function TicketForm() {
     const title = DOMPurify.sanitize(buildTitle());
     const desc = DOMPurify.sanitize(description);
     const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
-    const locationName = qrCode?._elName || qrCode?._grName || qrCode?._enName || null;
 
-    // Generate tracking code BEFORE creation (for guest mode)
-    const newTrackingCode = mode === 'guest' ? generateTrackingCode() : '';
+    // Location resolution
+    let locationPayload: Record<string, any> = {};
+    if (locationMode === 'here') {
+      locationPayload = {
+        element_id: qrCode?.location_element_id || null,
+        group_id: qrCode?.location_group_id || null,
+        ensemble_id: qrCode?.location_ensemble_id || null,
+        name: qrCode?._elName || qrCode?._grName || qrCode?._enName || null,
+      };
+    } else if (locationMode === 'other' && selectedLocationId) {
+      const loc = selectedLocationType === 'element'
+        ? orgLocations.elements.find(e => e.id === selectedLocationId)
+        : orgLocations.groups.find(g => g.id === selectedLocationId);
+      locationPayload = {
+        [`${selectedLocationType === 'element' ? 'element_id' : 'group_id'}`]: selectedLocationId,
+        name: loc?.name || null,
+      };
+    } else if (locationMode === 'free') {
+      locationPayload = { name: freeLocation };
+    }
+
+    // Generate tracking code (guest only)
+    const isGuest = mode === 'guest';
+    const newTrackingCode = isGuest ? generateTrackingCode() : '';
 
     const ticketData: Record<string, unknown> = {
       title,
@@ -383,31 +492,28 @@ export function TicketForm() {
       source: 'qr_code',
       initiality,
       action_code: actionId || null,
-      category_id: categoryId || null,
-      object_id: objectId || null,
-      reporter_name: DOMPurify.sanitize(`${profile.last_name} ${profile.first_name}`.trim()),
-      reporter_email: profile.email || null,
-      reporter_phone: profile.phone || null,
-      location: {
-        element_id: qrCode?.location_element_id || null,
-        group_id: qrCode?.location_group_id || null,
-        ensemble_id: qrCode?.location_ensemble_id || null,
-        name: locationName,
-      },
+      category_id: showFreeCategory ? null : (categoryId || null),
+      object_id: showFreeObject ? null : (objectId || null),
+      reporter_name: DOMPurify.sanitize(`${lastName} ${firstName}`.trim()),
+      reporter_email: email || null,
+      reporter_phone: phone || null,
+      location: locationPayload,
       attachments: uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
       meta: {
         qr_code_id: qrCode?.id,
-        reporter_role: profile.role,
-        detail_id: detailId || null,
-        detail_label: detailLabel || null,
+        reporter_role: profileRole,
         urgency_level: urgency,
-        notification_channel: notifChannel,
+        notification_channel: notifChannel === 'app' ? 'email' : notifChannel,
         signature: actionKey === 'verifier' ? signatureDataUrl : null,
         action_id: actionId,
         action_key: actionKey,
         action_label: actionLabel,
-        category_label: categoryLabel,
-        object_label: objectLabel,
+        category_label: showFreeCategory ? freeCategory : categoryLabel,
+        object_label: showFreeObject ? freeObject : objectLabel,
+        ...(showFreeCategory ? { free_category: freeCategory } : {}),
+        ...(showFreeObject ? { free_object: freeObject } : {}),
+        ...(locationMode === 'free' ? { free_location: freeLocation } : {}),
+        ...(initiality === 'relance' && relanceCode ? { follow_up_code: relanceCode } : {}),
         ...(newTrackingCode ? { tracking_code: newTrackingCode } : {}),
       },
     };
@@ -416,23 +522,43 @@ export function TicketForm() {
 
     try {
       setSubmitting(true);
-      const ticket = await createTicketService(ticketData as any);
 
-      // Store IDs for confirmation screen
+      // 1. Upsert tax suggestions if free text was used
+      if (showFreeCategory && freeCategory.trim()) {
+        await upsertTaxSuggestion({
+          type: 'category', freeText: freeCategory, actionId,
+          organizationId: qrCode?.organization_id, qrCodeId: qrCode?.id,
+        });
+      }
+      if (showFreeObject && freeObject.trim()) {
+        await upsertTaxSuggestion({
+          type: 'object', freeText: freeObject, categoryId: showFreeCategory ? undefined : categoryId,
+          actionId, organizationId: qrCode?.organization_id, qrCodeId: qrCode?.id,
+        });
+      }
+      if (locationMode === 'free' && freeLocation.trim()) {
+        await upsertTaxSuggestion({
+          type: 'location', freeText: freeLocation,
+          organizationId: qrCode?.organization_id, qrCodeId: qrCode?.id,
+        });
+      }
+
+      // 2. Create ticket
+      const ticket = await createTicketService(ticketData as any);
       setTicketShortId(ticket.id.substring(0, 8).toUpperCase());
       if (newTrackingCode) setTrackingCode(newTrackingCode);
 
-      // Post-creation notification (include tracking code)
-      if (notifChannel === 'email' && profile.email) {
+      // 3. Send notification
+      if ((notifChannel === 'email' || notifChannel === 'app') && email) {
         try {
           const emailMessage = newTrackingCode
             ? `Votre ticket "${title}" a bien été créé. Votre code de suivi : ${newTrackingCode}. Conservez-le pour suivre votre demande.`
             : `Votre ticket "${title}" a bien été créé. Vous recevrez des mises à jour par email.`;
           await sendEmail({
             template: 'notification',
-            to: [profile.email],
+            to: [email],
             data: {
-              recipientName: `${profile.first_name} ${profile.last_name}`.trim(),
+              recipientName: `${firstName} ${lastName}`.trim(),
               title: 'Votre signalement a été enregistré',
               message: emailMessage,
               ticketId: ticket.id,
@@ -440,12 +566,12 @@ export function TicketForm() {
               trackingCode: newTrackingCode || undefined,
             },
           });
-          log.info('Confirmation email sent', { ticketId: ticket.id, to: profile.email });
+          log.info('Confirmation email sent', { ticketId: ticket.id, to: email });
         } catch (notifErr) {
           log.warn('Confirmation email failed (non-blocking)', { ticketId: ticket.id, error: notifErr });
         }
-      } else if (notifChannel === 'sms' && profile.phone) {
-        log.info('SMS notification requested but not yet implemented', { ticketId: ticket.id, phone: profile.phone });
+      } else if (notifChannel === 'sms' && phone) {
+        log.info('SMS notification requested but not yet implemented', { ticketId: ticket.id });
       }
 
       setSubmitted(true);
@@ -458,7 +584,7 @@ export function TicketForm() {
     }
   };
 
-  // --- Render: Loading ---
+  // ─── Render: Loading ───
   if (loading || taxLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -467,7 +593,7 @@ export function TicketForm() {
     );
   }
 
-  // --- Render: QR not found ---
+  // ─── Render: QR not found ───
   if (!qrCode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -482,8 +608,9 @@ export function TicketForm() {
     );
   }
 
-  // --- Render: Success ---
+  // ─── Render: Success ───
   if (submitted) {
+    const isGuest = mode === 'guest';
     const handleCopyCode = async () => {
       try {
         await navigator.clipboard.writeText(trackingCode);
@@ -500,7 +627,7 @@ export function TicketForm() {
             <CheckCircle className="h-12 w-12 text-primary mx-auto" />
             <h3 className="text-lg font-semibold">Ticket créé !</h3>
 
-            {trackingCode && (
+            {isGuest && trackingCode && (
               <div className="border-2 border-primary/20 rounded-lg p-4 bg-primary/5">
                 <p className="text-xs text-muted-foreground mb-1">Votre code de suivi</p>
                 <p className="text-2xl font-mono font-bold tracking-widest text-foreground">{trackingCode}</p>
@@ -510,20 +637,20 @@ export function TicketForm() {
               </div>
             )}
 
-            {!trackingCode && ticketShortId && (
-              <p className="text-sm font-mono bg-muted rounded px-3 py-1 inline-block">
-                N° {ticketShortId}
+            {!isGuest && ticketShortId && (
+              <p className="text-sm text-muted-foreground">
+                Votre ticket est enregistré. Retrouvez-le dans votre espace personnel.
               </p>
             )}
 
-            <p className="text-muted-foreground text-sm">
-              {trackingCode
-                ? 'Conservez ce code pour suivre l\'avancement de votre demande.'
-                : 'Votre signalement a été enregistré.'}
-            </p>
+            {isGuest && trackingCode && (
+              <p className="text-muted-foreground text-sm">
+                Conservez ce code pour suivre l'avancement de votre demande.
+              </p>
+            )}
 
             <div className="flex flex-col gap-2">
-              {trackingCode && slug && (
+              {isGuest && trackingCode && slug && (
                 <Button variant="default" className="w-full min-h-[44px]" onClick={() => navigate(`/suivi/${slug}`)}>
                   <ExternalLink className="h-4 w-4 mr-2" /> Suivre ma demande
                 </Button>
@@ -566,13 +693,41 @@ export function TicketForm() {
           <Progress value={(step / TOTAL_STEPS) * 100} className="h-2" />
         </div>
 
-        {/* ============ ÉTAPE 1 : PROFIL ============ */}
-        {step === 1 && <ReportStepProfile data={profile} onChange={setProfile} />}
+        {/* ============ ÉTAPE 1 : QUI ÊTES-VOUS ? ============ */}
+        {step === 1 && (
+          <TicketFormStep title="Étape 1 — Qui êtes-vous ?">
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Nom *</Label>
+              <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Dupont" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="firstName">Prénom *</Label>
+              <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Marie" />
+            </div>
+            <div className="space-y-2">
+              <Label>Rôle *</Label>
+              <Select value={profileRole} onValueChange={setProfileRole}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner votre rôle" /></SelectTrigger>
+                <SelectContent>
+                  {PROFILE_ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Téléphone</Label>
+              <Input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="06 12 34 56 78" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="marie@exemple.fr" />
+            </div>
+          </TicketFormStep>
+        )}
 
-        {/* ============ ÉTAPE 2 : DIAGNOSTIC ============ */}
+        {/* ============ ÉTAPE 2 : QUOI & OÙ ? ============ */}
         {step === 2 && (
-          <TicketFormStep title="Étape 2 — Diagnostic">
-            {/* 1. AXE (boutons) */}
+          <TicketFormStep title="Étape 2 — Quoi & Où ?">
+            {/* A) Actions */}
             <div className="space-y-2">
               <Label>Que souhaitez-vous faire ? *</Label>
               <div className="grid grid-cols-2 gap-3">
@@ -594,74 +749,121 @@ export function TicketForm() {
               </div>
             </div>
 
-            {/* 2. INITIATIVE (boutons) */}
+            {/* B) Initiality */}
             {actionId && (
               <div className="space-y-2">
-                <Label>Initiative *</Label>
+                <Label>Type *</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setInitiality('initial')}
-                    className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
-                      initiality === 'initial' ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
-                    }`}
-                  >
-                    Initial
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInitiality('relance')}
-                    className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
-                      initiality === 'relance' ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
-                    }`}
-                  >
-                    Relance
-                  </button>
+                  {(['initial', 'relance'] as const).map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setInitiality(val)}
+                      className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] capitalize ${
+                        initiality === val ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
                 </div>
+                {initiality === 'relance' && (
+                  <div className="space-y-1 mt-2">
+                    <Label htmlFor="relanceCode">Code de suivi initial</Label>
+                    <Input
+                      id="relanceCode"
+                      value={relanceCode}
+                      onChange={e => setRelanceCode(e.target.value.toUpperCase())}
+                      placeholder="AB12-CD34"
+                      className="font-mono"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
-            {/* 3. CATÉGORIE (select) */}
+            {/* C) Category */}
             {actionId && (
               <div className="space-y-2">
                 <Label>Catégorie *</Label>
-                <Select value={categoryId || undefined} onValueChange={selectCategory}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-                  <SelectContent>
-                    {filteredCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {!showFreeCategory ? (
+                  <>
+                    <Select value={categoryId || undefined} onValueChange={selectCategory}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
+                      <SelectContent>
+                        {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => { setShowFreeCategory(true); setCategoryId(''); setCategoryLabel(''); }}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Je ne trouve pas la bonne catégorie
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      value={freeCategory}
+                      onChange={e => setFreeCategory(e.target.value)}
+                      placeholder="Décrivez la catégorie..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setShowFreeCategory(false); setFreeCategory(''); }}
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      ← Revenir à la liste
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
-            {/* 4. OBJET (select) */}
-            {categoryId && (
+            {/* D) Object */}
+            {(categoryId || (showFreeCategory && freeCategory.trim())) && (
               <div className="space-y-2">
                 <Label>Objet *</Label>
-                <Select value={objectId || undefined} onValueChange={selectObject}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>
-                  <SelectContent>
-                    {filteredObjects.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {!showFreeObject && !showFreeCategory ? (
+                  <>
+                    <Select value={objectId || undefined} onValueChange={selectObject}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>
+                      <SelectContent>
+                        {objects.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => { setShowFreeObject(true); setObjectId(''); setObjectLabel(''); }}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Je ne trouve pas le bon objet
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      value={freeObject}
+                      onChange={e => setFreeObject(e.target.value)}
+                      placeholder="Décrivez l'objet..."
+                    />
+                    {!showFreeCategory && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowFreeObject(false); setFreeObject(''); }}
+                        className="text-xs text-muted-foreground hover:underline"
+                      >
+                        ← Revenir à la liste
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
-            {/* 4b. DÉTAIL (select optionnel) */}
-            {objectId && filteredDetails.length > 0 && (
-              <div className="space-y-2">
-                <Label>Nature / Détail</Label>
-                <Select value={detailId || undefined} onValueChange={selectDetail}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Préciser (optionnel)" /></SelectTrigger>
-                  <SelectContent>
-                    {filteredDetails.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* 5. URGENCE (pastilles) */}
-            {objectId && (
+            {/* E) Urgency */}
+            {(objectId || (showFreeObject && freeObject.trim()) || (showFreeCategory && freeCategory.trim())) && (
               <div className="space-y-2">
                 <Label>Niveau d'urgence *</Label>
                 <div className="space-y-2">
@@ -675,26 +877,134 @@ export function TicketForm() {
                       }`}
                     >
                       <span className="text-lg">{u.dot}</span>
-                      <span>{u.value} - {u.label}</span>
+                      <span>{u.value} — {u.label}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">{u.sla}</span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Titre preview */}
-            {actionId && categoryId && objectId && (
+            {/* F) Location */}
+            {actionId && (
+              <div className="space-y-2">
+                <Label>Localisation</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setLocationMode('here'); setFreeLocation(''); setSelectedLocationId(''); }}
+                    className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] flex items-center gap-2 justify-center ${
+                      locationMode === 'here' ? 'border-primary bg-primary/10' : 'border-border'
+                    }`}
+                  >
+                    <MapPin className="h-4 w-4" /> Ici (QR code)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocationMode('other')}
+                    className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
+                      locationMode === 'other' ? 'border-primary bg-primary/10' : 'border-border'
+                    }`}
+                  >
+                    Autre endroit
+                  </button>
+                </div>
+
+                {locationMode === 'other' && (
+                  <div className="space-y-2 mt-2">
+                    <Select value={selectedLocationId || undefined} onValueChange={(val) => {
+                      const isElement = orgLocations.elements.some(e => e.id === val);
+                      setSelectedLocationId(val);
+                      setSelectedLocationType(isElement ? 'element' : 'group');
+                    }}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un lieu" /></SelectTrigger>
+                      <SelectContent>
+                        {orgLocations.groups.length > 0 && (
+                          <>
+                            <SelectItem value="__group_header" disabled className="text-xs font-bold text-muted-foreground">Groupements</SelectItem>
+                            {orgLocations.groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                          </>
+                        )}
+                        {orgLocations.elements.length > 0 && (
+                          <>
+                            <SelectItem value="__element_header" disabled className="text-xs font-bold text-muted-foreground">Éléments</SelectItem>
+                            {orgLocations.elements.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => { setLocationMode('free'); setSelectedLocationId(''); }}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Je ne trouve pas le bon lieu
+                    </button>
+                  </div>
+                )}
+
+                {locationMode === 'free' && (
+                  <div className="space-y-1 mt-2">
+                    <Input
+                      value={freeLocation}
+                      onChange={e => setFreeLocation(e.target.value)}
+                      placeholder="Décrivez le lieu..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setLocationMode('here'); setFreeLocation(''); }}
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      ← Revenir au lieu du QR code
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* G) Title preview */}
+            {actionId && (categoryId || showFreeCategory) && (objectId || showFreeObject) && (
               <div className="rounded-md bg-muted p-3">
-                <Label className="text-xs text-muted-foreground">Titre final du ticket</Label>
+                <Label className="text-xs text-muted-foreground">Titre du ticket (auto-généré)</Label>
                 <p className="mt-1 text-sm font-mono">{buildTitle()}</p>
               </div>
             )}
           </TicketFormStep>
         )}
 
-        {/* ============ ÉTAPE 3 : MÉDIAS ============ */}
+        {/* ============ ÉTAPE 3 : DÉTAILS & MÉDIAS ============ */}
         {step === 3 && (
           <TicketFormStep title="Étape 3 — Détails & Médias">
+            {/* Duplicates detection */}
+            {duplicates.length > 0 && !duplicatesDismissed && (
+              <div className="space-y-3 border-2 border-destructive/30 rounded-lg p-4 bg-destructive/5">
+                <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+                  <Info className="h-4 w-4" />
+                  Des tickets similaires existent déjà
+                </div>
+                {duplicates.map(d => (
+                  <div key={d.id} className="border rounded-md p-3 bg-background space-y-2">
+                    <p className="text-sm font-medium truncate">{d.title}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-xs">{d.status}</Badge>
+                      <span>{new Date(d.created_at).toLocaleDateString('fr-FR')}</span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" /> {d.follower_count} suiveur{d.follower_count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="default" onClick={() => handleFollowTicket(d.id)} className="text-xs">
+                        Rejoindre ce ticket
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setDuplicatesDismissed(true)} className="text-xs">
+                        Non, c'est différent
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="description">Description *</Label>
               <Textarea
@@ -707,47 +1017,27 @@ export function TicketForm() {
               />
             </div>
 
-            {/* UPLOAD : caméra + micro natifs avec fallback fichier */}
+            {/* Upload */}
             <div className="space-y-3">
               <Label>Pièces jointes</Label>
-
               <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={startCameraCapture}
-                  disabled={uploading}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]"
-                >
-                  <Camera className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Photo</span>
+                <button type="button" onClick={startCameraCapture} disabled={uploading}
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px]">
+                  <Camera className="h-6 w-6 text-primary" /><span className="text-sm font-medium">Photo</span>
                 </button>
-
-                <label
-                  htmlFor="upload-video"
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-                >
-                  <Video className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Vidéo</span>
+                <label htmlFor="upload-video"
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Video className="h-6 w-6 text-primary" /><span className="text-sm font-medium">Vidéo</span>
                 </label>
                 <input id="upload-video" type="file" accept="video/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'video')} />
-
-                <button
-                  type="button"
-                  onClick={toggleAudioRecording}
-                  disabled={uploading}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${recordingAudio ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
-                >
-                  <Mic className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">{recordingAudio ? 'Stop audio' : 'Audio'}</span>
+                <button type="button" onClick={toggleAudioRecording} disabled={uploading}
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${recordingAudio ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}>
+                  <Mic className="h-6 w-6 text-primary" /><span className="text-sm font-medium">{recordingAudio ? 'Stop audio' : 'Audio'}</span>
                 </button>
                 <input id="upload-audio-fallback" type="file" accept="audio/*" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'audio')} />
-
-                <label
-                  htmlFor="upload-doc"
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-                >
-                  <FileText className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Document</span>
+                <label htmlFor="upload-doc"
+                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <FileText className="h-6 w-6 text-primary" /><span className="text-sm font-medium">Document</span>
                 </label>
                 <input id="upload-doc" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
               </div>
@@ -761,10 +1051,8 @@ export function TicketForm() {
                   </div>
                 </div>
               )}
-
-              {recordingAudio && <p className="text-xs text-muted-foreground">Enregistrement micro en cours… cliquez à nouveau sur Audio pour arrêter.</p>}
+              {recordingAudio && <p className="text-xs text-muted-foreground">Enregistrement en cours… cliquez Audio pour arrêter.</p>}
               {uploading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Upload en cours...</p>}
-
               {uploadedFiles.length > 0 && (
                 <div className="space-y-1">
                   {uploadedFiles.map((f, i) => (
@@ -777,6 +1065,7 @@ export function TicketForm() {
               )}
             </div>
 
+            {/* Signature */}
             {actionKey === 'verifier' && (
               <div className="space-y-2">
                 <Label>Signature numérique (obligatoire)</Label>
@@ -784,6 +1073,7 @@ export function TicketForm() {
               </div>
             )}
 
+            {/* Notifications */}
             <div className="space-y-2 pt-2">
               <Label>Notifications</Label>
               <RadioGroup value={notifChannel} onValueChange={v => setNotifChannel(v as any)} className="flex flex-col gap-2">
@@ -795,6 +1085,16 @@ export function TicketForm() {
                   <RadioGroupItem value="sms" id="n-sms" />
                   <Label htmlFor="n-sms" className="font-normal">Par SMS</Label>
                 </div>
+                <div className="flex items-center gap-2 opacity-50">
+                  <RadioGroupItem value="app" id="n-app" disabled />
+                  <Label htmlFor="n-app" className="font-normal">Application</Label>
+                  <Badge variant="secondary" className="text-[10px] ml-1">Bientôt disponible</Badge>
+                </div>
+                {notifChannel === 'app' && (
+                  <p className="text-xs text-muted-foreground ml-6">
+                    L'app arrive bientôt, vous serez notifié par email au lancement.
+                  </p>
+                )}
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="none" id="n-none" />
                   <Label htmlFor="n-none" className="font-normal">Aucune</Label>
@@ -813,7 +1113,7 @@ export function TicketForm() {
           )}
           <div className="flex-1" />
           {step < TOTAL_STEPS ? (
-            <Button type="button" onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="min-h-[44px]">
+            <Button type="button" onClick={() => goToStep(step + 1)} disabled={!canProceed()} className="min-h-[44px]">
               Suivant <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           ) : (

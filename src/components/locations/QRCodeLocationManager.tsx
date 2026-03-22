@@ -64,92 +64,17 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
   const loadData = async () => {
     try {
       setLoading(true);
+      const result = await fetchQRCodesForOrganization(organizationId);
       
-      // Charger les éléments, groupes et ensembles
-      const [elementsRes, groupsRes, ensemblesRes] = await Promise.all([
-        supabase.from('location_elements').select('*').eq('organization_id', organizationId),
-        supabase.from('location_groups').select('*').eq('organization_id', organizationId),
-        supabase.from('location_ensembles').select('*').eq('organization_id', organizationId)
-      ]);
-
-      if (elementsRes.error) throw elementsRes.error;
-      if (groupsRes.error) throw groupsRes.error;
-      if (ensemblesRes.error) throw ensemblesRes.error;
-
-      setElements(elementsRes.data || []);
-      setGroups(groupsRes.data || []);
-      setEnsembles(ensemblesRes.data || []);
-
-      // Charger les QR codes avec les informations de localisation
-      await loadQRCodes(elementsRes.data, groupsRes.data, ensemblesRes.data);
-
+      setElements(result.elements as unknown as LocationElement[]);
+      setGroups(result.groups as unknown as LocationGroup[]);
+      setEnsembles(result.ensembles as unknown as LocationEnsemble[]);
+      setQRCodes(result.qrCodes);
     } catch (error) {
-      console.error('Error loading data:', error);
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de charger les données',
-        variant: 'destructive'
-      });
+      log.error('Error loading data', { error });
+      toast({ title: 'Erreur', description: 'Impossible de charger les données', variant: 'destructive' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadQRCodes = async (elements: LocationElement[], groups: LocationGroup[], ensembles: LocationEnsemble[]) => {
-    try {
-      // Récupérer tous les QR codes liés aux éléments de l'organisation
-      const elementIds = elements.map(e => e.id);
-      const groupIds = groups.map(g => g.id);  
-      const ensembleIds = ensembles.map(e => e.id);
-      
-      const { data: qrData, error } = await supabase
-        .from('qr_codes')
-        .select(`
-          *,
-          location_elements(name),
-          location_groups(name),
-          location_ensembles(name)
-        `)
-        .or(`location_element_id.in.(${elementIds.join(',')}),location_group_id.in.(${groupIds.join(',')}),location_ensemble_id.in.(${ensembleIds.join(',')})`)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Enrichir les QR codes avec les informations de localisation
-      const enrichedQRCodes: QRCodeWithLocation[] = (qrData || []).map(qr => {
-        let location_type: 'element' | 'group' | 'ensemble' | null = null;
-        let location_name: string | null = null;
-
-        if (qr.location_element_id) {
-          const element = elements.find(e => e.id === qr.location_element_id);
-          if (element) {
-            location_type = 'element';
-            location_name = element.name;
-          }
-        } else if (qr.location_group_id) {
-          const group = groups.find(g => g.id === qr.location_group_id);
-          if (group) {
-            location_type = 'group';
-            location_name = group.name;
-          }
-        } else if (qr.location_ensemble_id) {
-          const ensemble = ensembles.find(e => e.id === qr.location_ensemble_id);
-          if (ensemble) {
-            location_type = 'ensemble';
-            location_name = ensemble.name;
-          }
-        }
-
-        return {
-          ...qr,
-          location_type,
-          location_name
-        };
-      });
-
-      setQRCodes(enrichedQRCodes);
-    } catch (error) {
-      console.error('Error loading QR codes:', error);
     }
   };
 

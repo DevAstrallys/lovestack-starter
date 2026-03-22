@@ -44,26 +44,21 @@ export const Tickets = () => {
   const [ensembles, setEnsembles] = useState<Ensemble[]>([]);
   const [ensemblesLoading, setEnsemblesLoading] = useState(false);
 
-  // Load buildings for the selected organization
+  // Load ensembles for the selected organization
   useEffect(() => {
     if (!selectedOrganization) {
-      setBuildings([]);
+      setEnsembles([]);
       return;
     }
     const load = async () => {
-      setBuildingsLoading(true);
+      setEnsemblesLoading(true);
       try {
-        const { data } = await supabase
-          .from('buildings')
-          .select('id, name, address, city')
-          .eq('organization_id', selectedOrganization.id)
-          .eq('is_active', true)
-          .order('name');
-        setBuildings(data || []);
+        const data = await fetchOrganizationEnsembles(selectedOrganization.id);
+        setEnsembles(data);
       } catch (err) {
-        log.error('Failed to load buildings', err);
+        log.error('Failed to load ensembles', err);
       } finally {
-        setBuildingsLoading(false);
+        setEnsemblesLoading(false);
       }
     };
     load();

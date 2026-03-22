@@ -18,8 +18,11 @@ import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList'
 import { TICKET_PRIORITIES, extractSubject, extractTitleBadges } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
+import { updateTicket as updateTicketService } from '@/services/tickets';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('page:ticket-detail');
 
 import { EmergencyButton } from '@/components/tickets/cockpit/EmergencyButton';
 import { SmartDispatcher } from '@/components/tickets/cockpit/SmartDispatcher';

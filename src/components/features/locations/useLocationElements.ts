@@ -100,15 +100,15 @@ export function useLocationElements(organizationId: string) {
     // Auto-generate QR code for new elements
     if (!editingElement) {
       try {
-        await supabase.from('qr_codes' as any).insert({
+        await createQRCodeService({
           location_element_id: elementId,
           display_label: `QR Code - ${formData.name}`,
-          target_slug: `element/${elementId}`,
+          target_slug: `element-${elementId}-${Date.now()}`,
+          organization_id: organizationId,
           location: { description: formData.qrLocation || 'Localisation non spécifiée' },
-          is_active: true,
         });
       } catch (qrError) {
-        console.error('Error auto-generating QR code:', qrError);
+        log.error('Error auto-generating QR code', { elementId, error: qrError });
       }
     }
 

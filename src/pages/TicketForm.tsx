@@ -195,14 +195,18 @@ export function TicketForm() {
     })();
   }, []);
 
-  // --- Load categories when action changes ---
+  // --- Load categories when action changes (filtered by form_config) ---
   useEffect(() => {
     if (!actionId) { setCategories([]); return; }
     (async () => {
-      const data = await fetchTaxCategories(actionId);
+      let data = await fetchTaxCategories(actionId);
+      // Apply form_config category filter
+      if (formConfig?.allowed_category_ids.length) {
+        data = data.filter(c => formConfig.allowed_category_ids.includes(c.id));
+      }
       setCategories(data);
     })();
-  }, [actionId]);
+  }, [actionId, formConfig]);
 
   // --- Load objects when category changes ---
   useEffect(() => {

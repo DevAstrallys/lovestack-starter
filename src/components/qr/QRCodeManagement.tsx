@@ -100,7 +100,7 @@ export function QRCodeManagement({ locationElementId, buildingId, locationName }
   };
 
   const generateQRCodeURL = (qr: QRCode) => {
-    return `${getBaseUrl()}/qr/${qr.target_slug}`;
+    return `${getBaseUrl()}/ticket-form/${qr.target_slug}`;
   };
 
   const downloadQRCode = (qr: QRCode) => {

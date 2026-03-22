@@ -118,7 +118,7 @@ export function QRCodeTemplates({ organizationId, qrCodes = [], initialQRCodeId,
     if (qr?.target_slug) {
       return `${getEffectiveBaseUrl()}/ticket-form/${qr.target_slug}`;
     }
-    return `${getEffectiveBaseUrl()}/qr/sample`;
+    return `${getEffectiveBaseUrl()}/ticket-form/sample`;
   };
 
   const getSelectedQRLabel = (qrCodeId?: string): string | null => {

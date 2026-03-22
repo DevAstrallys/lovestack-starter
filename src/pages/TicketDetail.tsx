@@ -105,10 +105,11 @@ export function TicketDetail() {
       if (!ticketAny.first_opened_at && newStatus !== 'open') {
         updates.first_opened_at = new Date().toISOString();
       }
-      await supabase.from('tickets').update(updates).eq('id', ticket.id);
+      await updateTicketService(ticket.id, updates);
       toast.success('Statut mis à jour');
       refresh();
-    } catch {
+    } catch (err) {
+      log.error('Failed to update status', err);
       toast.error('Erreur');
     }
   };

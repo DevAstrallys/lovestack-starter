@@ -369,6 +369,9 @@ export function TicketForm() {
     const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
     const locationName = qrCode?._elName || qrCode?._grName || qrCode?._enName || null;
 
+    // Generate tracking code BEFORE creation (for guest mode)
+    const newTrackingCode = mode === 'guest' ? generateTrackingCode() : '';
+
     const ticketData: Record<string, unknown> = {
       title,
       description: desc,
@@ -405,10 +408,11 @@ export function TicketForm() {
         action_label: actionLabel,
         category_label: categoryLabel,
         object_label: objectLabel,
+        ...(newTrackingCode ? { tracking_code: newTrackingCode } : {}),
       },
     };
 
-    log.info('Submitting ticket', { title, priority, source: 'qr_code' });
+    log.info('Submitting ticket', { title, priority, source: 'qr_code', mode });
 
     try {
       setSubmitting(true);

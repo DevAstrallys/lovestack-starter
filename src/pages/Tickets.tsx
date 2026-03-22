@@ -232,7 +232,7 @@ export const Tickets = () => {
         {/* Count */}
         <p className="text-xs text-muted-foreground">
           {displayedTickets.length} ticket{displayedTickets.length !== 1 ? 's' : ''} trouvé{displayedTickets.length !== 1 ? 's' : ''}
-          {selectedBuildingId && ` (filtré par site)`}
+          {selectedEnsembleId && ` (filtré par site)`}
           {loading && ' · Chargement...'}
         </p>
 

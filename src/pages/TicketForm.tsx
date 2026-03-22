@@ -429,11 +429,12 @@ export function TicketForm() {
   }, [qrCode?.organization_id, categoryId, duplicatesChecked]);
 
   const handleFollowTicket = async (ticketId: string) => {
-    if (!email) {
-      toast({ title: 'Renseignez votre email à l\'étape 1 pour suivre un ticket', variant: 'destructive' });
+    const user = await getCurrentUser();
+    if (!user) {
+      toast({ title: 'Connectez-vous pour suivre un ticket', variant: 'destructive' });
       return;
     }
-    const ok = await followTicket(ticketId, email, `${firstName} ${lastName}`.trim());
+    const ok = await followTicket(ticketId, user.id);
     if (ok) {
       toast({ title: 'Vous suivez ce ticket !' });
       setDuplicatesDismissed(true);

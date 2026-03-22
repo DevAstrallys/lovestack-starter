@@ -60,6 +60,7 @@ export function TicketForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [ticketShortId, setTicketShortId] = useState('');
+  const [trackingCode, setTrackingCode] = useState('');
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
 

@@ -54,7 +54,14 @@ export interface LocationEnsemble {
 }
 
 export const LocationsManagement: React.FC = () => {
-  const { selectedOrganization, loading, isplatformAdmin } = useOrganization();
+  const { selectedOrganization, setSelectedOrganization, organizations, loading, isplatformAdmin } = useOrganization();
+
+  // Auto-select first org for platform admins when none is selected
+  React.useEffect(() => {
+    if (!loading && isplatformAdmin && !selectedOrganization && organizations.length > 0) {
+      setSelectedOrganization(organizations[0]);
+    }
+  }, [loading, isplatformAdmin, selectedOrganization, organizations, setSelectedOrganization]);
 
   if (loading) {
     return (

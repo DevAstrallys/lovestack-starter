@@ -165,9 +165,9 @@ export function useQRCodeBySlug(slug: string) {
         setLoading(true);
         setError(null);
 
-        // Use the restricted public view (excludes created_by, building_id)
+        // Use the public view (no RLS) so anonymous users can access QR codes
         const { data, error: fetchError } = await supabase
-          .from('qr_codes')
+          .from('qr_codes_public')
           .select('*')
           .eq('target_slug', slug)
           .eq('is_active', true)

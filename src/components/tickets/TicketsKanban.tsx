@@ -100,6 +100,7 @@ export function TicketsKanban({
   onTicketClick,
   onStatusChange,
   loading,
+  canChangeStatus = true,
 }: TicketsKanbanProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { sendTestEmail } from '@/services/notifications';
 
 export const EmailTester = () => {
   const [email, setEmail] = useState('');
@@ -44,34 +44,15 @@ export const EmailTester = () => {
         }
       };
 
-      console.log('Sending test email with data:', emailData);
-
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: emailData
+      const data = await sendTestEmail(emailData);
+      setLastResult({ 
+        success: true, 
+        message: `Email envoyé avec succès ! ID: ${data.email_id}` 
       });
-
-      if (error) {
-        console.error('Error sending email:', error);
-        setLastResult({ 
-          success: false, 
-          message: `Erreur: ${error.message}` 
-        });
-        toast({
-          title: "Erreur d'envoi",
-          description: `Impossible d'envoyer l'email: ${error.message}`,
-          variant: "destructive"
-        });
-      } else {
-        console.log('Email sent successfully:', data);
-        setLastResult({ 
-          success: true, 
-          message: `Email envoyé avec succès ! ID: ${data.email_id}` 
-        });
-        toast({
-          title: "Email envoyé !",
-          description: "L'email de test a été envoyé avec succès",
-        });
-      }
+      toast({
+        title: "Email envoyé !",
+        description: "L'email de test a été envoyé avec succès",
+      });
     } catch (error: any) {
       console.error('Unexpected error:', error);
       setLastResult({ 

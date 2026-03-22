@@ -16,7 +16,7 @@ import { OrgLogo } from '@/components/ui/org-logo';
 import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { signOut } from '@/services/auth';
 import { toast } from 'sonner';
 import {
   LayoutDashboard,
@@ -53,9 +53,12 @@ export function AppSidebar() {
   };
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) toast.error('Erreur de déconnexion');
-    else toast.success('Déconnecté');
+    try {
+      await signOut();
+      toast.success('Déconnecté');
+    } catch {
+      toast.error('Erreur de déconnexion');
+    }
   };
 
   // Filter nav items based on admin status

@@ -18,8 +18,11 @@ import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList'
 import { TICKET_PRIORITIES, extractSubject, extractTitleBadges } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
+import { updateTicket as updateTicketService } from '@/services/tickets';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('page:ticket-detail');
 
 import { EmergencyButton } from '@/components/tickets/cockpit/EmergencyButton';
 import { SmartDispatcher } from '@/components/tickets/cockpit/SmartDispatcher';
@@ -102,10 +105,11 @@ export function TicketDetail() {
       if (!ticketAny.first_opened_at && newStatus !== 'open') {
         updates.first_opened_at = new Date().toISOString();
       }
-      await supabase.from('tickets').update(updates).eq('id', ticket.id);
+      await updateTicketService(ticket.id, updates);
       toast.success('Statut mis à jour');
       refresh();
-    } catch {
+    } catch (err) {
+      log.error('Failed to update status', err);
       toast.error('Erreur');
     }
   };
@@ -114,10 +118,11 @@ export function TicketDetail() {
     const dupId = prompt('ID du ticket original (UUID) :');
     if (!dupId?.trim()) return;
     try {
-      await supabase.from('tickets').update({ duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus } as any).eq('id', ticket.id);
+      await updateTicketService(ticket.id, { duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus } as any);
       toast.success('Marqué comme doublon');
       refresh();
-    } catch {
+    } catch (err) {
+      log.error('Failed to mark duplicate', err);
       toast.error('Erreur');
     }
   };

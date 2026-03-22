@@ -55,3 +55,11 @@ export async function getSession() {
     throw err;
   }
 }
+
+/**
+ * Subscribe to auth state changes. Returns the subscription for cleanup.
+ */
+export function onAuthStateChange(callback: Parameters<typeof supabase.auth.onAuthStateChange>[0]) {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  return subscription;
+}

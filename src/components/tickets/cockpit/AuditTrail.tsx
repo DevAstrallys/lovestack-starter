@@ -8,7 +8,7 @@ import { Ticket } from '@/hooks/useTickets';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { businessHoursBetween, slaScore, slaColor, formatBusinessHours } from '@/utils/slaUtils';
-import { supabase } from '@/integrations/supabase/client';
+import { addTicketActivity } from '@/services/tickets';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -81,7 +81,7 @@ export function AuditTrail({ ticket, activities, loading, onNoteAdded }: AuditTr
     if (!note.trim()) return;
     setSending(true);
     try {
-      await supabase.from('ticket_activities').insert({
+      await addTicketActivity({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
         activity_type: 'comment',

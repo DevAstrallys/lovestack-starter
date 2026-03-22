@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchTicketById, fetchBuildings, fetchOrganizations } from '@/services/tickets';
 import { Ticket } from '@/hooks/useTickets';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('hook:ticket');
 
 export function useTicket(id: string | undefined) {
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -12,12 +15,7 @@ export function useTicket(id: string | undefined) {
     try {
       setLoading(true);
       setError(null);
-      const { data, error: fetchError } = await supabase
-        .from('tickets')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (fetchError) throw fetchError;
+      const data = await fetchTicketById(id);
       const t: Ticket = {
         ...data,
         attachments: Array.isArray(data.attachments)
@@ -29,32 +27,25 @@ export function useTicket(id: string | undefined) {
 
       // Enrich with building & org name
       if (t.building_id) {
-        const { data: building } = await supabase
-          .from('buildings')
-          .select('name, organization_id')
-          .eq('id', t.building_id)
-          .single();
+        const buildings = await fetchBuildings([t.building_id]);
+        const building = buildings?.[0];
         if (building) {
           t.building_name = building.name;
           if (building.organization_id) {
-            const { data: org } = await supabase
-              .from('organizations')
-              .select('name')
-              .eq('id', building.organization_id)
-              .single();
-            if (org) t.organization_name = org.name;
+            const orgs = await fetchOrganizations([building.organization_id]);
+            if (orgs?.[0]) t.organization_name = orgs[0].name;
           }
         }
       }
       if (!t.organization_name && (t.organization_id || (t.meta as any)?.organization_id)) {
         const oid = t.organization_id || (t.meta as any)?.organization_id;
-        const { data: org } = await supabase.from('organizations').select('name').eq('id', oid).single();
-        if (org) t.organization_name = org.name;
+        const orgs = await fetchOrganizations([oid]);
+        if (orgs?.[0]) t.organization_name = orgs[0].name;
       }
 
       setTicket(t);
     } catch (err) {
-      console.error('Error loading ticket:', err);
+      log.error('Error loading ticket', err);
       setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
       setLoading(false);

@@ -162,17 +162,17 @@ export async function searchDuplicateTickets(params: {
 
 /* ─── Follow a ticket (join as follower) ─── */
 
-export async function followTicket(ticketId: string, email: string, name?: string) {
+export async function followTicket(ticketId: string, userId?: string) {
   try {
+    if (!userId) {
+      log.warn('Cannot follow ticket without user_id (anonymous user)', { ticketId });
+      return false;
+    }
     const { error } = await supabase
       .from('ticket_followers')
-      .insert({
-        ticket_id: ticketId,
-        follower_email: email,
-        follower_name: name || null,
-      });
+      .insert({ ticket_id: ticketId, user_id: userId });
     if (error) throw error;
-    log.info('Ticket followed', { ticketId, email });
+    log.info('Ticket followed', { ticketId, userId });
     return true;
   } catch (err) {
     log.error('Failed to follow ticket', { ticketId, error: err });

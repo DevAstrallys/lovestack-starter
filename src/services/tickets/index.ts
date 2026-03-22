@@ -22,7 +22,10 @@ export async function fetchTickets(organizationId?: string) {
   }
 }
 
-export async function updateTicketStatus(ticketId: string, status: string) {
+export async function updateTicketStatus(
+  ticketId: string,
+  status: 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed' | 'canceled'
+) {
   try {
     const { data, error } = await supabase
       .from('tickets')

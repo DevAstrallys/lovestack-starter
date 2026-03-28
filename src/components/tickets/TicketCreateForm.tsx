@@ -440,7 +440,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       initiality,
       action_code: actionId || null,
       category_id: categoryId || null,
-      object_id: objectId || null,
+      object_id: showFreeObject ? null : (objectId || null),
       reporter_name: DOMPurify.sanitize(`${lastName} ${firstName}`.trim()),
       reporter_email: email || null,
       reporter_phone: phone || null,
@@ -462,7 +462,8 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
         action_key: actionKey,
         action_label: actionLabel,
         category_label: categoryLabel,
-        object_label: objectLabel,
+        object_label: showFreeObject ? freeObject : objectLabel,
+        ...(showFreeObject ? { free_object: freeObject } : {}),
         organization_id: selectedOrganization?.id || null,
       },
     };
@@ -647,14 +648,24 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
 
           {/* 4. OBJET (select) */}
           {categoryId && (
-            <div className="space-y-2">
+             <div className="space-y-2">
               <Label>Objet *</Label>
-              <Select value={objectId || undefined} onValueChange={selectObject}>
+              <Select value={showFreeObject ? '__other__' : (objectId || undefined)} onValueChange={selectObject}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>
                 <SelectContent>
                   {filteredObjects.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                  <SelectItem value="__other__" className="text-muted-foreground italic">Autre problème…</SelectItem>
                 </SelectContent>
               </Select>
+              {showFreeObject && (
+                <Textarea
+                  placeholder="Décrivez l'objet de votre signalement…"
+                  value={freeObject}
+                  onChange={e => setFreeObject(e.target.value)}
+                  className="mt-2"
+                  rows={2}
+                />
+              )}
             </div>
           )}
 

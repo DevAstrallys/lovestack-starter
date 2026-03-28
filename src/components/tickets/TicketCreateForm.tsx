@@ -95,6 +95,8 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const [categoryLabel, setCategoryLabel] = useState('');
   const [objectId, setObjectId] = useState('');
   const [objectLabel, setObjectLabel] = useState('');
+  const [showFreeObject, setShowFreeObject] = useState(false);
+  const [freeObject, setFreeObject] = useState('');
   const [detailId, setDetailId] = useState('');
   const [detailLabel, setDetailLabel] = useState('');
   const [urgency, setUrgency] = useState(2);
@@ -206,6 +208,14 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   };
 
   const selectObject = (id: string) => {
+    if (id === '__other__') {
+      setObjectId(''); setObjectLabel('');
+      setShowFreeObject(true);
+      setFreeObject('');
+      setDetailId(''); setDetailLabel('');
+      return;
+    }
+    setShowFreeObject(false); setFreeObject('');
     const obj = filteredObjects.find(o => o.id === id);
     setObjectId(id); setObjectLabel(obj?.label || '');
     setDetailId(''); setDetailLabel('');
@@ -455,9 +465,6 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       },
     };
 
-    // *** DEBUG ALERT ***
-    alert(JSON.stringify(ticketData, null, 2));
-    console.log('[TicketCreateForm] SUBMIT PAYLOAD:', ticketData);
 
     try {
       setSubmitting(true);

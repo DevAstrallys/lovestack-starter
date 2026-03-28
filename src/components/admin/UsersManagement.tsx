@@ -455,15 +455,28 @@ export const UsersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Invite User Dialog */}
-      {selectedOrganization && (
-        <InviteUserDialog
-          isOpen={isInviteDialogOpen}
-          onClose={() => setIsInviteDialogOpen(false)}
-          organizationId={selectedOrganization.id}
-          onSuccess={fetchUsers}
-        />
-      )}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. L'utilisateur <strong>{userToDelete?.full_name || 'Sans nom'}</strong> sera
+              définitivement supprimé, ainsi que tous ses accès et memberships. Les tickets associés seront anonymisés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

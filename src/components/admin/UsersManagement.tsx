@@ -55,6 +55,7 @@ interface Membership {
 
 interface UserWithMemberships extends Profile {
   memberships: Membership[];
+  email?: string;
 }
 
 export const UsersManagement = () => {
@@ -69,6 +70,8 @@ export const UsersManagement = () => {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithMemberships | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editEmail, setEditEmail] = useState('');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [newMembershipForm, setNewMembershipForm] = useState({
     organizationId: '',
     roleId: '',
@@ -143,7 +146,27 @@ export const UsersManagement = () => {
 
   const handleEditUser = (user: UserWithMemberships) => {
     setSelectedUser(user);
+    setEditEmail('');
     setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateEmail = async () => {
+    if (!selectedUser || !editEmail) return;
+    setIsSavingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-user-email', {
+        body: { userId: selectedUser.id, newEmail: editEmail },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Email mis à jour avec succès');
+      setEditEmail('');
+    } catch (error: any) {
+      log.error('Error updating email', error);
+      toast.error(error?.message || 'Erreur lors de la mise à jour de l\'email');
+    } finally {
+      setIsSavingEmail(false);
+    }
   };
 
   const addMembership = async () => {
@@ -355,6 +378,29 @@ export const UsersManagement = () => {
           
           {selectedUser && (
             <div className="space-y-6">
+              {/* Change Email */}
+              <div>
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Mail className="h-4 w-4" /> Modifier l'adresse email
+                </h4>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Nouvelle adresse email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleUpdateEmail}
+                    disabled={isSavingEmail || !editEmail}
+                    size="sm"
+                  >
+                    {isSavingEmail ? 'Mise à jour...' : 'Modifier'}
+                  </Button>
+                </div>
+              </div>
+
               {/* Current Memberships */}
               <div>
                 <h4 className="font-medium mb-3">Memberships actuels</h4>

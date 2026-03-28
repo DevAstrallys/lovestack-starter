@@ -705,7 +705,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
           )}
 
           {/* Titre preview */}
-          {actionId && categoryId && objectId && (
+          {actionId && categoryId && (objectId || (showFreeObject && freeObject.trim())) && (
             <div className="rounded-md bg-muted p-3">
               <Label className="text-xs text-muted-foreground">Titre final du ticket</Label>
               <p className="mt-1 text-sm font-mono">{buildTitle()}</p>

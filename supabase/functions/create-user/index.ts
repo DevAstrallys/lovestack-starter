@@ -11,6 +11,8 @@ interface CreateUserRequest {
   email: string;
   password: string;
   full_name: string;
+  organizationName?: string;
+  loginUrl?: string;
 }
 
 serve(async (req) => {
@@ -19,7 +21,6 @@ serve(async (req) => {
   }
 
   try {
-    // Verify caller is authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -30,10 +31,9 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-    // Verify caller has admin role
-    const callerClient = createClient(supabaseUrl, serviceRoleKey);
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+    const callerClient = createClient(supabaseUrl, serviceRoleKey);
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -56,7 +56,7 @@ serve(async (req) => {
       .eq("is_active", true);
 
     const isAdmin = (memberships || []).some((m: any) =>
-      ["admin_platform", "super_admin", "admin"].includes(m.roles?.code)
+      ["admin_platform", "super_admin", "admin", "admin_org", "manager", "gestionnaire"].includes(m.roles?.code)
     );
 
     if (!isAdmin) {
@@ -94,6 +94,36 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Send welcome email via send-email Edge Function
+    try {
+      const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+        },
+        body: JSON.stringify({
+          to: [body.email],
+          subject: `Bienvenue sur ${body.organizationName || "la plateforme"}`,
+          template: "welcome",
+          data: {
+            name: body.full_name,
+            organizationName: body.organizationName || "la plateforme",
+            loginUrl: body.loginUrl || "#",
+            email: body.email,
+            password: body.password,
+          },
+        }),
+      });
+
+      if (!emailRes.ok) {
+        console.error("Welcome email failed:", await emailRes.text());
+      }
+    } catch (emailErr) {
+      console.error("Welcome email error:", emailErr);
     }
 
     return new Response(

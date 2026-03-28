@@ -410,7 +410,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
 
     const title = DOMPurify.sanitize(buildTitle());
     const desc = DOMPurify.sanitize(description);
-    const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
+    const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'medium' : 'low';
 
     const locationName = elements.find(e => e.id === selectedElementId)?.name
       || groups.find(g => g.id === selectedGroupId)?.name

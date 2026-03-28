@@ -186,7 +186,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
 
   const canProceed = () => {
     if (step === 1) return !!(lastName && firstName && role);
-    if (step === 2) return !!(actionId && categoryId && objectId && urgency > 0);
+    if (step === 2) return !!((actionId && categoryId && (objectId || (showFreeObject && freeObject.trim()))) && urgency > 0);
     if (step === 3) return !!description.trim() && (actionKey !== 'verifier' || !!signatureDataUrl);
     return false;
   };
@@ -195,6 +195,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     setActionId(a.id); setActionKey(a.key); setActionLabel(a.label);
     setCategoryId(''); setCategoryLabel('');
     setObjectId(''); setObjectLabel('');
+    setShowFreeObject(false); setFreeObject('');
     setDetailId(''); setDetailLabel('');
     setUrgency(2);
   };
@@ -203,6 +204,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     const cat = filteredCategories.find(c => c.id === id);
     setCategoryId(id); setCategoryLabel(cat?.label || '');
     setObjectId(''); setObjectLabel('');
+    setShowFreeObject(false); setFreeObject('');
     setDetailId(''); setDetailLabel('');
     setUrgency(2);
   };

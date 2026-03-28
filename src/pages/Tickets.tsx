@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, AlertCircle, Search, List, Columns } from 'lucide-react';
@@ -34,11 +34,32 @@ interface Ensemble {
 
 export const Tickets = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { selectedOrganization, loading: orgLoading, isplatformAdmin } = useOrganization();
   const { canViewAllOrgTickets, canViewOwnOnly, canViewAssignedOnly, canManageTicket, loading: roleLoading } = useUserTicketRole();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [filters, setFilters] = useState<ITicketFilters>({});
+
+  // Initialize filters from URL search params
+  const buildInitialFilters = (): ITicketFilters => {
+    const f: ITicketFilters = {};
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      f.status = statusParam.split(',') as any;
+    }
+    const priorityParam = searchParams.get('priority');
+    if (priorityParam) {
+      f.priority = priorityParam.split(',') as any;
+    }
+    const createdParam = searchParams.get('created');
+    if (createdParam === 'today') {
+      const today = new Date().toISOString().slice(0, 10);
+      f.dateRange = { start: `${today}T00:00:00`, end: `${today}T23:59:59` };
+    }
+    return f;
+  };
+
+  const [filters, setFilters] = useState<ITicketFilters>(buildInitialFilters);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [selectedEnsembleId, setSelectedEnsembleId] = useState<string | null>(null);
   const [ensembles, setEnsembles] = useState<Ensemble[]>([]);

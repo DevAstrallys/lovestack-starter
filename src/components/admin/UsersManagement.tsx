@@ -455,7 +455,17 @@ export const UsersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Invite User Dialog */}
+      {selectedOrganization && (
+        <InviteUserDialog
+          isOpen={isInviteDialogOpen}
+          onClose={() => setIsInviteDialogOpen(false)}
+          organizationId={selectedOrganization.id}
+          onSuccess={fetchUsers}
+        />
+      )}
+
+
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -179,7 +179,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   // --- Helpers ---
   const buildTitle = () => {
     const sc = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
-    const parts = [sc(categoryLabel), sc(objectLabel)];
+    const parts = [sc(categoryLabel), sc(showFreeObject ? freeObject : objectLabel)];
     if (detailLabel) parts.push(sc(detailLabel));
     return parts.join(' — ');
   };

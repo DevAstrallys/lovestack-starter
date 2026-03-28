@@ -55,6 +55,7 @@ interface Membership {
 
 interface UserWithMemberships extends Profile {
   memberships: Membership[];
+  email?: string;
 }
 
 export const UsersManagement = () => {

@@ -534,7 +534,7 @@ export function TicketForm() {
     const user = await getCurrentUser();
     const title = DOMPurify.sanitize(buildTitle());
     const desc = DOMPurify.sanitize(description);
-    const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'normal' : 'low';
+    const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'medium' : 'low';
 
     // Location resolution
     let locationPayload: Record<string, any> = {};

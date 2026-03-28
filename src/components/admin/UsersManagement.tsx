@@ -21,6 +21,10 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('admin:users');
 import { InviteUserDialog } from '@/components/locations/InviteUserDialog';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { UserCompanyAffiliations } from './UserCompanyAffiliations';

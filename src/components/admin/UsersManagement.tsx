@@ -378,6 +378,29 @@ export const UsersManagement = () => {
           
           {selectedUser && (
             <div className="space-y-6">
+              {/* Change Email */}
+              <div>
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <Mail className="h-4 w-4" /> Modifier l'adresse email
+                </h4>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Nouvelle adresse email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleUpdateEmail}
+                    disabled={isSavingEmail || !editEmail}
+                    size="sm"
+                  >
+                    {isSavingEmail ? 'Mise à jour...' : 'Modifier'}
+                  </Button>
+                </div>
+              </div>
+
               {/* Current Memberships */}
               <div>
                 <h4 className="font-medium mb-3">Memberships actuels</h4>

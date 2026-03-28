@@ -164,7 +164,7 @@ export function TicketForm() {
         setLoading(true);
         const data = await fetchQrCodeBySlug(slug);
         if (!data) {
-          toast({ title: 'QR Code non trouvé', variant: 'destructive' });
+          toast({ title: 'Ce lien a expiré', description: 'Ce QR Code a été remplacé par une version plus récente. Veuillez scanner le nouveau QR Code.', variant: 'destructive' });
           return;
         }
         setQrCode(data);

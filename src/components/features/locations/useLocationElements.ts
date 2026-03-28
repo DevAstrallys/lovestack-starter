@@ -136,8 +136,16 @@ export function useLocationElements(organizationId: string) {
 
   const generateQRCode = async (elementId: string, elementName: string) => {
     try {
+      if (!organizationId) {
+        log.warn('generateQRCode: no organizationId', { elementId });
+        toast({ title: 'Erreur', description: 'Organisation non sélectionnée. Veuillez sélectionner une organisation.', variant: 'destructive' });
+        return;
+      }
+
       const element = elements.find((e) => e.id === elementId);
       const locationData = element?.location_data as any;
+
+      log.info('generateQRCode: calling service', { elementId, organizationId });
 
       const data = await createQRCodeService({
         location_element_id: elementId,

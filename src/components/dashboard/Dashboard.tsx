@@ -76,10 +76,10 @@ function useKpiData(orgId: string | null): { kpi: KpiData; loading: boolean } {
 }
 
 const KPI_CARDS = [
-  { key: 'openCount' as const, label: 'Tickets ouverts', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { key: 'urgentCount' as const, label: 'Urgences en cours', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
-  { key: 'todayCount' as const, label: 'Créés aujourd\'hui', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
-  { key: 'closeRate' as const, label: 'Taux de clôture', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', suffix: '%' },
+  { key: 'openCount' as const, label: 'Tickets ouverts', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', href: '/tickets?status=open,in_progress,waiting' },
+  { key: 'urgentCount' as const, label: 'Urgences en cours', icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', href: '/tickets?priority=urgent' },
+  { key: 'todayCount' as const, label: 'Créés aujourd\'hui', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50', href: '/tickets?created=today' },
+  { key: 'closeRate' as const, label: 'Taux de clôture', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', suffix: '%', href: '/tickets?status=closed,resolved' },
 ];
 
 // ── Modules grid ─────────────────────────────────────────────────────
@@ -111,18 +111,23 @@ export const Dashboard = () => {
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {KPI_CARDS.map(({ key, label, icon: Icon, color, bg, suffix }) => (
-          <Card key={key} className="border border-border/60 shadow-sm">
-            <CardContent className="p-5 flex items-center gap-4">
+        {KPI_CARDS.map(({ key, label, icon: Icon, color, bg, suffix, href }) => (
+          <Card
+            key={key}
+            className="group border border-border/60 shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            onClick={() => navigate(href)}
+          >
+            <CardContent className="p-5 flex items-center gap-4 relative">
               <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl ${bg}`}>
                 <Icon className={`h-5 w-5 ${color}`} />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-2xl font-bold tracking-tight">
                   {kpiLoading ? '—' : `${kpi[key]}${suffix || ''}`}
                 </p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-4 bottom-4" />
             </CardContent>
           </Card>
         ))}

@@ -176,6 +176,11 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
     return options;
   };
 
+  const generateTempPassword = () => {
+    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
+    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
+
   const onSubmit = async (data: z.infer<typeof userSchema>) => {
     if (userRoles.length === 0) {
       toast({
@@ -188,42 +193,89 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
 
     setIsLoading(true);
     try {
-      // For now, we'll create a temporary user ID since we can't create actual auth users
-      // In a real app, this would involve sending an invitation email
-      const tempUserId = crypto.randomUUID();
-      
-      // Create user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: tempUserId,
-          full_name: `${data.firstName} ${data.lastName}`,
-          phone: data.phone,
-        })
-        .select()
-        .maybeSingle();
+      const fullName = `${data.firstName} ${data.lastName}`;
+      const tempPassword = generateTempPassword();
 
-      if (profileError) throw profileError;
+      // Fetch organization name for welcome email
+      let organizationName = 'la plateforme';
+      try {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', organizationId)
+          .single();
+        if (org?.name) organizationName = org.name;
+      } catch (err) {
+        log.warn('Could not fetch organization name', err);
+      }
 
-      // Create location memberships
-      const memberships = userRoles.map(userRole => ({
-        user_id: profile.id,
+      // Create real auth user via Edge Function (also sends welcome email)
+      const { data: result, error: fnError } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: data.email,
+          password: tempPassword,
+          full_name: fullName,
+          organizationName,
+          loginUrl: window.location.origin,
+        },
+      });
+
+      if (fnError) throw fnError;
+      if (result?.error) throw new Error(result.error);
+
+      const userId = result.user.id;
+
+      // Update profile with phone and communication mode
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            phone: data.phone || null,
+            communication_mode: data.communicationMode,
+          })
+          .eq('id', userId);
+      } catch (err) {
+        log.warn('Could not update profile extras', err);
+      }
+
+      // Create location memberships with the real user id
+      const membershipRows = userRoles.map(userRole => ({
+        user_id: userId,
         organization_id: organizationId,
         role_id: userRole.roleId,
         element_id: userRole.locationType === 'element' ? userRole.locationId : null,
         group_id: userRole.locationType === 'group' ? userRole.locationId : null,
         ensemble_id: userRole.locationType === 'ensemble' ? userRole.locationId : null,
+        expires_at: userRole.expiresAt || null,
       }));
 
       const { error: membershipsError } = await supabase
         .from('location_memberships')
-        .insert(memberships);
+        .insert(membershipRows);
 
       if (membershipsError) throw membershipsError;
 
       toast({
-        title: "Succès",
-        description: "Utilisateur invité avec succès",
+        title: "Utilisateur invité avec succès",
+        description: (
+          <div className="mt-2 space-y-2">
+            <p>Un email de bienvenue a été envoyé à <strong>{data.email}</strong></p>
+            <div className="flex items-center gap-2 rounded bg-muted p-2 font-mono text-xs">
+              <span>Mot de passe : {tempPassword}</span>
+              <button
+                type="button"
+                className="ml-auto"
+                onClick={() => {
+                  navigator.clipboard.writeText(tempPassword);
+                  toast({ title: "Copié !", description: "Mot de passe copié dans le presse-papier" });
+                }}
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ),
+        duration: 30000,
       });
 
       onSuccess();
@@ -231,7 +283,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       form.reset();
       setUserRoles([]);
     } catch (error) {
-      console.error('Error inviting user:', error);
+      log.error('Error inviting user', error);
       toast({
         title: "Erreur",
         description: "Impossible d'inviter l'utilisateur",

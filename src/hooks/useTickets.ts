@@ -118,8 +118,6 @@ export function useTickets(filters: TicketFilters = {}) {
 
       // Organization filtering
       if (filters.organizationId) {
-        const buildings = await fetchBuildings([]);
-        // Need to query buildings by org — use supabase directly for complex filtering
         const { data: orgBuildings } = await supabase
           .from('buildings')
           .select('id')
@@ -129,12 +127,10 @@ export function useTickets(filters: TicketFilters = {}) {
 
         if (buildingIds.length > 0) {
           query = query.or(
-            `building_id.in.(${buildingIds.join(',')}),and(source.eq.qr_code,meta->>organization_id.eq.${filters.organizationId})`
+            `organization_id.eq.${filters.organizationId},building_id.in.(${buildingIds.join(',')})`
           );
         } else {
-          query = query
-            .eq('source', 'qr_code')
-            .contains('meta', { organization_id: filters.organizationId });
+          query = query.eq('organization_id', filters.organizationId);
         }
       }
 

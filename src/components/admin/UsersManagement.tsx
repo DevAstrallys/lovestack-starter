@@ -146,7 +146,27 @@ export const UsersManagement = () => {
 
   const handleEditUser = (user: UserWithMemberships) => {
     setSelectedUser(user);
+    setEditEmail('');
     setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateEmail = async () => {
+    if (!selectedUser || !editEmail) return;
+    setIsSavingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-user-email', {
+        body: { userId: selectedUser.id, newEmail: editEmail },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Email mis à jour avec succès');
+      setEditEmail('');
+    } catch (error: any) {
+      log.error('Error updating email', error);
+      toast.error(error?.message || 'Erreur lors de la mise à jour de l\'email');
+    } finally {
+      setIsSavingEmail(false);
+    }
   };
 
   const addMembership = async () => {

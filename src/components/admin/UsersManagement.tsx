@@ -196,6 +196,26 @@ export const UsersManagement = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Utilisateur supprimé avec succès');
+      fetchUsers();
+    } catch (error: any) {
+      log.error('Error deleting user', error);
+      toast.error(error?.message || 'Erreur lors de la suppression');
+    } finally {
+      setIsDeleting(false);
+      setUserToDelete(null);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center">Chargement...</div>;
   }

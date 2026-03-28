@@ -59,6 +59,8 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
   const [selectedLocationType, setSelectedLocationType] = useState<string>('all');
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {

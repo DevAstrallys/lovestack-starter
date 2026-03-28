@@ -95,6 +95,8 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const [categoryLabel, setCategoryLabel] = useState('');
   const [objectId, setObjectId] = useState('');
   const [objectLabel, setObjectLabel] = useState('');
+  const [showFreeObject, setShowFreeObject] = useState(false);
+  const [freeObject, setFreeObject] = useState('');
   const [detailId, setDetailId] = useState('');
   const [detailLabel, setDetailLabel] = useState('');
   const [urgency, setUrgency] = useState(2);
@@ -177,14 +179,14 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   // --- Helpers ---
   const buildTitle = () => {
     const sc = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
-    const parts = [sc(categoryLabel), sc(objectLabel)];
+    const parts = [sc(categoryLabel), sc(showFreeObject ? freeObject : objectLabel)];
     if (detailLabel) parts.push(sc(detailLabel));
     return parts.join(' — ');
   };
 
   const canProceed = () => {
     if (step === 1) return !!(lastName && firstName && role);
-    if (step === 2) return !!(actionId && categoryId && objectId && urgency > 0);
+    if (step === 2) return !!((actionId && categoryId && (objectId || (showFreeObject && freeObject.trim()))) && urgency > 0);
     if (step === 3) return !!description.trim() && (actionKey !== 'verifier' || !!signatureDataUrl);
     return false;
   };
@@ -193,6 +195,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     setActionId(a.id); setActionKey(a.key); setActionLabel(a.label);
     setCategoryId(''); setCategoryLabel('');
     setObjectId(''); setObjectLabel('');
+    setShowFreeObject(false); setFreeObject('');
     setDetailId(''); setDetailLabel('');
     setUrgency(2);
   };
@@ -201,11 +204,20 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     const cat = filteredCategories.find(c => c.id === id);
     setCategoryId(id); setCategoryLabel(cat?.label || '');
     setObjectId(''); setObjectLabel('');
+    setShowFreeObject(false); setFreeObject('');
     setDetailId(''); setDetailLabel('');
     setUrgency(2);
   };
 
   const selectObject = (id: string) => {
+    if (id === '__other__') {
+      setObjectId(''); setObjectLabel('');
+      setShowFreeObject(true);
+      setFreeObject('');
+      setDetailId(''); setDetailLabel('');
+      return;
+    }
+    setShowFreeObject(false); setFreeObject('');
     const obj = filteredObjects.find(o => o.id === id);
     setObjectId(id); setObjectLabel(obj?.label || '');
     setDetailId(''); setDetailLabel('');
@@ -428,7 +440,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       initiality,
       action_code: actionId || null,
       category_id: categoryId || null,
-      object_id: objectId || null,
+      object_id: showFreeObject ? null : (objectId || null),
       reporter_name: DOMPurify.sanitize(`${lastName} ${firstName}`.trim()),
       reporter_email: email || null,
       reporter_phone: phone || null,
@@ -450,14 +462,12 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
         action_key: actionKey,
         action_label: actionLabel,
         category_label: categoryLabel,
-        object_label: objectLabel,
+        object_label: showFreeObject ? freeObject : objectLabel,
+        ...(showFreeObject ? { free_object: freeObject } : {}),
         organization_id: selectedOrganization?.id || null,
       },
     };
 
-    // *** DEBUG ALERT ***
-    alert(JSON.stringify(ticketData, null, 2));
-    console.log('[TicketCreateForm] SUBMIT PAYLOAD:', ticketData);
 
     try {
       setSubmitting(true);
@@ -638,14 +648,24 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
 
           {/* 4. OBJET (select) */}
           {categoryId && (
-            <div className="space-y-2">
+             <div className="space-y-2">
               <Label>Objet *</Label>
-              <Select value={objectId || undefined} onValueChange={selectObject}>
+              <Select value={showFreeObject ? '__other__' : (objectId || undefined)} onValueChange={selectObject}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>
                 <SelectContent>
                   {filteredObjects.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                  <SelectItem value="__other__" className="text-muted-foreground italic">Autre problème…</SelectItem>
                 </SelectContent>
               </Select>
+              {showFreeObject && (
+                <Textarea
+                  placeholder="Décrivez l'objet de votre signalement…"
+                  value={freeObject}
+                  onChange={e => setFreeObject(e.target.value)}
+                  className="mt-2"
+                  rows={2}
+                />
+              )}
             </div>
           )}
 
@@ -663,7 +683,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
           )}
 
           {/* 5. URGENCE (pastilles) */}
-          {objectId && (
+          {(objectId || showFreeObject) && (
             <div className="space-y-2">
               <Label>Niveau d'urgence *</Label>
               <div className="space-y-2">
@@ -685,7 +705,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
           )}
 
           {/* Titre preview */}
-          {actionId && categoryId && objectId && (
+          {actionId && categoryId && (objectId || (showFreeObject && freeObject.trim())) && (
             <div className="rounded-md bg-muted p-3">
               <Label className="text-xs text-muted-foreground">Titre final du ticket</Label>
               <p className="mt-1 text-sm font-mono">{buildTitle()}</p>

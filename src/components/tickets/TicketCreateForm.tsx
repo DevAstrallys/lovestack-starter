@@ -683,7 +683,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
           )}
 
           {/* 5. URGENCE (pastilles) */}
-          {objectId && (
+          {(objectId || showFreeObject) && (
             <div className="space-y-2">
               <Label>Niveau d'urgence *</Label>
               <div className="space-y-2">

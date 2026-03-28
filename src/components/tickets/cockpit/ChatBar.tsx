@@ -68,17 +68,23 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
           await updateTicket(ticket.id, { first_responded_at: new Date().toISOString() } as any);
         }
 
-        // Send email via notifications service
-        await sendEmail({
-          template: 'reply',
-          to: [ticket.reporter_email!],
-          data: {
-            ticketTitle: ticket.title,
-            replyContent: content.trim(),
-            replierName: user?.user_metadata?.full_name || "L'équipe support",
-            ticketId: ticket.id,
-          },
-        });
+        // Send email separately — never block the activity
+        try {
+          await sendEmail({
+            template: 'reply',
+            to: [ticket.reporter_email!],
+            data: {
+              ticketTitle: ticket.title,
+              replyContent: content.trim(),
+              replierName: user?.user_metadata?.full_name || "L'équipe support",
+              ticketId: ticket.id,
+            },
+          });
+        } catch (emailErr) {
+          log.error('Email send failed (activity saved)', emailErr);
+          toast.warning('Message enregistré mais email non envoyé');
+        }
+
         toast.success('Réponse envoyée');
       }
       setContent('');

@@ -21,6 +21,10 @@ import {
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('admin:users');
 import { InviteUserDialog } from '@/components/locations/InviteUserDialog';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { UserCompanyAffiliations } from './UserCompanyAffiliations';
@@ -63,6 +67,8 @@ export const UsersManagement = () => {
   const [selectedUser, setSelectedUser] = useState<UserWithMemberships | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithMemberships | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newMembershipForm, setNewMembershipForm] = useState({
     organizationId: '',
     roleId: '',
@@ -190,6 +196,26 @@ export const UsersManagement = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Utilisateur supprimé avec succès');
+      fetchUsers();
+    } catch (error: any) {
+      log.error('Error deleting user', error);
+      toast.error(error?.message || 'Erreur lors de la suppression');
+    } finally {
+      setIsDeleting(false);
+      setUserToDelete(null);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center">Chargement...</div>;
   }
@@ -292,13 +318,23 @@ export const UsersManagement = () => {
                     {new Date(user.created_at).toLocaleDateString('fr-FR')}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setUserToDelete(user)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -428,6 +464,29 @@ export const UsersManagement = () => {
           onSuccess={fetchUsers}
         />
       )}
+
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. L'utilisateur <strong>{userToDelete?.full_name || 'Sans nom'}</strong> sera
+              définitivement supprimé, ainsi que tous ses accès et memberships. Les tickets associés seront anonymisés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

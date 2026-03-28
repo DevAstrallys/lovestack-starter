@@ -6,9 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, Users, Mail, Shield, Search, X, UserCheck } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { UserPlus, Users, Mail, Shield, Search, X, UserCheck, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('locations:users');
 import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
 import { InviteUserDialog } from './InviteUserDialog';
 import { RoleRequestsTab } from './RoleRequestsTab';
@@ -55,6 +59,8 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
   const [selectedLocationType, setSelectedLocationType] = useState<string>('all');
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -205,6 +211,33 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
 
   const handleRefresh = () => {
     fetchUsers();
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Utilisateur supprimé',
+        description: `${userToDelete.full_name || 'L\'utilisateur'} a été supprimé avec succès.`,
+      });
+      fetchUsers();
+    } catch (error: any) {
+      log.error('Error deleting user', error);
+      toast({
+        title: 'Erreur',
+        description: error?.message || 'Impossible de supprimer l\'utilisateur',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setUserToDelete(null);
+    }
   };
 
   const filteredUsers = users.filter(user => {
@@ -367,9 +400,19 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm">
-                              Gérer
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="outline" size="sm">
+                                Gérer
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setUserToDelete(user)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -411,6 +454,29 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
         organizationId={organizationId}
         onSuccess={handleRefresh}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. L'utilisateur <strong>{userToDelete?.full_name || 'Utilisateur'}</strong> sera
+              définitivement supprimé, ainsi que tous ses accès. Les tickets associés seront anonymisés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

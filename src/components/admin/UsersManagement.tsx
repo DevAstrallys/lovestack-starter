@@ -70,6 +70,8 @@ export const UsersManagement = () => {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithMemberships | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editEmail, setEditEmail] = useState('');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [newMembershipForm, setNewMembershipForm] = useState({
     organizationId: '',
     roleId: '',

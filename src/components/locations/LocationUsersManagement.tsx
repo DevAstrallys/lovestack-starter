@@ -13,7 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('locations:users');
-import { useToast } from '@/hooks/use-toast';
 import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
 import { InviteUserDialog } from './InviteUserDialog';
 import { RoleRequestsTab } from './RoleRequestsTab';

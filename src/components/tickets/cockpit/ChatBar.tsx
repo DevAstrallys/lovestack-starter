@@ -53,7 +53,6 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
           toast.error('Aucun email de demandeur');
           return;
         }
-
         await addTicketActivity({
           ticket_id: ticket.id,
           actor_id: user?.id || null,
@@ -61,14 +60,10 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
           content: content.trim(),
           metadata: { direction: 'outbound', sent_to: ticket.reporter_email },
         });
-
-        // Record first_responded_at
         const ticketAny = ticket as any;
         if (!ticketAny.first_responded_at) {
           await updateTicket(ticket.id, { first_responded_at: new Date().toISOString() } as any);
         }
-
-        // Send email separately — never block the activity
         try {
           await sendEmail({
             template: 'reply',
@@ -81,10 +76,9 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
             },
           });
         } catch (emailErr) {
-          log.error('Email send failed (activity saved)', emailErr);
+          log.error('Email send failed', emailErr);
           toast.warning('Message enregistré mais email non envoyé');
         }
-
         toast.success('Réponse envoyée');
       }
       setContent('');

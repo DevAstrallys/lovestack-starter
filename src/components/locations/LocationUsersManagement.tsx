@@ -213,6 +213,33 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
     fetchUsers();
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Utilisateur supprimé',
+        description: `${userToDelete.full_name || 'L\'utilisateur'} a été supprimé avec succès.`,
+      });
+      fetchUsers();
+    } catch (error: any) {
+      log.error('Error deleting user', error);
+      toast({
+        title: 'Erreur',
+        description: error?.message || 'Impossible de supprimer l\'utilisateur',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setUserToDelete(null);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.full_name?.toLowerCase().includes(searchTerm.toLowerCase());

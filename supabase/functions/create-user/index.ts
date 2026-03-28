@@ -106,7 +106,7 @@ serve(async (req) => {
           apikey: serviceRoleKey,
         },
         body: JSON.stringify({
-          to: body.email,
+          to: [body.email],
           subject: `Bienvenue sur ${body.organizationName || "la plateforme"}`,
           template: "welcome",
           data: {

@@ -282,11 +282,12 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       onClose();
       form.reset();
       setUserRoles([]);
-    } catch (error) {
+    } catch (error: any) {
+      const errMsg = error?.message || error?.error_description || JSON.stringify(error);
       log.error('Error inviting user', error);
       toast({
         title: "Erreur",
-        description: "Impossible d'inviter l'utilisateur",
+        description: errMsg || "Impossible d'inviter l'utilisateur",
         variant: "destructive",
       });
     } finally {

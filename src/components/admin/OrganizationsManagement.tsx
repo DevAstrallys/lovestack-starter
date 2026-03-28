@@ -16,7 +16,7 @@ import {
   DialogTrigger 
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building2, Plus, Edit, X, Search } from 'lucide-react';
+import { Building2, Plus, Edit, X, Search, UserPlus, Copy, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { createLogger } from '@/lib/logger';
 
@@ -42,7 +42,13 @@ interface OrgWithAdmin extends Organization {
 interface ProfileResult {
   id: string;
   full_name: string | null;
-  email?: string;
+}
+
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let pw = '';
+  for (let i = 0; i < 12; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  return pw;
 }
 
 export const OrganizationsManagement = () => {
@@ -51,12 +57,7 @@ export const OrganizationsManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    address: '',
-    zip_code: '',
-    city: '',
-    country: 'FR'
+    name: '', description: '', address: '', zip_code: '', city: '', country: 'FR'
   });
 
   // Admin search state
@@ -65,16 +66,21 @@ export const OrganizationsManagement = () => {
   const [selectedAdmin, setSelectedAdmin] = useState<ProfileResult | null>(null);
   const [searchingAdmin, setSearchingAdmin] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [searchDone, setSearchDone] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // Inline user creation state
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUserData, setNewUserData] = useState({ firstName: '', lastName: '', email: '' });
+  const [tempPassword, setTempPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchOrganizations();
-  }, []);
+  useEffect(() => { fetchOrganizations(); }, []);
 
-  // Close results dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (resultsRef.current && !resultsRef.current.contains(e.target as Node)) {
@@ -94,7 +100,6 @@ export const OrganizationsManagement = () => {
 
       if (error) throw error;
 
-      // Fetch admin names for each org
       const orgsWithAdmin: OrgWithAdmin[] = [];
       for (const org of orgs || []) {
         const { data: membership } = await supabase
@@ -120,11 +125,7 @@ export const OrganizationsManagement = () => {
       setOrganizations(orgsWithAdmin);
     } catch (error) {
       log.error('Error fetching organizations', { error });
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les organisations",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: "Impossible de charger les organisations", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -134,6 +135,7 @@ export const OrganizationsManagement = () => {
     if (query.length < 2) {
       setAdminResults([]);
       setShowResults(false);
+      setSearchDone(false);
       return;
     }
     setSearchingAdmin(true);
@@ -147,6 +149,7 @@ export const OrganizationsManagement = () => {
       if (error) throw error;
       setAdminResults(data || []);
       setShowResults(true);
+      setSearchDone(true);
     } catch (err) {
       log.error('Error searching users', { error: err });
     } finally {
@@ -156,8 +159,68 @@ export const OrganizationsManagement = () => {
 
   const handleAdminSearchChange = (value: string) => {
     setAdminSearch(value);
+    setShowCreateUser(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => searchUsers(value), 300);
+  };
+
+  const handleOpenCreateUser = () => {
+    setShowCreateUser(true);
+    setShowResults(false);
+    setTempPassword(generateTempPassword());
+    setNewUserData({ firstName: '', lastName: '', email: '' });
+    setShowPassword(false);
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserData.email || !newUserData.firstName) {
+      toast({ title: "Champs requis", description: "Prénom et email sont obligatoires", variant: "destructive" });
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      const fullName = `${newUserData.firstName} ${newUserData.lastName}`.trim();
+      
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: newUserData.email,
+          password: tempPassword,
+          full_name: fullName,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const createdUser: ProfileResult = {
+        id: data.user.id,
+        full_name: fullName,
+      };
+
+      setSelectedAdmin(createdUser);
+      setShowCreateUser(false);
+      setAdminSearch('');
+
+      toast({
+        title: "Utilisateur créé",
+        description: `Mot de passe temporaire : ${tempPassword}`,
+        duration: 15000,
+      });
+
+      // Copy password to clipboard
+      try {
+        await navigator.clipboard.writeText(tempPassword);
+        toast({ title: "Copié", description: "Mot de passe copié dans le presse-papiers" });
+      } catch {
+        // clipboard may not be available
+      }
+    } catch (err: any) {
+      log.error('Error creating user', { error: err });
+      toast({ title: "Erreur", description: err?.message || "Impossible de créer l'utilisateur", variant: "destructive" });
+    } finally {
+      setCreatingUser(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,42 +231,30 @@ export const OrganizationsManagement = () => {
         const { error } = await supabase
           .from('organizations')
           .update({
-            name: formData.name,
-            description: formData.description,
-            address: formData.address,
-            zip_code: formData.zip_code,
-            city: formData.city,
-            country: formData.country,
+            name: formData.name, description: formData.description,
+            address: formData.address, zip_code: formData.zip_code,
+            city: formData.city, country: formData.country,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingOrg.id);
 
         if (error) throw error;
-        
-        toast({
-          title: "Organisation mise à jour",
-          description: "L'organisation a été mise à jour avec succès",
-        });
+        toast({ title: "Organisation mise à jour", description: "L'organisation a été mise à jour avec succès" });
       } else {
         const { data: newOrg, error } = await supabase
           .from('organizations')
           .insert({
-            name: formData.name,
-            description: formData.description,
-            address: formData.address,
-            zip_code: formData.zip_code,
-            city: formData.city,
-            country: formData.country
+            name: formData.name, description: formData.description,
+            address: formData.address, zip_code: formData.zip_code,
+            city: formData.city, country: formData.country
           })
           .select()
           .single();
 
         if (error) throw error;
 
-        // Assign admin if selected
         if (selectedAdmin && newOrg) {
           try {
-            // Find admin_org role
             let { data: role } = await supabase
               .from('roles')
               .select('id')
@@ -232,11 +283,7 @@ export const OrganizationsManagement = () => {
 
               if (memberError) {
                 log.error('Failed to create admin membership', { error: memberError });
-                toast({
-                  title: "Attention",
-                  description: "Organisation créée mais l'attribution du rôle admin a échoué",
-                  variant: "destructive",
-                });
+                toast({ title: "Attention", description: "Organisation créée mais l'attribution du rôle admin a échoué", variant: "destructive" });
               }
             }
           } catch (adminErr) {
@@ -244,10 +291,7 @@ export const OrganizationsManagement = () => {
           }
         }
         
-        toast({
-          title: "Organisation créée",
-          description: "La nouvelle organisation a été créée avec succès",
-        });
+        toast({ title: "Organisation créée", description: "La nouvelle organisation a été créée avec succès" });
       }
 
       resetForm();
@@ -255,26 +299,20 @@ export const OrganizationsManagement = () => {
       fetchOrganizations();
     } catch (error) {
       log.error('Error saving organization', { error });
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder l'organisation",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: "Impossible de sauvegarder l'organisation", variant: "destructive" });
     }
   };
 
   const handleEdit = (org: Organization) => {
     setEditingOrg(org);
     setFormData({
-      name: org.name,
-      description: org.description || '',
-      address: org.address || '',
-      zip_code: org.zip_code || '',
-      city: org.city || '',
-      country: org.country || 'FR'
+      name: org.name, description: org.description || '',
+      address: org.address || '', zip_code: org.zip_code || '',
+      city: org.city || '', country: org.country || 'FR'
     });
     setSelectedAdmin(null);
     setAdminSearch('');
+    setShowCreateUser(false);
     setIsDialogOpen(true);
   };
 
@@ -282,27 +320,15 @@ export const OrganizationsManagement = () => {
     try {
       const { error } = await supabase
         .from('organizations')
-        .update({ 
-          is_active: !org.is_active,
-          updated_at: new Date().toISOString()
-        })
+        .update({ is_active: !org.is_active, updated_at: new Date().toISOString() })
         .eq('id', org.id);
 
       if (error) throw error;
-      
-      toast({
-        title: "Statut mis à jour",
-        description: `L'organisation a été ${!org.is_active ? 'activée' : 'désactivée'}`,
-      });
-      
+      toast({ title: "Statut mis à jour", description: `L'organisation a été ${!org.is_active ? 'activée' : 'désactivée'}` });
       fetchOrganizations();
     } catch (error) {
       log.error('Error updating organization status', { error });
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier le statut",
-        variant: "destructive",
-      });
+      toast({ title: "Erreur", description: "Impossible de modifier le statut", variant: "destructive" });
     }
   };
 
@@ -312,6 +338,8 @@ export const OrganizationsManagement = () => {
     setSelectedAdmin(null);
     setAdminSearch('');
     setAdminResults([]);
+    setShowCreateUser(false);
+    setSearchDone(false);
   };
 
   if (loading) {
@@ -339,14 +367,14 @@ export const OrganizationsManagement = () => {
                   <span>Nouvelle Organisation</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingOrg ? 'Modifier l\'organisation' : 'Nouvelle organisation'}
+                    {editingOrg ? "Modifier l'organisation" : 'Nouvelle organisation'}
                   </DialogTitle>
                   <DialogDescription>
                     {editingOrg 
-                      ? 'Modifiez les informations de l\'organisation'
+                      ? "Modifiez les informations de l'organisation"
                       : 'Créez une nouvelle organisation pour vos clients'
                     }
                   </DialogDescription>
@@ -421,16 +449,13 @@ export const OrganizationsManagement = () => {
                             <span className="text-sm flex-1">{selectedAdmin.full_name || 'Sans nom'}</span>
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedAdmin(null);
-                                setAdminSearch('');
-                              }}
+                              onClick={() => { setSelectedAdmin(null); setAdminSearch(''); setShowCreateUser(false); }}
                               className="text-muted-foreground hover:text-foreground"
                             >
                               <X className="h-4 w-4" />
                             </button>
                           </div>
-                        ) : (
+                        ) : !showCreateUser ? (
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -457,11 +482,104 @@ export const OrganizationsManagement = () => {
                                 ))}
                               </div>
                             )}
-                            {showResults && adminSearch.length >= 2 && adminResults.length === 0 && !searchingAdmin && (
-                              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md px-3 py-2 text-sm text-muted-foreground">
-                                Aucun utilisateur trouvé
+                            {/* No results → show create button */}
+                            {searchDone && adminSearch.length >= 2 && adminResults.length === 0 && !searchingAdmin && (
+                              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                                <div className="px-3 py-2 text-sm text-muted-foreground">
+                                  Aucun utilisateur trouvé
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={handleOpenCreateUser}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-primary hover:bg-accent transition-colors border-t"
+                                >
+                                  <UserPlus className="h-4 w-4" />
+                                  Créer cet utilisateur
+                                </button>
                               </div>
                             )}
+                          </div>
+                        ) : (
+                          /* Inline user creation form */
+                          <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Nouvel utilisateur</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowCreateUser(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Prénom *</Label>
+                                <Input
+                                  value={newUserData.firstName}
+                                  onChange={(e) => setNewUserData(prev => ({ ...prev, firstName: e.target.value }))}
+                                  placeholder="Jean"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Nom</Label>
+                                <Input
+                                  value={newUserData.lastName}
+                                  onChange={(e) => setNewUserData(prev => ({ ...prev, lastName: e.target.value }))}
+                                  placeholder="Dupont"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Email *</Label>
+                              <Input
+                                type="email"
+                                value={newUserData.email}
+                                onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                                placeholder="jean.dupont@email.com"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Mot de passe temporaire</Label>
+                              <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                  <Input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={tempPassword}
+                                    readOnly
+                                    className="pr-10 font-mono text-xs"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                  </button>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(tempPassword);
+                                    toast({ title: "Copié", description: "Mot de passe copié" });
+                                  }}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={handleCreateUser}
+                              disabled={creatingUser}
+                              className="w-full"
+                            >
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              {creatingUser ? 'Création...' : 'Créer et sélectionner'}
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -515,9 +633,7 @@ export const OrganizationsManagement = () => {
                         <div className="text-sm">
                           {org.address && <div>{org.address}</div>}
                           {(org.zip_code || org.city) && (
-                            <div className="text-muted-foreground">
-                              {org.zip_code} {org.city}
-                            </div>
+                            <div className="text-muted-foreground">{org.zip_code} {org.city}</div>
                           )}
                           {!org.address && !org.zip_code && !org.city && (
                             <span className="text-muted-foreground">Aucune adresse</span>
@@ -537,11 +653,7 @@ export const OrganizationsManagement = () => {
                         {new Date(org.created_at).toLocaleDateString('fr-FR')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(org)}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(org)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       </TableCell>

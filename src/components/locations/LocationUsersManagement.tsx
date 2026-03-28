@@ -400,9 +400,19 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm">
-                              Gérer
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="outline" size="sm">
+                                Gérer
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setUserToDelete(user)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

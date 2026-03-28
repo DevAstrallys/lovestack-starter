@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +16,11 @@ import {
   DialogTrigger 
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building2, Plus, Edit, Users, MapPin } from 'lucide-react';
+import { Building2, Plus, Edit, X, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('admin:organizations');
 
 interface Organization {
   id: string;
@@ -32,8 +35,18 @@ interface Organization {
   updated_at: string;
 }
 
+interface OrgWithAdmin extends Organization {
+  admin_name?: string | null;
+}
+
+interface ProfileResult {
+  id: string;
+  full_name: string | null;
+  email?: string;
+}
+
 export const OrganizationsManagement = () => {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizations, setOrganizations] = useState<OrgWithAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
@@ -45,23 +58,68 @@ export const OrganizationsManagement = () => {
     city: '',
     country: 'FR'
   });
+
+  // Admin search state
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminResults, setAdminResults] = useState<ProfileResult[]>([]);
+  const [selectedAdmin, setSelectedAdmin] = useState<ProfileResult | null>(null);
+  const [searchingAdmin, setSearchingAdmin] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const resultsRef = useRef<HTMLDivElement>(null);
+
   const { toast } = useToast();
 
   useEffect(() => {
     fetchOrganizations();
   }, []);
 
+  // Close results dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (resultsRef.current && !resultsRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const fetchOrganizations = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: orgs, error } = await supabase
         .from('organizations')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setOrganizations(data || []);
+
+      // Fetch admin names for each org
+      const orgsWithAdmin: OrgWithAdmin[] = [];
+      for (const org of orgs || []) {
+        const { data: membership } = await supabase
+          .from('memberships')
+          .select('user_id, roles!inner(code)')
+          .eq('organization_id', org.id)
+          .eq('is_active', true)
+          .like('roles.code', '%admin%')
+          .limit(1);
+
+        let adminName: string | null = null;
+        if (membership && membership.length > 0) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', membership[0].user_id)
+            .single();
+          adminName = profile?.full_name || null;
+        }
+        orgsWithAdmin.push({ ...org, admin_name: adminName });
+      }
+
+      setOrganizations(orgsWithAdmin);
     } catch (error) {
-      console.error('Error fetching organizations:', error);
+      log.error('Error fetching organizations', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les organisations",
@@ -72,12 +130,41 @@ export const OrganizationsManagement = () => {
     }
   };
 
+  const searchUsers = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setAdminResults([]);
+      setShowResults(false);
+      return;
+    }
+    setSearchingAdmin(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .ilike('full_name', `%${query}%`)
+        .limit(10);
+
+      if (error) throw error;
+      setAdminResults(data || []);
+      setShowResults(true);
+    } catch (err) {
+      log.error('Error searching users', { error: err });
+    } finally {
+      setSearchingAdmin(false);
+    }
+  }, []);
+
+  const handleAdminSearchChange = (value: string) => {
+    setAdminSearch(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => searchUsers(value), 300);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (editingOrg) {
-        // Update existing organization
         const { error } = await supabase
           .from('organizations')
           .update({
@@ -98,8 +185,7 @@ export const OrganizationsManagement = () => {
           description: "L'organisation a été mise à jour avec succès",
         });
       } else {
-        // Create new organization
-        const { error } = await supabase
+        const { data: newOrg, error } = await supabase
           .from('organizations')
           .insert({
             name: formData.name,
@@ -108,9 +194,55 @@ export const OrganizationsManagement = () => {
             zip_code: formData.zip_code,
             city: formData.city,
             country: formData.country
-          });
+          })
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Assign admin if selected
+        if (selectedAdmin && newOrg) {
+          try {
+            // Find admin_org role
+            let { data: role } = await supabase
+              .from('roles')
+              .select('id')
+              .eq('code', 'admin_org')
+              .single();
+
+            if (!role) {
+              const { data: fallback } = await supabase
+                .from('roles')
+                .select('id')
+                .eq('is_platform_scope', false)
+                .ilike('code', '%admin%')
+                .limit(1);
+              role = fallback?.[0] || null;
+            }
+
+            if (role) {
+              const { error: memberError } = await supabase
+                .from('memberships')
+                .insert({
+                  user_id: selectedAdmin.id,
+                  organization_id: newOrg.id,
+                  role_id: role.id,
+                  is_active: true
+                });
+
+              if (memberError) {
+                log.error('Failed to create admin membership', { error: memberError });
+                toast({
+                  title: "Attention",
+                  description: "Organisation créée mais l'attribution du rôle admin a échoué",
+                  variant: "destructive",
+                });
+              }
+            }
+          } catch (adminErr) {
+            log.error('Error assigning admin', { error: adminErr });
+          }
+        }
         
         toast({
           title: "Organisation créée",
@@ -118,12 +250,11 @@ export const OrganizationsManagement = () => {
         });
       }
 
-      setFormData({ name: '', description: '', address: '', zip_code: '', city: '', country: 'FR' });
-      setEditingOrg(null);
+      resetForm();
       setIsDialogOpen(false);
       fetchOrganizations();
     } catch (error) {
-      console.error('Error saving organization:', error);
+      log.error('Error saving organization', { error });
       toast({
         title: "Erreur",
         description: "Impossible de sauvegarder l'organisation",
@@ -142,6 +273,8 @@ export const OrganizationsManagement = () => {
       city: org.city || '',
       country: org.country || 'FR'
     });
+    setSelectedAdmin(null);
+    setAdminSearch('');
     setIsDialogOpen(true);
   };
 
@@ -164,7 +297,7 @@ export const OrganizationsManagement = () => {
       
       fetchOrganizations();
     } catch (error) {
-      console.error('Error updating organization status:', error);
+      log.error('Error updating organization status', { error });
       toast({
         title: "Erreur",
         description: "Impossible de modifier le statut",
@@ -176,6 +309,9 @@ export const OrganizationsManagement = () => {
   const resetForm = () => {
     setFormData({ name: '', description: '', address: '', zip_code: '', city: '', country: 'FR' });
     setEditingOrg(null);
+    setSelectedAdmin(null);
+    setAdminSearch('');
+    setAdminResults([]);
   };
 
   if (loading) {
@@ -275,6 +411,61 @@ export const OrganizationsManagement = () => {
                         placeholder="FR"
                       />
                     </div>
+
+                    {/* Admin search - only on creation */}
+                    {!editingOrg && (
+                      <div className="space-y-2" ref={resultsRef}>
+                        <Label>Administrateur de l'organisation (optionnel)</Label>
+                        {selectedAdmin ? (
+                          <div className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2">
+                            <span className="text-sm flex-1">{selectedAdmin.full_name || 'Sans nom'}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedAdmin(null);
+                                setAdminSearch('');
+                              }}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              value={adminSearch}
+                              onChange={(e) => handleAdminSearchChange(e.target.value)}
+                              placeholder="Rechercher par nom..."
+                              className="pl-9"
+                            />
+                            {showResults && adminResults.length > 0 && (
+                              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
+                                {adminResults.map((p) => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                    onClick={() => {
+                                      setSelectedAdmin(p);
+                                      setAdminSearch('');
+                                      setShowResults(false);
+                                    }}
+                                  >
+                                    {p.full_name || 'Sans nom'}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {showResults && adminSearch.length >= 2 && adminResults.length === 0 && !searchingAdmin && (
+                              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md px-3 py-2 text-sm text-muted-foreground">
+                                Aucun utilisateur trouvé
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <DialogFooter>
                     <Button type="submit">
@@ -292,8 +483,8 @@ export const OrganizationsManagement = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Organisation</TableHead>
+                  <TableHead>Administrateur</TableHead>
                   <TableHead>Adresse</TableHead>
-                  <TableHead>Description</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Créée le</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -316,10 +507,13 @@ export const OrganizationsManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {org.admin_name || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
                         <div className="text-sm">
-                          {org.address && (
-                            <div>{org.address}</div>
-                          )}
+                          {org.address && <div>{org.address}</div>}
                           {(org.zip_code || org.city) && (
                             <div className="text-muted-foreground">
                               {org.zip_code} {org.city}
@@ -329,11 +523,6 @@ export const OrganizationsManagement = () => {
                             <span className="text-muted-foreground">Aucune adresse</span>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {org.description || 'Aucune description'}
-                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge 
@@ -348,15 +537,13 @@ export const OrganizationsManagement = () => {
                         {new Date(org.created_at).toLocaleDateString('fr-FR')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(org)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(org)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

@@ -27,7 +27,7 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
   const fileRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
-  const canReply = !!ticket.reporter_email;
+  const hasEmail = !!ticket.reporter_email;
 
   const QUICK_EMOJIS = ['👍', '👎', '✅', '❌', '⚠️', '🔧', '📞', '💧', '🔥', '🏠'];
 
@@ -49,37 +49,37 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
         });
         toast.success('Note privée ajoutée');
       } else {
-        if (!canReply) {
-          toast.error('Aucun email de demandeur');
-          return;
-        }
         await addTicketActivity({
           ticket_id: ticket.id,
           actor_id: user?.id || null,
           activity_type: 'reply',
           content: content.trim(),
-          metadata: { direction: 'outbound', sent_to: ticket.reporter_email },
+          metadata: { direction: 'outbound', sent_to: ticket.reporter_email || null },
         });
         const ticketAny = ticket as any;
         if (!ticketAny.first_responded_at) {
           await updateTicket(ticket.id, { first_responded_at: new Date().toISOString() } as any);
         }
-        try {
-          await sendEmail({
-            template: 'reply',
-            to: [ticket.reporter_email!],
-            data: {
-              ticketTitle: ticket.title,
-              replyContent: content.trim(),
-              replierName: user?.user_metadata?.full_name || "L'équipe support",
-              ticketId: ticket.id,
-            },
-          });
-        } catch (emailErr) {
-          log.error('Email send failed', emailErr);
-          toast.warning('Message enregistré mais email non envoyé');
+        if (hasEmail) {
+          try {
+            await sendEmail({
+              template: 'reply',
+              to: [ticket.reporter_email!],
+              data: {
+                ticketTitle: ticket.title,
+                replyContent: content.trim(),
+                replierName: user?.user_metadata?.full_name || "L'équipe support",
+                ticketId: ticket.id,
+              },
+            });
+          } catch (emailErr) {
+            log.error('Email send failed', emailErr);
+            toast.warning('Message enregistré mais email non envoyé');
+          }
+          toast.success('Réponse envoyée');
+        } else {
+          toast.success('Message enregistré');
         }
-        toast.success('Réponse envoyée');
       }
       setContent('');
       onSent?.();
@@ -199,6 +199,11 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
           <Send className="h-4 w-4" />
         </Button>
       </div>
+      {!hasEmail && !effectivePrivate && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <span>ℹ️</span> Aucun email renseigné — les réponses ne seront pas envoyées par email
+        </p>
+      )}
     </div>
   );
 }

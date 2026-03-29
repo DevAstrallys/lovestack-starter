@@ -44,7 +44,7 @@ export function TicketDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { ticket, loading, error, refresh } = useTicket(id);
-  const { activities, loading: activitiesLoading } = useTicketActivities(id || '');
+  const { activities, loading: activitiesLoading, refresh: refreshActivities } = useTicketActivities(id || '');
   const { canManageTicket, canAddPrivateNote, canMarkDuplicate, canDispatch } = useUserTicketRole();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
@@ -100,6 +100,7 @@ export function TicketDetail() {
   const handleRefresh = () => {
     setRefreshKey(k => k + 1);
     refresh();
+    refreshActivities();
   };
 
   const toggleMessage = useCallback((msgId: string) => {

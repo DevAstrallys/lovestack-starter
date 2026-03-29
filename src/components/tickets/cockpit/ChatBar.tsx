@@ -104,7 +104,7 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
       await addTicketActivity({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
-        activity_type: 'reply',
+        activity_type: 'message',
         content: `📎 ${fileName}`,
         metadata: { direction: 'outbound', attachment_url: publicUrl, file_name: fileName },
       });

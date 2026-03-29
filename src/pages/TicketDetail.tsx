@@ -148,7 +148,7 @@ export function TicketDetail() {
   const actionLabel = ticketAny.action_code || null;
 
   const replyActivities = (activities || [])
-    .filter((a) => a.activity_type === 'reply')
+    .filter((a) => a.activity_type === 'reply' || a.activity_type === 'message')
     .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
 
   const handleStatusChange = async (newStatus: string) => {

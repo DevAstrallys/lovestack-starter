@@ -68,7 +68,7 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
   const { activities, loading } = useTicketActivities(ticketId);
 
   const replyActivities = (activities || [])
-    .filter(a => a.activity_type === 'reply')
+    .filter(a => a.activity_type === 'reply' || a.activity_type === 'message')
     .sort((a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime());
 
   return (

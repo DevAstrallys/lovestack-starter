@@ -27,7 +27,7 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
   const fileRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
-  const canReply = !!ticket.reporter_email;
+  const hasEmail = !!ticket.reporter_email;
 
   const QUICK_EMOJIS = ['👍', '👎', '✅', '❌', '⚠️', '🔧', '📞', '💧', '🔥', '🏠'];
 

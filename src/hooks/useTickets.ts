@@ -301,32 +301,33 @@ export function useTicketActivities(ticketId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadActivities = useCallback(async () => {
+    if (!ticketId) return;
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await fetchTicketActivities(ticketId);
+
+      const transformedData = (data || []).map(activity => ({
+        ...activity,
+        metadata: activity.metadata || {}
+      }));
+
+      setActivities(transformedData);
+    } catch (err) {
+      log.error('Error loading ticket activities', err);
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des activités');
+    } finally {
+      setLoading(false);
+    }
+  }, [ticketId]);
+
   useEffect(() => {
-    const loadActivities = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const data = await fetchTicketActivities(ticketId);
-
-        const transformedData = (data || []).map(activity => ({
-          ...activity,
-          metadata: activity.metadata || {}
-        }));
-
-        setActivities(transformedData);
-      } catch (err) {
-        log.error('Error loading ticket activities', err);
-        setError(err instanceof Error ? err.message : 'Erreur lors du chargement des activités');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (ticketId) {
       loadActivities();
     }
-  }, [ticketId]);
+  }, [ticketId, loadActivities]);
 
   const addActivity = async (activity: Database['public']['Tables']['ticket_activities']['Insert']) => {
     const activityData = { ...activity, ticket_id: ticketId };
@@ -345,6 +346,7 @@ export function useTicketActivities(ticketId: string) {
     activities,
     loading,
     error,
-    addActivity
+    addActivity,
+    refresh: loadActivities,
   };
 }

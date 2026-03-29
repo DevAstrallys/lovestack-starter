@@ -2519,6 +2519,10 @@ export type Database = {
       }
     }
     Functions: {
+      fn_can_add_ticket_activity: {
+        Args: { p_ticket_id: string; p_user_id: string }
+        Returns: boolean
+      }
       fn_context_covers: {
         Args: {
           membership_block_id: string

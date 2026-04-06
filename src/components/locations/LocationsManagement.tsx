@@ -5,7 +5,7 @@ import { LocationElements } from './LocationElements';
 import { LocationGroups } from './LocationGroups';
 import { LocationEnsembles } from './LocationEnsembles';
 import { TagsManagement } from './TagsManagement';
-import { BuildingsManagement } from './BuildingsManagement';
+
 import { LocationUsersManagement } from './LocationUsersManagement';
 import { QRCodeLocationManager } from './QRCodeLocationManager';
 import { OrganizationSelector } from '@/components/ui/organization-selector';

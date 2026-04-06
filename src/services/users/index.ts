@@ -97,3 +97,21 @@ export async function checkAdminAccess(userId: string) {
     return { isAdmin: false, roles: [] };
   }
 }
+
+/**
+ * Fetch all active roles, optionally filtered to non-platform scope.
+ */
+export async function fetchRoles(options?: { platformScope?: boolean }) {
+  try {
+    let query = supabase.from('roles').select('*').eq('is_active', true);
+    if (options?.platformScope === false) {
+      query = query.eq('is_platform_scope', false);
+    }
+    const { data, error } = await query.order('sort_order');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    log.error('Failed to fetch roles', { error: err });
+    throw err;
+  }
+}

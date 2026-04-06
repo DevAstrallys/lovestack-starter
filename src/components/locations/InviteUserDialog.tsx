@@ -5,8 +5,10 @@ import { z } from 'zod';
 import { Plus, X, CalendarClock, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
+import { fetchRoles } from '@/services/users';
+import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 
-const log = createLogger('locations:invite-user');
+const log = createLogger('component:invite-user-dialog');
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,21 +102,19 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
 
   const fetchData = async () => {
     try {
-      const [rolesRes, elementsRes, groupsRes, ensemblesRes] = await Promise.all([
-        supabase.from('roles').select('*').eq('is_platform_scope', false).order('sort_order'),
-        supabase.from('location_elements').select('id, name').eq('organization_id', organizationId),
-        supabase.from('location_groups').select('id, name').eq('organization_id', organizationId),
-        supabase.from('location_ensembles').select('id, name').eq('organization_id', organizationId),
+      const [rolesData, elementsData, groupsData, ensemblesData] = await Promise.all([
+        fetchRoles({ platformScope: false }),
+        fetchElementsByOrganization(organizationId),
+        fetchGroupsByOrganization(organizationId),
+        fetchEnsemblesWithRelations(organizationId),
       ]);
 
-      if (rolesRes.data) {
-        setRoles(buildRoleHierarchy(rolesRes.data));
-      }
-      if (elementsRes.data) setElements(elementsRes.data);
-      if (groupsRes.data) setGroups(groupsRes.data);
-      if (ensemblesRes.data) setEnsembles(ensemblesRes.data);
+      setRoles(buildRoleHierarchy(rolesData));
+      setElements(elementsData as Location[]);
+      setGroups(groupsData as Location[]);
+      setEnsembles(ensemblesData as Location[]);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      log.error('Error fetching data', { error });
     }
   };
 

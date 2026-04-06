@@ -178,8 +178,8 @@ export const Tickets = () => {
         </div>
 
         {/* Portfolio view — only for managers */}
+        {/* TODO: rename TicketsPortfolio props from buildings to ensembles in Sprint 4 */}
         {canViewAllOrgTickets && (
-          {/* TODO: rename TicketsPortfolio props from buildings to ensembles in Sprint 4 */}
           <TicketsPortfolio
             buildings={ensembles}
             tickets={tickets}

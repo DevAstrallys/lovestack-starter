@@ -95,35 +95,11 @@ export const AccessSecurityManager = () => {
     setLoading(true);
 
     try {
-      // Fetch memberships
-      const { data: memberships, error: mErr } = await supabase
-        .from('memberships')
-        .select(`
-          id, user_id, role_id, is_active, expires_at, created_at, organization_id,
-          roles (code, label, description),
-          organizations (name),
-          profiles:user_id (full_name)
-        `)
-        .eq('organization_id', selectedOrganization.id)
-        .order('created_at', { ascending: false });
+      // Fetch memberships via service
+      const memberships = await fetchMembershipsWithDetails({ organizationId: selectedOrganization.id });
 
-      if (mErr) throw mErr;
-
-      // Fetch location_memberships
-      const { data: locMemberships, error: lmErr } = await supabase
-        .from('location_memberships')
-        .select(`
-          id, user_id, role_id, is_active, expires_at, created_at, organization_id,
-          ensemble_id, group_id, element_id,
-          roles (code, label, description),
-          location_ensembles:ensemble_id (name),
-          location_groups:group_id (name),
-          location_elements:element_id (name)
-        `)
-        .eq('organization_id', selectedOrganization.id)
-        .order('created_at', { ascending: false });
-
-      if (lmErr) throw lmErr;
+      // Fetch location_memberships via service
+      const locMemberships = await fetchLocationMembershipsWithDetails({ organizationId: selectedOrganization.id });
 
       const allMembers: MemberAccess[] = [];
 
@@ -165,24 +141,24 @@ export const AccessSecurityManager = () => {
 
       setMembers(allMembers);
 
-      // Fetch roles
-      const { data: rolesData } = await supabase.from('roles').select('id, code, label, description').eq('is_active', true).order('sort_order');
-      setRoles(rolesData || []);
+      // Fetch roles via service
+      const rolesData = await fetchRolesService();
+      setRoles(rolesData as Role[]);
 
-      // Fetch locations for the org
-      const [ensRes, grpRes, elmRes] = await Promise.all([
-        supabase.from('location_ensembles').select('id, name').eq('organization_id', selectedOrganization.id),
-        supabase.from('location_groups').select('id, name').eq('organization_id', selectedOrganization.id),
-        supabase.from('location_elements').select('id, name').eq('organization_id', selectedOrganization.id),
+      // Fetch locations via service
+      const [ensData, grpData, elmData] = await Promise.all([
+        fetchEnsemblesWithRelations(selectedOrganization.id),
+        fetchGroupsByOrganization(selectedOrganization.id),
+        fetchElementsByOrganization(selectedOrganization.id),
       ]);
       const locs: LocationOption[] = [
-        ...(ensRes.data || []).map(e => ({ ...e, type: 'ensemble' as const })),
-        ...(grpRes.data || []).map(g => ({ ...g, type: 'group' as const })),
-        ...(elmRes.data || []).map(el => ({ ...el, type: 'element' as const })),
+        ...(ensData || []).map((e: any) => ({ id: e.id, name: e.name, type: 'ensemble' as const })),
+        ...(grpData || []).map((g: any) => ({ id: g.id, name: g.name, type: 'group' as const })),
+        ...(elmData || []).map((el: any) => ({ id: el.id, name: el.name, type: 'element' as const })),
       ];
       setLocations(locs);
 
-      // Fetch audit logs
+      // Fetch audit logs — TODO: migrate to service layer
       const { data: logs } = await supabase
         .from('audit_logs')
         .select('*')
@@ -192,7 +168,7 @@ export const AccessSecurityManager = () => {
       setAuditLogs(logs || []);
 
     } catch (err) {
-      console.error('Error fetching access data:', err);
+      log.error('Error fetching access data', { error: err });
       toast.error('Erreur lors du chargement des accès');
     } finally {
       setLoading(false);

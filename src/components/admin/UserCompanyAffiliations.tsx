@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import { fetchCompanies as fetchCompaniesService, fetchCompanyUsersByUserId } from '@/services/organizations';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -9,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Building2, Plus, Trash2, Briefcase, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const log = createLogger('component:company-affiliations');
 
 interface Company {
   id: string;
@@ -46,28 +50,32 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
   const [newCompany, setNewCompany] = useState({ name: '', email: '', phone: '', address: '', city: '', tags: '' });
 
   const fetchAffiliations = async () => {
-    const { data } = await supabase
-      .from('company_users')
-      .select('id, company_id, role, companies(id, name, email, phone, address, city, tags)')
-      .eq('user_id', userId) as any;
-    
-    setAffiliations(
-      (data || []).map((d: any) => ({
-        id: d.id,
-        company_id: d.company_id,
-        role: d.role,
-        company: d.companies,
-      }))
-    );
+    try {
+      const data = await fetchCompanyUsersByUserId(userId);
+      setAffiliations(
+        (data || []).map((d: any) => ({
+          id: d.id,
+          company_id: d.company_id,
+          role: d.role,
+          company: d.companies,
+        }))
+      );
+    } catch (err) {
+      log.error('Failed to fetch affiliations', { userId, error: err });
+    }
   };
 
-  const fetchCompanies = async () => {
-    const { data } = await supabase.from('companies').select('id, name, email, phone, address, city, tags');
-    setCompanies(data || []);
+  const loadCompanies = async () => {
+    try {
+      const data = await fetchCompaniesService();
+      setCompanies(data as Company[]);
+    } catch (err) {
+      log.error('Failed to fetch companies', { error: err });
+    }
   };
 
   useEffect(() => {
-    Promise.all([fetchAffiliations(), fetchCompanies()]).finally(() => setLoading(false));
+    Promise.all([fetchAffiliations(), loadCompanies()]).finally(() => setLoading(false));
   }, [userId]);
 
   const handleAdd = async () => {
@@ -117,7 +125,7 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
     setNewCompany({ name: '', email: '', phone: '', address: '', city: '', tags: '' });
     setRole('');
     fetchAffiliations();
-    fetchCompanies();
+    loadCompanies();
   };
 
   const handleRemove = async (id: string) => {

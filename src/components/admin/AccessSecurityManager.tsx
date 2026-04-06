@@ -259,7 +259,7 @@ export const AccessSecurityManager = () => {
       fetchData();
     } catch (err: any) {
       toast.error(`Erreur: ${err.message}`);
-      console.error('Error adding intervenant:', err);
+      log.error('Error adding intervenant', { error: err });
     }
   };
 

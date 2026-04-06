@@ -82,81 +82,23 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const fetchAvailableTags = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableTags((data as any) || []);
+      const data = await fetchLocationTags(organizationId);
+      setAvailableTags(data as any);
     } catch (error) {
-      console.error('Error fetching tags:', error);
+      log.error('Error fetching tags', { error });
     }
   };
 
   const handleSave = async () => {
     try {
-      const ensembleData = {
+      await saveEnsemble({
+        id: editingEnsemble?.id,
         name: formData.name,
         description: formData.description || null,
-        organization_id: organizationId
-      };
-
-      let ensembleId: string;
-
-      if (editingEnsemble) {
-        const { error } = await supabase
-          .from('location_ensembles' as any)
-          .update(ensembleData)
-          .eq('id', editingEnsemble.id);
-
-        if (error) throw error;
-        ensembleId = editingEnsemble.id;
-      } else {
-        const { data, error } = await supabase
-          .from('location_ensembles' as any)
-          .insert(ensembleData)
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        ensembleId = (data as any).id;
-      }
-
-      // Update groups: set parent_id on selected groups, clear on deselected
-      await supabase
-        .from('location_groups' as any)
-        .update({ parent_id: null })
-        .eq('parent_id', ensembleId);
-
-      if (formData.selectedGroups.length > 0) {
-        const { error: groupError } = await supabase
-          .from('location_groups' as any)
-          .update({ parent_id: ensembleId })
-          .in('id', formData.selectedGroups);
-
-        if (groupError) throw groupError;
-      }
-
-      // Update tags
-      await supabase
-        .from('location_ensemble_tags' as any)
-        .delete()
-        .eq('ensemble_id', ensembleId);
-
-      if (formData.selectedTags.length > 0) {
-        const tagInserts = formData.selectedTags.map(tagId => ({
-          ensemble_id: ensembleId,
-          tag_id: tagId
-        }));
-
-        const { error: tagError } = await supabase
-          .from('location_ensemble_tags' as any)
-          .insert(tagInserts);
-
-        if (tagError) throw tagError;
-      }
+        organization_id: organizationId,
+        selectedGroups: formData.selectedGroups,
+        selectedTags: formData.selectedTags,
+      });
 
       toast({
         title: "Succès",
@@ -167,7 +109,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
       resetForm();
       fetchEnsembles();
     } catch (error) {
-      console.error('Error saving ensemble:', error);
+      log.error('Error saving ensemble', { error });
       toast({
         title: "Erreur",
         description: "Impossible de sauvegarder l'ensemble",
@@ -191,12 +133,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet ensemble ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('location_ensembles' as any)
-        .delete()
-        .eq('id', ensembleId);
-
-      if (error) throw error;
+      await deleteEnsemble(ensembleId);
 
       toast({
         title: "Succès",
@@ -205,7 +142,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
       fetchEnsembles();
     } catch (error) {
-      console.error('Error deleting ensemble:', error);
+      log.error('Error deleting ensemble', { error });
       toast({
         title: "Erreur",
         description: "Impossible de supprimer l'ensemble",
@@ -244,17 +181,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const handleCreateTag = async (name: string, color: string) => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .insert({
-          name,
-          color,
-          organization_id: organizationId
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await createLocationTag({ name, color, organization_id: organizationId });
 
       const newTag: LocationTag = {
         id: (data as any).id,
@@ -271,7 +198,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
         description: "Tag créé avec succès",
       });
     } catch (error) {
-      console.error('Error creating tag:', error);
+      log.error('Error creating tag', { error });
       toast({
         title: "Erreur",
         description: "Impossible de créer le tag",

@@ -36,10 +36,18 @@ export const useOrganization = () => {
 export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [selectedOrganization, _setSelectedOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [isplatformAdmin, setIsplatformAdmin] = useState(false);
+  // Track whether the user (or initial load) has made an explicit choice.
+  // Prevents auto-selecting first org after user chose "Toutes les organisations".
+  const hasInitialized = React.useRef(false);
 
+  const setSelectedOrganization = React.useCallback((org: Organization | null) => {
+    hasInitialized.current = true;
+    _setSelectedOrganization(org);
+  }, []);
+  
   useEffect(() => {
     if (user) {
       checkPlatformAdmin();

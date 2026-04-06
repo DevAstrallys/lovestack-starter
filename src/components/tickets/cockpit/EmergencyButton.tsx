@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertTriangle, Flame, Droplets, ShieldAlert, Phone, Volume2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { Ticket } from '@/hooks/useTickets';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:emergency-button');
 
 interface EmergencyButtonProps {
   ticket: Ticket;
@@ -18,41 +20,23 @@ const EMERGENCY_TYPES = [
 
 export function EmergencyButton({ ticket }: EmergencyButtonProps) {
   const [open, setOpen] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-  const [buildingInfo, setBuildingInfo] = useState<any>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   const isUrgentPriority = ticket.priority === 'urgent' || ticket.priority === 'high';
 
-  useEffect(() => {
-    async function check() {
-      if (!ticket.building_id) {
-        // If no building but urgent priority, still show the button
-        if (isUrgentPriority) setEnabled(true);
-        return;
-      }
-      const { data } = await supabase
-        .from('buildings')
-        .select('name, address, city, emergency_module_enabled, emergency_contacts')
-        .eq('id', ticket.building_id)
-        .single();
-      if (data?.emergency_module_enabled || isUrgentPriority) {
-        setEnabled(true);
-        setBuildingInfo(data);
-      }
-    }
-    check();
-  }, [ticket.building_id, isUrgentPriority]);
-
-  if (!enabled) return null;
+  // Show emergency button only for urgent/high priority tickets
+  if (!isUrgentPriority) return null;
 
   const location = ticket.location as Record<string, any> | null;
-  const locationName = location?.name || location?.element_name || buildingInfo?.name || 'Site inconnu';
-  const address = buildingInfo?.address ? `${buildingInfo.address}, ${buildingInfo.city || ''}` : 'Adresse non renseignée';
-  
-  // Extract access codes from building emergency_contacts or location data
-  const emergencyContacts = buildingInfo?.emergency_contacts as any[] || [];
+  const locationName = location?.name || location?.element_name || location?.ensemble_name || location?.group_name || 'Site inconnu';
+  const address = location?.address
+    ? `${location.address}, ${location.city || ''}`
+    : 'Adresse non renseignée';
+
+  // Extract access codes from location data if available
   const accessCodes = location?.access_codes || location?.vigik || location?.digicode || null;
+  // Extract emergency contacts from location data if available
+  const emergencyContacts = (location?.emergency_contacts as any[]) || [];
 
   const generateScript = (type: string) => {
     let script = `Alerte Astralink sur le site ${locationName}. Adresse : ${address}. Nature : ${type}.`;
@@ -69,6 +53,8 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
       utterance.rate = 0.85;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
+    } else {
+      log.warn('Speech synthesis not available in this browser');
     }
   };
 
@@ -132,7 +118,6 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
                     </div>
                   </div>
 
-                  {/* Show vocal script when selected */}
                   {isSelected && (
                     <div className="ml-12 p-3 rounded-lg bg-muted/50 border border-dashed">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
@@ -145,11 +130,10 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
               );
             })}
 
-            {/* Custom emergency contacts */}
             {emergencyContacts.length > 0 && (
               <div className="mt-4 pt-3 border-t">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Contacts d'urgence de l'immeuble
+                  Contacts d'urgence du site
                 </p>
                 {emergencyContacts.map((contact: any, i: number) => (
                   <div key={i} className="flex items-center justify-between py-1.5 text-sm">

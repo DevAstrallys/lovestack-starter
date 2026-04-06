@@ -223,6 +223,7 @@ Création (anon ou auth)
 | 🟡 Medium   | Props legacy `buildings` dans `TicketsPortfolio.tsx`   | TODO Sprint 4 — renommer en `ensembles`               |
 | 🟡 Medium   | Champs `building_id/building_name` dans type `Ticket`  | TODO Sprint 4 — nettoyer les champs legacy            |
 | 🟢 Low      | Push notifications                                    | Marqué "coming soon" dans la déclaration              |
+| ~~🔴~~      | ~~Table `buildings` utilisée dans le code applicatif~~ | ✅ Éliminée — Sprint 1 + EmergencyButton corrigé      |
 
 ---
 
@@ -277,6 +278,7 @@ L'app est conçue pour être K8s-ready :
 - `Dashboard.tsx` : 2 appels directs Supabase → service layer
 - `LocationsManagement.tsx` : import mort supprimé
 - Nouvelles fonctions créées : `fetchOrganizationEnsembles`, `fetchFilteredTickets`, `fetchTicketIdsByElementIds`, `fetchElementIdsByGroupId`, `fetchElementIdsByEnsembleId`
+- `EmergencyButton.tsx` : `supabase.from('buildings')` supprimé, données extraites de `ticket.location`, composant simplifié (suppression `useState` + `useEffect` async)
 
 **TODO Sprint 4 restants issus de ce sprint :**
 

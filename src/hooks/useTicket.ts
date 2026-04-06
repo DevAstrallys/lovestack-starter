@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTicketById, fetchBuildings, fetchOrganizations } from '@/services/tickets';
+import { fetchTicketById, fetchOrganizations } from '@/services/tickets';
 import { Ticket } from '@/hooks/useTickets';
 import { createLogger } from '@/lib/logger';
 
@@ -25,17 +25,10 @@ export function useTicket(id: string | undefined) {
           : [],
       };
 
-      // Enrich with building & org name
-      if (t.building_id) {
-        const buildings = await fetchBuildings([t.building_id]);
-        const building = buildings?.[0];
-        if (building) {
-          t.building_name = building.name;
-          if (building.organization_id) {
-            const orgs = await fetchOrganizations([building.organization_id]);
-            if (orgs?.[0]) t.organization_name = orgs[0].name;
-          }
-        }
+      // Enrich with org name
+      if (t.organization_id) {
+        const orgs = await fetchOrganizations([t.organization_id]);
+        if (orgs?.[0]) t.organization_name = orgs[0].name;
       }
       if (!t.organization_name && (t.organization_id || (t.meta as any)?.organization_id)) {
         const oid = t.organization_id || (t.meta as any)?.organization_id;

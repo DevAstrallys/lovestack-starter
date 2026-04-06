@@ -5,7 +5,6 @@ import {
   fetchTicketById,
   fetchTicketActivities,
   addTicketActivity as addTicketActivityService,
-  fetchBuildings,
   fetchOrganizations,
   updateTicket as updateTicketService,
   createTicket as createTicketService,
@@ -209,26 +208,15 @@ export function useTickets(filters: TicketFilters = {}) {
                     (typeof ticket.attachments === 'string' ? JSON.parse(ticket.attachments) : [])
       }));
 
-      // Enrich with building names via service
-      const buildingIds = [...new Set(transformedData.map(t => t.building_id).filter(Boolean))] as string[];
-      if (buildingIds.length > 0) {
-        const buildings = await fetchBuildings(buildingIds);
-        
-        if (buildings) {
-          const buildingMap = Object.fromEntries(buildings.map(b => [b.id, b]));
-          
-          const orgIds = [...new Set(buildings.map(b => b.organization_id).filter(Boolean))] as string[];
-          let orgMap: Record<string, string> = {};
-          if (orgIds.length > 0) {
-            const orgs = await fetchOrganizations(orgIds);
-            if (orgs) orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
-          }
-
+      // Enrich with organization names via service
+      const orgIdsFromTickets = [...new Set(transformedData.map(t => t.organization_id).filter(Boolean))] as string[];
+      if (orgIdsFromTickets.length > 0) {
+        const orgs = await fetchOrganizations(orgIdsFromTickets);
+        if (orgs) {
+          const orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
           for (const t of transformedData) {
-            if (t.building_id && buildingMap[t.building_id]) {
-              t.building_name = buildingMap[t.building_id].name;
-              const orgId = buildingMap[t.building_id].organization_id;
-              if (orgId && orgMap[orgId]) t.organization_name = orgMap[orgId];
+            if (t.organization_id && orgMap[t.organization_id]) {
+              t.organization_name = orgMap[t.organization_id];
             }
           }
         }

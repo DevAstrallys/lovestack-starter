@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:tags-management');
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -49,7 +52,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }
       if (error) throw error;
       setTags((data as any) || []);
     } catch (error) {
-      console.error('Error fetching tags:', error);
+      log.error('Error fetching tags', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les tags",
@@ -92,7 +95,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }
       resetForm();
       fetchTags();
     } catch (error) {
-      console.error('Error saving tag:', error);
+      log.error('Error saving tag', { error });
       toast({
         title: "Erreur",
         description: "Impossible de sauvegarder le tag",
@@ -128,7 +131,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }
 
       fetchTags();
     } catch (error) {
-      console.error('Error deleting tag:', error);
+      log.error('Error deleting tag', { error });
       toast({
         title: "Erreur",
         description: "Impossible de supprimer le tag",

@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import { fetchRoles as fetchRolesService } from '@/services/users';
+import { fetchMembershipsWithDetails, fetchLocationMembershipsWithDetails } from '@/services/users';
+import { fetchEnsemblesWithRelations, fetchGroupsByOrganization, fetchElementsByOrganization } from '@/services/locations';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +36,8 @@ import {
   Activity,
   Eye
 } from 'lucide-react';
+
+const log = createLogger('component:access-security');
 
 interface MemberAccess {
   id: string;

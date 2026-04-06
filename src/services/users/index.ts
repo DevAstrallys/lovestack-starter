@@ -115,3 +115,61 @@ export async function fetchRoles(options?: { platformScope?: boolean }) {
     throw err;
   }
 }
+
+/**
+ * Fetch memberships with joined roles, organizations and profiles.
+ */
+export async function fetchMembershipsWithDetails(filters: { organizationId?: string }) {
+  try {
+    let query = supabase
+      .from('memberships')
+      .select(`
+        id, user_id, role_id, is_active, expires_at, created_at, organization_id,
+        roles (code, label, description),
+        organizations (name),
+        profiles:user_id (full_name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (filters.organizationId) {
+      query = query.eq('organization_id', filters.organizationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    log.error('Failed to fetch memberships with details', { filters, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Fetch location memberships with joined roles and location names.
+ */
+export async function fetchLocationMembershipsWithDetails(filters: { organizationId?: string }) {
+  try {
+    let query = supabase
+      .from('location_memberships')
+      .select(`
+        id, user_id, role_id, is_active, expires_at, created_at, organization_id,
+        ensemble_id, group_id, element_id,
+        roles (code, label, description),
+        location_ensembles:ensemble_id (name),
+        location_groups:group_id (name),
+        location_elements:element_id (name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (filters.organizationId) {
+      query = query.eq('organization_id', filters.organizationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    log.error('Failed to fetch location memberships with details', { filters, error: err });
+    throw err;
+  }
+}

@@ -287,3 +287,71 @@ export async function fetchAccessibleLocationElements(): Promise<
     throw err;
   }
 }
+
+// ─── QR Code queries by location ────────────────────────────────
+
+/**
+ * Fetches QR codes for a given location element, with related location names.
+ * If no locationElementId is provided, returns all QR codes.
+ */
+export async function fetchQRCodesByLocation(locationElementId?: string) {
+  try {
+    let query = supabase
+      .from('qr_codes')
+      .select(`
+        *,
+        location_elements(name),
+        location_groups(name),
+        location_ensembles(name)
+      `)
+      .order('version', { ascending: false });
+
+    if (locationElementId) {
+      query = query.eq('location_element_id', locationElementId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    log.info('QR codes fetched', { count: data?.length ?? 0, locationElementId });
+    return data ?? [];
+  } catch (err) {
+    log.error('Failed to fetch QR codes by location', { locationElementId, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Deactivates all active QR codes for a specific location element.
+ */
+export async function deactivateActiveQRCodesForLocation(locationElementId: string) {
+  try {
+    const { error } = await supabase
+      .from('qr_codes')
+      .update({ is_active: false })
+      .eq('location_element_id', locationElementId)
+      .eq('is_active', true);
+
+    if (error) throw error;
+    log.info('Active QR codes deactivated', { locationElementId });
+  } catch (err) {
+    log.error('Failed to deactivate QR codes', { locationElementId, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Calls the regenerate_qr_code RPC to bump version and update timestamp.
+ */
+export async function regenerateQRCode(qrId: string) {
+  try {
+    const { data, error } = await supabase.rpc('regenerate_qr_code', { qr_id: qrId });
+    if (error) throw error;
+
+    log.info('QR code regenerated via RPC', { qrId, resultId: data });
+    return data;
+  } catch (err) {
+    log.error('Failed to regenerate QR code', { qrId, error: err });
+    throw err;
+  }
+}

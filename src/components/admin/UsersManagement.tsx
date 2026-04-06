@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:users-management');
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,9 +25,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { createLogger } from '@/lib/logger';
-
-const log = createLogger('admin:users');
 import { InviteUserDialog } from '@/components/locations/InviteUserDialog';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { UserCompanyAffiliations } from './UserCompanyAffiliations';
@@ -106,7 +106,7 @@ export const UsersManagement = () => {
       setUsers(data || []);
     } catch (error) {
       toast.error('Erreur lors du chargement des utilisateurs');
-      console.error('Error fetching users:', error);
+      log.error('Error fetching users', { error });
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export const UsersManagement = () => {
       if (error) throw error;
       setOrganizations(data || []);
     } catch (error) {
-      console.error('Error fetching organizations:', error);
+      log.error('Error fetching organizations', { error });
     }
   };
 
@@ -135,7 +135,7 @@ export const UsersManagement = () => {
       if (error) throw error;
       setRoles(data || []);
     } catch (error) {
-      console.error('Error fetching roles:', error);
+      log.error('Error fetching roles', { error });
     }
   };
 
@@ -198,7 +198,7 @@ export const UsersManagement = () => {
       });
     } catch (error) {
       toast.error('Erreur lors de l\'ajout du membership');
-      console.error('Error adding membership:', error);
+      log.error('Error adding membership', { error });
     }
   };
 
@@ -215,7 +215,7 @@ export const UsersManagement = () => {
       fetchUsers();
     } catch (error) {
       toast.error('Erreur lors de la mise à jour');
-      console.error('Error updating membership:', error);
+      log.error('Error updating membership', { error });
     }
   };
 

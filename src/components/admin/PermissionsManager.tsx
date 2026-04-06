@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:permissions-manager');
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -99,7 +102,7 @@ export const PermissionsManager = () => {
       setRolePermissions(rolePermissionsData || []);
     } catch (error) {
       toast.error('Erreur lors du chargement des données');
-      console.error('Error fetching data:', error);
+      log.error('Error fetching data', { error });
     } finally {
       setLoading(false);
     }
@@ -275,7 +278,7 @@ export const PermissionsManager = () => {
       await fetchData();
     } catch (error) {
       toast.error('Erreur lors de la sauvegarde');
-      console.error('Error saving changes:', error);
+      log.error('Error saving changes', { error });
     } finally {
       setSavingChanges(false);
     }

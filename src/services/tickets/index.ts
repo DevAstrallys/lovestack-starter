@@ -125,25 +125,11 @@ export async function addTicketActivity(activity: ActivityInsert) {
   }
 }
 
-export async function fetchBuildings(ids: string[]) {
-  try {
-    const { data, error } = await supabase
-      .from('buildings')
-      .select('id, name, organization_id')
-      .in('id', ids);
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    log.error('Failed to fetch buildings', { error: err });
-    throw err;
-  }
-}
-
 export async function fetchOrganizationEnsembles(organizationId: string) {
   try {
     const { data, error } = await supabase
       .from('location_ensembles')
-      .select('id, name, description')
+      .select('id, name, description, organization_id')
       .eq('organization_id', organizationId)
       .order('name');
     if (error) throw error;

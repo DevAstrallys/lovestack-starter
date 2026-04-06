@@ -18,7 +18,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchTickets } from '@/services/tickets';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:dashboard');
 
 // ── KPI Cards ────────────────────────────────────────────────────────
 interface KpiData {
@@ -36,18 +39,7 @@ function useKpiData(orgId: string | null): { kpi: KpiData; loading: boolean } {
     const load = async () => {
       setLoading(true);
       try {
-        // Fetch all tickets (limited to org if selected)
-        let query = supabase.from('tickets').select('status, priority, created_at', { count: 'exact' });
-        
-        if (orgId) {
-          const { data: buildings } = await supabase.from('buildings').select('id').eq('organization_id', orgId);
-          const bIds = (buildings || []).map(b => b.id);
-          if (bIds.length > 0) {
-            query = query.in('building_id', bIds);
-          }
-        }
-
-        const { data: tickets } = await query;
+        const tickets = await fetchTickets(orgId || undefined);
         if (!tickets) { setLoading(false); return; }
 
         const open = tickets.filter(t => t.status === 'open' || t.status === 'in_progress' || t.status === 'waiting');
@@ -64,7 +56,7 @@ function useKpiData(orgId: string | null): { kpi: KpiData; loading: boolean } {
           closeRate: total > 0 ? Math.round((closed / total) * 100) : 0,
         });
       } catch (e) {
-        console.error('KPI load error', e);
+        log.error('KPI load error', { error: e });
       } finally {
         setLoading(false);
       }

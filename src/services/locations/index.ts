@@ -287,25 +287,3 @@ export async function fetchAccessibleLocationElements(): Promise<
     throw err;
   }
 }
-  try {
-    const { data: groups, error: gErr } = await supabase
-      .from('location_groups')
-      .select('id')
-      .eq('parent_id', ensembleId);
-    if (gErr) throw gErr;
-
-    const groupIds = (groups ?? []).map(g => g.id);
-    if (groupIds.length === 0) return [];
-
-    const { data: elements, error: eErr } = await supabase
-      .from('location_elements')
-      .select('id')
-      .in('parent_id', groupIds);
-    if (eErr) throw eErr;
-
-    return (elements ?? []).map(e => e.id);
-  } catch (err) {
-    log.error('Failed to fetch element IDs by ensemble', { ensembleId, error: err });
-    throw err;
-  }
-}

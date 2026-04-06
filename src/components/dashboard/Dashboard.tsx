@@ -56,7 +56,7 @@ function useKpiData(orgId: string | null): { kpi: KpiData; loading: boolean } {
           closeRate: total > 0 ? Math.round((closed / total) * 100) : 0,
         });
       } catch (e) {
-        console.error('KPI load error', e);
+        log.error('KPI load error', { error: e });
       } finally {
         setLoading(false);
       }

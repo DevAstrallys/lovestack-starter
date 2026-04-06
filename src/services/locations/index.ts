@@ -264,3 +264,48 @@ export async function fetchElementIdsByEnsembleId(ensembleId: string): Promise<s
     throw err;
   }
 }
+
+/**
+ * Fetches all location elements accessible to the current user (RLS-filtered).
+ * Used for flat location dropdowns (e.g. ticket filters).
+ */
+export async function fetchAccessibleLocationElements(): Promise<
+  { id: string; name: string; description: string | null }[]
+> {
+  try {
+    const { data, error } = await supabase
+      .from('location_elements')
+      .select('id, name, description')
+      .order('name');
+
+    if (error) throw error;
+
+    log.info('Fetched accessible location elements', { count: data?.length ?? 0 });
+    return data ?? [];
+  } catch (err) {
+    log.error('Failed to fetch accessible location elements', { error: err });
+    throw err;
+  }
+}
+  try {
+    const { data: groups, error: gErr } = await supabase
+      .from('location_groups')
+      .select('id')
+      .eq('parent_id', ensembleId);
+    if (gErr) throw gErr;
+
+    const groupIds = (groups ?? []).map(g => g.id);
+    if (groupIds.length === 0) return [];
+
+    const { data: elements, error: eErr } = await supabase
+      .from('location_elements')
+      .select('id')
+      .in('parent_id', groupIds);
+    if (eErr) throw eErr;
+
+    return (elements ?? []).map(e => e.id);
+  } catch (err) {
+    log.error('Failed to fetch element IDs by ensemble', { ensembleId, error: err });
+    throw err;
+  }
+}

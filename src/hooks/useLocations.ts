@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchAccessibleLocationElements } from '@/services/locations';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('hook:useLocations');
 
 export interface Location {
   id: string;
   name: string;
-  code: string | null;
-  created_at: string;
+  description: string | null;
 }
 
 /**
@@ -25,16 +27,10 @@ export function useLocations() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('locations')
-        .select('*')
-        .order('name');
-
-      if (fetchError) throw fetchError;
-
-      setLocations(data || []);
+      const data = await fetchAccessibleLocationElements();
+      setLocations(data);
     } catch (err) {
-      console.error('Error loading locations:', err);
+      log.error('Error loading locations', { error: err });
       setError(err instanceof Error ? err.message : 'Erreur de chargement des lieux');
     } finally {
       setLoading(false);

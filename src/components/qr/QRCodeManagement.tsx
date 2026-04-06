@@ -36,8 +36,7 @@ export function QRCodeManagement({ locationElementId, buildingId, locationName }
   });
 
   const { qrCodes, activeQR, loading, createQRCode, regenerateQRCode, deactivateQRCode } = useQRCodes(
-    locationElementId,
-    buildingId
+    locationElementId
   );
   
   const { toast } = useToast();

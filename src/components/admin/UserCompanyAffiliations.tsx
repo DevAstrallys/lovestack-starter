@@ -125,7 +125,7 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
     setNewCompany({ name: '', email: '', phone: '', address: '', city: '', tags: '' });
     setRole('');
     fetchAffiliations();
-    fetchCompanies();
+    loadCompanies();
   };
 
   const handleRemove = async (id: string) => {

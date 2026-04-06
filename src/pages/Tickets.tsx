@@ -179,6 +179,7 @@ export const Tickets = () => {
 
         {/* Portfolio view — only for managers */}
         {canViewAllOrgTickets && (
+          {/* TODO: rename TicketsPortfolio props from buildings→ensembles in Sprint 4 */}
           <TicketsPortfolio
             buildings={ensembles}
             tickets={tickets}

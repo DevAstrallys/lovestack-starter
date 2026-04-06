@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { LocationTag, LocationGroup, LocationEnsemble } from './LocationsManagement';
 import { TagSelector } from './TagSelector';
-import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import {
+  fetchEnsemblesWithRelations,
+  fetchGroupsByOrganization,
+  fetchLocationTags,
+  saveEnsemble,
+  deleteEnsemble,
+  createLocationTag,
+} from '@/services/locations';
 import { useToast } from '@/hooks/use-toast';
+
+const log = createLogger('component:location-ensembles');
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

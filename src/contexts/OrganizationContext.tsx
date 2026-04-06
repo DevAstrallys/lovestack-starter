@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('context:organization');
 
 interface Organization {
   id: string;
@@ -71,7 +74,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .eq('is_active', true);
 
       if (error) {
-        console.error('Error checking platform admin:', error);
+        log.error('Error checking platform admin', { error });
         return;
       }
 
@@ -81,7 +84,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       setIsplatformAdmin(isPlatformAdmin);
     } catch (error) {
-      console.error('Error checking platform admin:', error);
+      log.error('Error checking platform admin', { error });
     }
   };
 
@@ -99,7 +102,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .order('name');
 
       if (error) {
-        console.error('Error loading organizations:', error);
+        log.error('Error loading organizations', { error });
         return;
       }
 
@@ -110,7 +113,7 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setSelectedOrganization(data[0]);
       }
     } catch (error) {
-      console.error('Error loading organizations:', error);
+      log.error('Error loading organizations', { error });
     } finally {
       setLoading(false);
     }

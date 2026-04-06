@@ -18,7 +18,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchTickets } from '@/services/tickets';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:dashboard');
 
 // ── KPI Cards ────────────────────────────────────────────────────────
 interface KpiData {

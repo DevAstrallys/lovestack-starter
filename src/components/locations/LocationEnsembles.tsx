@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { LocationTag, LocationGroup, LocationEnsemble } from './LocationsManagement';
 import { TagSelector } from './TagSelector';
-import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import {
+  fetchEnsemblesWithRelations,
+  fetchGroupsByOrganization,
+  fetchLocationTags,
+  saveEnsemble,
+  deleteEnsemble,
+  createLocationTag,
+} from '@/services/locations';
 import { useToast } from '@/hooks/use-toast';
+
+const log = createLogger('component:location-ensembles');
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,41 +57,10 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const fetchEnsembles = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_ensembles' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-
-      // Fetch child groups and tags for each ensemble
-      const ensembleIds = (data || []).map((e: any) => e.id);
-      
-      const [groupsRes, tagsRes] = await Promise.all([
-        supabase.from('location_groups' as any).select('*').in('parent_id', ensembleIds),
-        supabase.from('location_ensemble_tags' as any).select('*, location_tags(*)').in('ensemble_id', ensembleIds)
-      ]);
-
-      const groupsByEnsemble = (groupsRes.data || []).reduce((acc: any, g: any) => {
-        (acc[g.parent_id] = acc[g.parent_id] || []).push(g);
-        return acc;
-      }, {});
-
-      const tagsByEnsemble = (tagsRes.data || []).reduce((acc: any, et: any) => {
-        (acc[et.ensemble_id] = acc[et.ensemble_id] || []).push(et.location_tags);
-        return acc;
-      }, {});
-
-      const ensemblesWithRelations = (data || []).map((ensemble: any) => ({
-        ...ensemble,
-        groups: groupsByEnsemble[ensemble.id] || [],
-        tags: tagsByEnsemble[ensemble.id] || []
-      }));
-
-      setEnsembles(ensemblesWithRelations);
+      const result = await fetchEnsemblesWithRelations(organizationId);
+      setEnsembles(result);
     } catch (error) {
-      console.error('Error fetching ensembles:', error);
+      log.error('Error fetching ensembles', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les ensembles",
@@ -94,96 +73,32 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const fetchAvailableGroups = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_groups' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableGroups((data as any) || []);
+      const data = await fetchGroupsByOrganization(organizationId);
+      setAvailableGroups(data as any);
     } catch (error) {
-      console.error('Error fetching groups:', error);
+      log.error('Error fetching groups', { error });
     }
   };
 
   const fetchAvailableTags = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableTags((data as any) || []);
+      const data = await fetchLocationTags(organizationId);
+      setAvailableTags(data as any);
     } catch (error) {
-      console.error('Error fetching tags:', error);
+      log.error('Error fetching tags', { error });
     }
   };
 
   const handleSave = async () => {
     try {
-      const ensembleData = {
+      await saveEnsemble({
+        id: editingEnsemble?.id,
         name: formData.name,
         description: formData.description || null,
-        organization_id: organizationId
-      };
-
-      let ensembleId: string;
-
-      if (editingEnsemble) {
-        const { error } = await supabase
-          .from('location_ensembles' as any)
-          .update(ensembleData)
-          .eq('id', editingEnsemble.id);
-
-        if (error) throw error;
-        ensembleId = editingEnsemble.id;
-      } else {
-        const { data, error } = await supabase
-          .from('location_ensembles' as any)
-          .insert(ensembleData)
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        ensembleId = (data as any).id;
-      }
-
-      // Update groups: set parent_id on selected groups, clear on deselected
-      await supabase
-        .from('location_groups' as any)
-        .update({ parent_id: null })
-        .eq('parent_id', ensembleId);
-
-      if (formData.selectedGroups.length > 0) {
-        const { error: groupError } = await supabase
-          .from('location_groups' as any)
-          .update({ parent_id: ensembleId })
-          .in('id', formData.selectedGroups);
-
-        if (groupError) throw groupError;
-      }
-
-      // Update tags
-      await supabase
-        .from('location_ensemble_tags' as any)
-        .delete()
-        .eq('ensemble_id', ensembleId);
-
-      if (formData.selectedTags.length > 0) {
-        const tagInserts = formData.selectedTags.map(tagId => ({
-          ensemble_id: ensembleId,
-          tag_id: tagId
-        }));
-
-        const { error: tagError } = await supabase
-          .from('location_ensemble_tags' as any)
-          .insert(tagInserts);
-
-        if (tagError) throw tagError;
-      }
+        organization_id: organizationId,
+        selectedGroups: formData.selectedGroups,
+        selectedTags: formData.selectedTags,
+      });
 
       toast({
         title: "Succès",
@@ -194,7 +109,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
       resetForm();
       fetchEnsembles();
     } catch (error) {
-      console.error('Error saving ensemble:', error);
+      log.error('Error saving ensemble', { error });
       toast({
         title: "Erreur",
         description: "Impossible de sauvegarder l'ensemble",
@@ -218,12 +133,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet ensemble ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('location_ensembles' as any)
-        .delete()
-        .eq('id', ensembleId);
-
-      if (error) throw error;
+      await deleteEnsemble(ensembleId);
 
       toast({
         title: "Succès",
@@ -232,7 +142,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
       fetchEnsembles();
     } catch (error) {
-      console.error('Error deleting ensemble:', error);
+      log.error('Error deleting ensemble', { error });
       toast({
         title: "Erreur",
         description: "Impossible de supprimer l'ensemble",
@@ -271,17 +181,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const handleCreateTag = async (name: string, color: string) => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .insert({
-          name,
-          color,
-          organization_id: organizationId
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await createLocationTag({ name, color, organization_id: organizationId });
 
       const newTag: LocationTag = {
         id: (data as any).id,
@@ -298,7 +198,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
         description: "Tag créé avec succès",
       });
     } catch (error) {
-      console.error('Error creating tag:', error);
+      log.error('Error creating tag', { error });
       toast({
         title: "Erreur",
         description: "Impossible de créer le tag",

@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { LocationTag, LocationElement, LocationGroup } from './LocationsManagement';
 import { TagSelector } from './TagSelector';
-import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import {
+  fetchGroupsWithRelations,
+  fetchElementsByOrganization,
+  fetchLocationTags,
+  saveGroup,
+  deleteGroup,
+  createLocationTag,
+} from '@/services/locations';
 import { useToast } from '@/hooks/use-toast';
+
+const log = createLogger('component:location-groups');
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,41 +57,10 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
 
   const fetchGroups = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_groups' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-
-      // Fetch child elements and tags for each group
-      const groupIds = (data || []).map((g: any) => g.id);
-      
-      const [elementsRes, tagsRes] = await Promise.all([
-        supabase.from('location_elements' as any).select('*').in('parent_id', groupIds),
-        supabase.from('location_group_tags' as any).select('*, location_tags(*)').in('group_id', groupIds)
-      ]);
-
-      const elementsByGroup = (elementsRes.data || []).reduce((acc: any, e: any) => {
-        (acc[e.parent_id] = acc[e.parent_id] || []).push(e);
-        return acc;
-      }, {});
-
-      const tagsByGroup = (tagsRes.data || []).reduce((acc: any, gt: any) => {
-        (acc[gt.group_id] = acc[gt.group_id] || []).push(gt.location_tags);
-        return acc;
-      }, {});
-
-      const groupsWithRelations = (data || []).map((group: any) => ({
-        ...group,
-        elements: elementsByGroup[group.id] || [],
-        tags: tagsByGroup[group.id] || []
-      }));
-
-      setGroups(groupsWithRelations);
+      const result = await fetchGroupsWithRelations(organizationId);
+      setGroups(result);
     } catch (error) {
-      console.error('Error fetching groups:', error);
+      log.error('Error fetching groups', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les groupements",
@@ -94,96 +73,32 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
 
   const fetchAvailableElements = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_elements' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableElements((data as any) || []);
+      const data = await fetchElementsByOrganization(organizationId);
+      setAvailableElements(data as any);
     } catch (error) {
-      console.error('Error fetching elements:', error);
+      log.error('Error fetching elements', { error });
     }
   };
 
   const fetchAvailableTags = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableTags((data as any) || []);
+      const data = await fetchLocationTags(organizationId);
+      setAvailableTags(data as any);
     } catch (error) {
-      console.error('Error fetching tags:', error);
+      log.error('Error fetching tags', { error });
     }
   };
 
   const handleSave = async () => {
     try {
-      const groupData = {
+      await saveGroup({
+        id: editingGroup?.id,
         name: formData.name,
         description: formData.description || null,
-        organization_id: organizationId
-      };
-
-      let groupId: string;
-
-      if (editingGroup) {
-        const { error } = await supabase
-          .from('location_groups' as any)
-          .update(groupData)
-          .eq('id', editingGroup.id);
-
-        if (error) throw error;
-        groupId = editingGroup.id;
-      } else {
-        const { data, error } = await supabase
-          .from('location_groups' as any)
-          .insert(groupData)
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        groupId = (data as any).id;
-      }
-
-      // Update elements: set parent_id on selected elements, clear on deselected
-      await supabase
-        .from('location_elements' as any)
-        .update({ parent_id: null })
-        .eq('parent_id', groupId);
-
-      if (formData.selectedElements.length > 0) {
-        const { error: elementError } = await supabase
-          .from('location_elements' as any)
-          .update({ parent_id: groupId })
-          .in('id', formData.selectedElements);
-
-        if (elementError) throw elementError;
-      }
-
-      // Update tags
-      await supabase
-        .from('location_group_tags' as any)
-        .delete()
-        .eq('group_id', groupId);
-
-      if (formData.selectedTags.length > 0) {
-        const tagInserts = formData.selectedTags.map(tagId => ({
-          group_id: groupId,
-          tag_id: tagId
-        }));
-
-        const { error: tagError } = await supabase
-          .from('location_group_tags' as any)
-          .insert(tagInserts);
-
-        if (tagError) throw tagError;
-      }
+        organization_id: organizationId,
+        selectedElements: formData.selectedElements,
+        selectedTags: formData.selectedTags,
+      });
 
       toast({
         title: "Succès",
@@ -194,7 +109,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
       resetForm();
       fetchGroups();
     } catch (error) {
-      console.error('Error saving group:', error);
+      log.error('Error saving group', { error });
       toast({
         title: "Erreur",
         description: "Impossible de sauvegarder le groupement",
@@ -218,12 +133,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce groupement ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('location_groups' as any)
-        .delete()
-        .eq('id', groupId);
-
-      if (error) throw error;
+      await deleteGroup(groupId);
 
       toast({
         title: "Succès",
@@ -232,7 +142,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
 
       fetchGroups();
     } catch (error) {
-      console.error('Error deleting group:', error);
+      log.error('Error deleting group', { error });
       toast({
         title: "Erreur",
         description: "Impossible de supprimer le groupement",
@@ -271,17 +181,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
 
   const handleCreateTag = async (name: string, color: string) => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .insert({
-          name,
-          color,
-          organization_id: organizationId
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await createLocationTag({ name, color, organization_id: organizationId });
 
       const newTag: LocationTag = {
         id: (data as any).id,
@@ -298,7 +198,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
         description: "Tag créé avec succès",
       });
     } catch (error) {
-      console.error('Error creating tag:', error);
+      log.error('Error creating tag', { error });
       toast({
         title: "Erreur",
         description: "Impossible de créer le tag",

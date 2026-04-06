@@ -11,6 +11,117 @@ type TicketInsert = Database['public']['Tables']['tickets']['Insert'];
 type TicketUpdate = Database['public']['Tables']['tickets']['Update'];
 type ActivityInsert = Database['public']['Tables']['ticket_activities']['Insert'];
 
+type TicketStatus = Database['public']['Enums']['ticket_status'];
+type TicketPriority = Database['public']['Enums']['ticket_priority'];
+
+export interface TicketQueryFilters {
+  status?: TicketStatus[];
+  priority?: TicketPriority[];
+  categoryId?: string;
+  objectId?: string;
+  assignedTo?: string;
+  createdBy?: string;
+  organizationId?: string;
+  dateRange?: { start: string; end: string };
+  lastInteractionDays?: number;
+  search?: string;
+  ticketIdWhitelist?: string[];
+  locationElementId?: string;
+}
+
+/**
+ * Fetch tickets with dynamic filters and pagination.
+ * Returns { data, count }.
+ */
+export async function fetchFilteredTickets(
+  filters: TicketQueryFilters,
+  page = 0,
+  limit = 20
+) {
+  try {
+    let query = supabase
+      .from('tickets')
+      .select('*', { count: 'exact' })
+      .order('last_interaction_at', { ascending: false });
+
+    if (filters.status?.length) query = query.in('status', filters.status);
+    if (filters.priority?.length) query = query.in('priority', filters.priority);
+    if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
+    if (filters.objectId) query = query.eq('object_id', filters.objectId);
+    if (filters.assignedTo) query = query.eq('assigned_to', filters.assignedTo);
+    if (filters.createdBy) query = query.eq('created_by', filters.createdBy);
+    if (filters.organizationId) query = query.eq('organization_id', filters.organizationId);
+
+    if (filters.dateRange) {
+      query = query
+        .gte('created_at', filters.dateRange.start)
+        .lte('created_at', filters.dateRange.end);
+    }
+
+    if (filters.lastInteractionDays) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - filters.lastInteractionDays);
+      query = query.gte('last_interaction_at', cutoff.toISOString());
+    }
+
+    if (filters.search) {
+      const sanitized = filters.search
+        .replace(/[\\%_]/g, c => `\\${c}`)
+        .replace(/[,()]/g, '')
+        .trim()
+        .slice(0, 200);
+      if (sanitized) {
+        query = query.or(`title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
+      }
+    }
+
+    if (filters.locationElementId) {
+      query = query.contains('location', { element_id: filters.locationElementId });
+    }
+
+    if (filters.ticketIdWhitelist) {
+      if (filters.ticketIdWhitelist.length === 0) {
+        return { data: [], count: 0 };
+      }
+      query = query.in('id', filters.ticketIdWhitelist);
+    }
+
+    query = query.range(page * limit, (page + 1) * limit - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+    log.info('Filtered tickets fetched', { count: data?.length, page });
+    return { data: data ?? [], count: count ?? 0 };
+  } catch (err) {
+    log.error('Failed to fetch filtered tickets', { error: err });
+    throw err;
+  }
+}
+
+/**
+ * Fetch ticket IDs whose location JSON contains one of the given element IDs.
+ */
+export async function fetchTicketIdsByElementIds(elementIds: string[]): Promise<string[]> {
+  try {
+    if (elementIds.length === 0) return [];
+    const results = await Promise.all(
+      elementIds.map(elementId =>
+        supabase
+          .from('tickets')
+          .select('id')
+          .contains('location', { element_id: elementId })
+      )
+    );
+    const ids = results
+      .filter(r => !r.error)
+      .flatMap(r => r.data?.map(t => t.id) ?? []);
+    return [...new Set(ids)];
+  } catch (err) {
+    log.error('Failed to fetch ticket IDs by element IDs', { error: err });
+    throw err;
+  }
+}
+
 export async function fetchTickets(organizationId?: string) {
   try {
     let query = supabase.from('tickets').select('*');

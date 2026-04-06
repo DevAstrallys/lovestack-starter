@@ -218,3 +218,49 @@ export async function fetchOrganizationLocations(organizationId: string) {
     throw err;
   }
 }
+
+// ─── Location hierarchy resolution ──────────────────────────────
+
+/**
+ * Fetch element IDs belonging to a given group.
+ */
+export async function fetchElementIdsByGroupId(groupId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('location_elements')
+      .select('id')
+      .eq('parent_id', groupId);
+    if (error) throw error;
+    return (data ?? []).map(e => e.id);
+  } catch (err) {
+    log.error('Failed to fetch element IDs by group', { groupId, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Fetch element IDs belonging to a given ensemble (ensemble → groups → elements).
+ */
+export async function fetchElementIdsByEnsembleId(ensembleId: string): Promise<string[]> {
+  try {
+    const { data: groups, error: gErr } = await supabase
+      .from('location_groups')
+      .select('id')
+      .eq('parent_id', ensembleId);
+    if (gErr) throw gErr;
+
+    const groupIds = (groups ?? []).map(g => g.id);
+    if (groupIds.length === 0) return [];
+
+    const { data: elements, error: eErr } = await supabase
+      .from('location_elements')
+      .select('id')
+      .in('parent_id', groupIds);
+    if (eErr) throw eErr;
+
+    return (elements ?? []).map(e => e.id);
+  } catch (err) {
+    log.error('Failed to fetch element IDs by ensemble', { ensembleId, error: err });
+    throw err;
+  }
+}

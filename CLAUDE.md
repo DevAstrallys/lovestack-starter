@@ -282,3 +282,21 @@ L'app est conçue pour être K8s-ready :
 
 - Renommer props `TicketsPortfolio.tsx` : `buildings` → `ensembles`
 - Nettoyer champs legacy `building_id` / `building_name` dans type `Ticket`
+
+### Sprint 2 — Rapatriement hooks vers service layer (avril 2026)
+
+- `useLocations.ts` : appel legacy `locations` → `fetchAccessibleLocationElements()` sur `location_elements`
+- `useQRCodes.ts` : 6 appels directs Supabase → service layer, paramètre `buildingId` legacy supprimé
+- `useTaxonomy.ts` / `useUserTicketRole.ts` / `AuthContext.tsx` : déjà conformes, aucune modification nécessaire
+- `QRCodeManagement.tsx` : corrigé suite suppression `buildingId`
+- Nouvelles fonctions : `fetchQRCodesByLocation`, `deactivateActiveQRCodesForLocation`, `regenerateQRCode`, `fetchAccessibleLocationElements`
+
+**Reste à traiter (composants admin — Sprint 3) :**
+
+- `AccessSecurityManager.tsx`
+- `UsersManagement.tsx`
+- `PermissionsManager.tsx`
+- `UserCompanyAffiliations.tsx`
+- `TagsManagement.tsx`
+- `LocationGroups.tsx` / `LocationEnsembles.tsx`
+- `InviteUserDialog.tsx` / `RequestRoleDialog.tsx`

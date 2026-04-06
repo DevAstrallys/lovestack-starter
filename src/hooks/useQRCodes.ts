@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createLogger } from '@/lib/logger';
+import {
+  fetchQRCodesByLocation,
+  deactivateActiveQRCodesForLocation,
+  createQRCode as createQRCodeService,
+  regenerateQRCode as regenerateQRCodeService,
+  updateQRCode,
+} from '@/services/locations';
+import { fetchQrCodeBySlug } from '@/services/tickets';
+
+const log = createLogger('hook:useQRCodes');
 
 export interface QRCode {
   id: string;
@@ -16,13 +26,12 @@ export interface QRCode {
   created_at: string;
   form_config: any;
   created_by: string | null;
-  // Relations
   location_elements?: { name: string };
   location_groups?: { name: string };
   location_ensembles?: { name: string };
 }
 
-export function useQRCodes(locationElementId?: string, buildingId?: string) {
+export function useQRCodes(locationElementId?: string) {
   const [qrCodes, setQRCodes] = useState<QRCode[]>([]);
   const [activeQR, setActiveQR] = useState<QRCode | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,105 +42,60 @@ export function useQRCodes(locationElementId?: string, buildingId?: string) {
       setLoading(true);
       setError(null);
 
-      let query = supabase
-        .from('qr_codes')
-        .select(`
-          *,
-          location_elements(name),
-          location_groups(name), 
-          location_ensembles(name)
-        `)
-        .order('version', { ascending: false });
-
-      if (locationElementId) {
-        query = query.eq('location_element_id', locationElementId);
-      } else if (buildingId) {
-        query = query.eq('building_id', buildingId).is('location_element_id', null);
-      }
-
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-
-      setQRCodes(data || []);
-      
-      // Find active QR code
-      const active = data?.find(qr => qr.is_active) || null;
-      setActiveQR(active);
+      const data = await fetchQRCodesByLocation(locationElementId);
+      setQRCodes(data as QRCode[]);
+      const active = data.find(qr => qr.is_active) || null;
+      setActiveQR(active as QRCode | null);
     } catch (err) {
-      console.error('Error loading QR codes:', err);
+      log.error('Error loading QR codes', { error: err });
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des QR codes');
     } finally {
       setLoading(false);
     }
-  }, [locationElementId, buildingId]);
+  }, [locationElementId]);
 
   const createQRCode = async (qrData: Partial<QRCode>) => {
     try {
-      // Disable any existing active QR code for this location
-      if (locationElementId || buildingId) {
-        let updateQuery = supabase
-          .from('qr_codes')
-          .update({ is_active: false });
-
-        if (locationElementId) {
-          updateQuery = updateQuery.eq('location_element_id', locationElementId);
-        } else if (buildingId) {
-          updateQuery = updateQuery.eq('building_id', buildingId).is('location_element_id', null);
-        }
-
-        await updateQuery.eq('is_active', true);
+      if (locationElementId) {
+        await deactivateActiveQRCodesForLocation(locationElementId);
       }
 
-      const { data, error: createError } = await supabase
-        .from('qr_codes')
-        .insert({
-          ...qrData,
-          version: 1,
-          is_active: true,
-          last_regenerated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (createError) throw createError;
+      const data = await createQRCodeService({
+        display_label: qrData.display_label ?? '',
+        target_slug: qrData.target_slug ?? '',
+        organization_id: qrData.organization_id ?? '',
+        created_by: qrData.created_by ?? undefined,
+        location_element_id: qrData.location_element_id,
+        location_group_id: qrData.location_group_id,
+        location_ensemble_id: qrData.location_ensemble_id,
+        form_config: qrData.form_config ?? {},
+      });
 
       await loadQRCodes();
       return data;
     } catch (err) {
-      console.error('Error creating QR code:', err);
+      log.error('Error creating QR code', { error: err });
       throw err;
     }
   };
 
   const regenerateQRCode = async (qrId: string) => {
     try {
-      const { data, error: regenerateError } = await supabase.rpc('regenerate_qr_code', {
-        qr_id: qrId
-      });
-
-      if (regenerateError) throw regenerateError;
-
+      const data = await regenerateQRCodeService(qrId);
       await loadQRCodes();
       return data;
     } catch (err) {
-      console.error('Error regenerating QR code:', err);
+      log.error('Error regenerating QR code', { error: err });
       throw err;
     }
   };
 
   const deactivateQRCode = async (qrId: string) => {
     try {
-      const { error: updateError } = await supabase
-        .from('qr_codes')
-        .update({ is_active: false })
-        .eq('id', qrId);
-
-      if (updateError) throw updateError;
-
+      await updateQRCode(qrId, { is_active: false });
       await loadQRCodes();
     } catch (err) {
-      console.error('Error deactivating QR code:', err);
+      log.error('Error deactivating QR code', { error: err });
       throw err;
     }
   };
@@ -148,7 +112,7 @@ export function useQRCodes(locationElementId?: string, buildingId?: string) {
     createQRCode,
     regenerateQRCode,
     deactivateQRCode,
-    refresh: loadQRCodes
+    refresh: loadQRCodes,
   };
 }
 
@@ -165,18 +129,7 @@ export function useQRCodeBySlug(slug: string) {
         setLoading(true);
         setError(null);
 
-        // Use the public view (no RLS) so anonymous users can access QR codes
-        const { data, error: fetchError } = await supabase
-          .from('qr_codes_public')
-          .select('*')
-          .eq('target_slug', slug)
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (fetchError) {
-          setError(fetchError.message);
-          return;
-        }
+        const data = await fetchQrCodeBySlug(slug);
 
         if (!data) {
           setError('QR code non trouvé ou inactif');
@@ -185,7 +138,7 @@ export function useQRCodeBySlug(slug: string) {
 
         setQRCode(data as unknown as QRCode);
       } catch (err) {
-        console.error('Error loading QR code by slug:', err);
+        log.error('Error loading QR code by slug', { slug, error: err });
         setError(err instanceof Error ? err.message : 'Erreur lors du chargement du QR code');
       } finally {
         setLoading(false);

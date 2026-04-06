@@ -11,9 +11,12 @@ type TicketInsert = Database['public']['Tables']['tickets']['Insert'];
 type TicketUpdate = Database['public']['Tables']['tickets']['Update'];
 type ActivityInsert = Database['public']['Tables']['ticket_activities']['Insert'];
 
+type TicketStatus = Database['public']['Enums']['ticket_status'];
+type TicketPriority = Database['public']['Enums']['ticket_priority'];
+
 export interface TicketQueryFilters {
-  status?: string[];
-  priority?: string[];
+  status?: TicketStatus[];
+  priority?: TicketPriority[];
   categoryId?: string;
   objectId?: string;
   assignedTo?: string;

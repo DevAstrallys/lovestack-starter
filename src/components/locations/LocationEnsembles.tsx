@@ -57,41 +57,10 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const fetchEnsembles = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_ensembles' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-
-      // Fetch child groups and tags for each ensemble
-      const ensembleIds = (data || []).map((e: any) => e.id);
-      
-      const [groupsRes, tagsRes] = await Promise.all([
-        supabase.from('location_groups' as any).select('*').in('parent_id', ensembleIds),
-        supabase.from('location_ensemble_tags' as any).select('*, location_tags(*)').in('ensemble_id', ensembleIds)
-      ]);
-
-      const groupsByEnsemble = (groupsRes.data || []).reduce((acc: any, g: any) => {
-        (acc[g.parent_id] = acc[g.parent_id] || []).push(g);
-        return acc;
-      }, {});
-
-      const tagsByEnsemble = (tagsRes.data || []).reduce((acc: any, et: any) => {
-        (acc[et.ensemble_id] = acc[et.ensemble_id] || []).push(et.location_tags);
-        return acc;
-      }, {});
-
-      const ensemblesWithRelations = (data || []).map((ensemble: any) => ({
-        ...ensemble,
-        groups: groupsByEnsemble[ensemble.id] || [],
-        tags: tagsByEnsemble[ensemble.id] || []
-      }));
-
-      setEnsembles(ensemblesWithRelations);
+      const result = await fetchEnsemblesWithRelations(organizationId);
+      setEnsembles(result);
     } catch (error) {
-      console.error('Error fetching ensembles:', error);
+      log.error('Error fetching ensembles', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les ensembles",
@@ -104,16 +73,10 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
 
   const fetchAvailableGroups = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_groups' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableGroups((data as any) || []);
+      const data = await fetchGroupsByOrganization(organizationId);
+      setAvailableGroups(data as any);
     } catch (error) {
-      console.error('Error fetching groups:', error);
+      log.error('Error fetching groups', { error });
     }
   };
 

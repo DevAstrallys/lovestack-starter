@@ -220,6 +220,8 @@ Création (anon ou auth)
 | 🟡 Medium   | `form_config` QR non implémenté dans `TicketForm.tsx` | Déféré post-sprint QR                                 |
 | 🟡 Medium   | `tax_suggestions` table non créée                     | Design validé, migration non exécutée                 |
 | 🟡 Medium   | SMS sans provider configuré                           | Affiché "coming soon" dans le formulaire              |
+| 🟡 Medium   | Props legacy `buildings` dans `TicketsPortfolio.tsx`   | TODO Sprint 4 — renommer en `ensembles`               |
+| 🟡 Medium   | Champs `building_id/building_name` dans type `Ticket`  | TODO Sprint 4 — nettoyer les champs legacy            |
 | 🟢 Low      | Push notifications                                    | Marqué "coming soon" dans la déclaration              |
 
 ---
@@ -262,3 +264,21 @@ L'app est conçue pour être K8s-ready :
 4. **Jamais de secret hardcodé**
 5. **Un utilisateur = plusieurs rôles sur plusieurs bâtiments** — l'isolation est par `organization_id` ET `location_*`
 6. **Audit-first** — on audite avant de modifier, toujours
+
+---
+
+## 14. Sprints complétés
+
+### Sprint 1 — Élimination table buildings (avril 2026)
+
+- `fetchBuildings()` supprimée de `services/tickets/index.ts`
+- `BuildingsManagement.tsx` supprimé
+- `useTickets.ts` : 7 appels directs Supabase → service layer
+- `Dashboard.tsx` : 2 appels directs Supabase → service layer
+- `LocationsManagement.tsx` : import mort supprimé
+- Nouvelles fonctions créées : `fetchOrganizationEnsembles`, `fetchFilteredTickets`, `fetchTicketIdsByElementIds`, `fetchElementIdsByGroupId`, `fetchElementIdsByEnsembleId`
+
+**TODO Sprint 4 restants issus de ce sprint :**
+
+- Renommer props `TicketsPortfolio.tsx` : `buildings` → `ensembles`
+- Nettoyer champs legacy `building_id` / `building_name` dans type `Ticket`

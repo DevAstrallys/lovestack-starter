@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import {
   fetchTicketById,
@@ -8,7 +7,14 @@ import {
   fetchOrganizations,
   updateTicket as updateTicketService,
   createTicket as createTicketService,
+  fetchFilteredTickets,
+  fetchTicketIdsByElementIds,
+  type TicketQueryFilters,
 } from '@/services/tickets';
+import {
+  fetchElementIdsByGroupId,
+  fetchElementIdsByEnsembleId,
+} from '@/services/locations';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('hook:tickets');
@@ -62,144 +68,47 @@ export function useTickets(filters: TicketFilters = {}) {
       setLoading(true);
       setError(null);
 
-      let query = supabase
-        .from('tickets')
-        .select('*', { count: 'exact' })
-        .order('last_interaction_at', { ascending: false });
+      // Resolve location hierarchy into a ticket ID whitelist if needed
+      let ticketIdWhitelist: string[] | undefined;
 
-      // Apply filters
-      if (filters.status?.length) {
-        query = query.in('status', filters.status);
-      }
-      
-      if (filters.priority?.length) {
-        query = query.in('priority', filters.priority);
-      }
-
-      if (filters.categoryId) {
-        query = query.eq('category_id', filters.categoryId);
-      }
-
-      if (filters.objectId) {
-        query = query.eq('object_id', filters.objectId);
-      }
-
-      if (filters.assignedTo) {
-        query = query.eq('assigned_to', filters.assignedTo);
-      }
-
-      if (filters.createdBy) {
-        query = query.eq('created_by', filters.createdBy);
-      }
-
-      if (filters.dateRange) {
-        query = query
-          .gte('created_at', filters.dateRange.start)
-          .lte('created_at', filters.dateRange.end);
-      }
-
-      if (filters.lastInteractionDays) {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - filters.lastInteractionDays);
-        query = query.gte('last_interaction_at', cutoffDate.toISOString());
-      }
-
-      if (filters.search) {
-        const sanitized = filters.search
-          .replace(/[\\%_]/g, c => `\\${c}`)
-          .replace(/[,()]/g, '')
-          .trim()
-          .slice(0, 200);
-        if (sanitized) {
-          query = query.or(`title.ilike.%${sanitized}%,description.ilike.%${sanitized}%`);
-        }
-      }
-
-      // Organization filtering
-      if (filters.organizationId) {
-        const { data: orgBuildings } = await supabase
-          .from('buildings')
-          .select('id')
-          .eq('organization_id', filters.organizationId);
-
-        const buildingIds = (orgBuildings || []).map(b => b.id);
-
-        if (buildingIds.length > 0) {
-          query = query.or(
-            `organization_id.eq.${filters.organizationId},building_id.in.(${buildingIds.join(',')})`
-          );
-        } else {
-          query = query.eq('organization_id', filters.organizationId);
-        }
-      }
-
-      // Location filtering based on hierarchy
-      if (filters.locationId) {
-        query = query.contains('location', { element_id: filters.locationId });
-      } else if (filters.groupId) {
-        const { data: groupElements } = await (supabase as any)
-          .from('location_elements')
-          .select('id')
-          .eq('parent_id', filters.groupId);
-        
-        if (groupElements?.length) {
-          const elementIds = groupElements.map((ge: any) => ge.id);
-          const ticketPromises = elementIds.map((elementId: string) =>
-            supabase
-              .from('tickets')
-              .select('id')
-              .contains('location', { element_id: elementId })
-          );
-          
-          const ticketResults = await Promise.all(ticketPromises);
-          const allTicketIds = ticketResults
-            .filter(result => !result.error)
-            .flatMap(result => result.data?.map(t => t.id) || []);
-          
-          if (allTicketIds.length > 0) {
-            query = query.in('id', allTicketIds);
+      if (filters.groupId) {
+        const elementIds = await fetchElementIdsByGroupId(filters.groupId);
+        if (elementIds.length > 0) {
+          ticketIdWhitelist = await fetchTicketIdsByElementIds(elementIds);
+          if (ticketIdWhitelist.length === 0) {
+            setTickets([]);
+            setTotalCount(0);
+            return;
           }
         }
       } else if (filters.ensembleId) {
-        const { data: ensembleGroups } = await (supabase as any)
-          .from('location_groups')
-          .select('id')
-          .eq('parent_id', filters.ensembleId);
-        
-        if (ensembleGroups?.length) {
-          const groupIds = ensembleGroups.map((eg: any) => eg.id);
-          const { data: groupElements } = await (supabase as any)
-            .from('location_elements')
-            .select('id')
-            .in('parent_id', groupIds);
-          
-          if (groupElements?.length) {
-            const elementIds = groupElements.map((ge: any) => ge.id);
-            const ticketPromises = elementIds.map((elementId: string) =>
-              supabase
-                .from('tickets')
-                .select('id')
-                .contains('location', { element_id: elementId })
-            );
-            
-            const ticketResults = await Promise.all(ticketPromises);
-            const allTicketIds = ticketResults
-              .filter(result => !result.error)
-              .flatMap(result => result.data?.map(t => t.id) || []);
-            
-            if (allTicketIds.length > 0) {
-              query = query.in('id', allTicketIds);
-            }
+        const elementIds = await fetchElementIdsByEnsembleId(filters.ensembleId);
+        if (elementIds.length > 0) {
+          ticketIdWhitelist = await fetchTicketIdsByElementIds(elementIds);
+          if (ticketIdWhitelist.length === 0) {
+            setTickets([]);
+            setTotalCount(0);
+            return;
           }
         }
       }
 
-      // Pagination
-      query = query.range(page * limit, (page + 1) * limit - 1);
+      const serviceFilters: TicketQueryFilters = {
+        status: filters.status,
+        priority: filters.priority,
+        categoryId: filters.categoryId,
+        objectId: filters.objectId,
+        assignedTo: filters.assignedTo,
+        createdBy: filters.createdBy,
+        organizationId: filters.organizationId,
+        dateRange: filters.dateRange,
+        lastInteractionDays: filters.lastInteractionDays,
+        search: filters.search,
+        locationElementId: filters.locationId,
+        ticketIdWhitelist,
+      };
 
-      const { data, error: fetchError, count } = await query;
-
-      if (fetchError) throw fetchError;
+      const { data, count } = await fetchFilteredTickets(serviceFilters, page, limit);
 
       // Transform the data to match our Ticket interface
       const transformedData: Ticket[] = (data || []).map(ticket => ({

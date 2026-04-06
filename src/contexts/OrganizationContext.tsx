@@ -105,8 +105,8 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       setOrganizations(data || []);
       
-      // Sélectionner automatiquement la première organisation si aucune n'est sélectionnée
-      if (data && data.length > 0 && !selectedOrganization) {
+      // Auto-select first org only on initial load, never after user chose "all orgs"
+      if (data && data.length > 0 && !hasInitialized.current) {
         setSelectedOrganization(data[0]);
       }
     } catch (error) {

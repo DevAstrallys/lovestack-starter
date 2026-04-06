@@ -264,3 +264,26 @@ export async function fetchElementIdsByEnsembleId(ensembleId: string): Promise<s
     throw err;
   }
 }
+
+/**
+ * Fetches all location elements accessible to the current user (RLS-filtered).
+ * Used for flat location dropdowns (e.g. ticket filters).
+ */
+export async function fetchAccessibleLocationElements(): Promise<
+  { id: string; name: string; description: string | null }[]
+> {
+  try {
+    const { data, error } = await supabase
+      .from('location_elements')
+      .select('id, name, description')
+      .order('name');
+
+    if (error) throw error;
+
+    log.info('Fetched accessible location elements', { count: data?.length ?? 0 });
+    return data ?? [];
+  } catch (err) {
+    log.error('Failed to fetch accessible location elements', { error: err });
+    throw err;
+  }
+}

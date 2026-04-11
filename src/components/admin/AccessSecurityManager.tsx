@@ -105,7 +105,7 @@ export const AccessSecurityManager = () => {
       const allMembers: MemberAccess[] = [];
 
       // Process memberships
-      (memberships || []).forEach((m: any) => {
+      (memberships || []).forEach((m: { role_id: string; organization_id: string | null; is_active: boolean; expires_at: string | null; created_at: string; user_id: string; roles?: { code: string; label: { fr: string; en: string } }; organizations?: { name: string }; profiles?: { full_name: string } }) => {
         allMembers.push({
           id: m.id,
           user_id: m.user_id,
@@ -121,7 +121,7 @@ export const AccessSecurityManager = () => {
       });
 
       // Process location memberships
-      (locMemberships || []).forEach((lm: any) => {
+      (locMemberships || []).forEach((lm: { id: string; user_id: string; role_id: string; organization_id: string; element_id: string | null; group_id: string | null; ensemble_id: string | null; is_active: boolean; expires_at: string | null; created_at: string; roles?: { code: string; label: { fr: string; en: string } }; location_ensembles?: { name: string }; location_groups?: { name: string }; location_elements?: { name: string }; profiles?: { full_name: string } }) => {
         const locType = lm.ensemble_id ? 'ensemble' : lm.group_id ? 'group' : 'element';
         const locName = lm.location_ensembles?.name || lm.location_groups?.name || lm.location_elements?.name || '—';
         allMembers.push({
@@ -153,9 +153,9 @@ export const AccessSecurityManager = () => {
         fetchElementsByOrganization(selectedOrganization.id),
       ]);
       const locs: LocationOption[] = [
-        ...(ensData || []).map((e: any) => ({ id: e.id, name: e.name, type: 'ensemble' as const })),
-        ...(grpData || []).map((g: any) => ({ id: g.id, name: g.name, type: 'group' as const })),
-        ...(elmData || []).map((el: any) => ({ id: el.id, name: el.name, type: 'element' as const })),
+        ...(ensData || []).map((e: { id: string; name: string }) => ({ id: e.id, name: e.name, type: 'ensemble' as const })),
+        ...(grpData || []).map((g: { id: string; name: string }) => ({ id: g.id, name: g.name, type: 'group' as const })),
+        ...(elmData || []).map((el: { id: string; name: string }) => ({ id: el.id, name: el.name, type: 'element' as const })),
       ];
       setLocations(locs);
 
@@ -587,7 +587,7 @@ export const AccessSecurityManager = () => {
             {/* Scope */}
             <div className="space-y-2">
               <Label>Périmètre d'accès</Label>
-              <Select value={addForm.scopeType} onValueChange={(v: any) => setAddForm(f => ({ ...f, scopeType: v, locationId: '' }))}>
+              <Select value={addForm.scopeType} onValueChange={(v: string) => setAddForm(f => ({ ...f, scopeType: v, locationId: '' }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

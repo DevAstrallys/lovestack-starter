@@ -7,6 +7,8 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger('component:emergency-button');
 
+interface EmergencyContact { name?: string; label?: string; role?: string; phone?: string; email?: string; }
+
 interface EmergencyButtonProps {
   ticket: Ticket;
 }
@@ -135,7 +137,7 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                   Contacts d'urgence du site
                 </p>
-                {emergencyContacts.map((contact: any, i: number) => (
+                {emergencyContacts.map((contact: EmergencyContact, i: number) => (
                   <div key={i} className="flex items-center justify-between py-1.5 text-sm">
                     <span>{contact.name || contact.label || `Contact ${i + 1}`}</span>
                     {contact.phone && (

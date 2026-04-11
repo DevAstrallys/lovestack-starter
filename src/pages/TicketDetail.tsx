@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivities } from '@/hooks/useTickets';
-import type { TicketStatus } from '@/types';
+import type { TicketStatus, TicketAttachment } from '@/types';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
@@ -149,7 +149,7 @@ export function TicketDetail() {
     }
     try {
       const oldStatus = ticket.status;
-      const updates: any = { status: newStatus };
+      const updates: Record<string, string> = { status: newStatus };
       if (!ticketAny.first_opened_at && newStatus !== 'open') {
         updates.first_opened_at = new Date().toISOString();
       }
@@ -342,7 +342,7 @@ export function TicketDetail() {
 
                   {ticket.attachments && ticket.attachments.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
-                      {ticket.attachments.map((att: any, i: number) => (
+                      {ticket.attachments.map((att: TicketAttachment, i: number) => (
                         <a
                           key={i}
                           href={att.url}

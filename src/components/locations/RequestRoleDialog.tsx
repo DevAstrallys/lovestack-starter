@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
 import { fetchRoles } from '@/services/users';
+import type { Role } from '@/types';
 import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ export const RequestRoleDialog: React.FC<RequestRoleDialogProps> = ({
 
   const locationType = form.watch('locationType');
 
-  const buildRoleHierarchy = (roles: any[]): Role[] => {
+  const buildRoleHierarchy = (roles: Role[]): Role[] => {
     const roleMap = new Map();
     const rootRoles: Role[] = [];
 

@@ -13,7 +13,7 @@ interface ElementsTableProps {
   onGenerateQR: (id: string, name: string) => void;
 }
 
-function formatAddress(locationData: any): string {
+function formatAddress(locationData: Record<string, unknown> | null): string {
   return [
     locationData?.address,
     locationData?.zipCode && locationData?.city

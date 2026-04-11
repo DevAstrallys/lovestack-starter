@@ -1,45 +1,42 @@
+/**
+ * /src/components/tickets/TicketCreateForm.tsx
+ *
+ * INTERNAL ticket form — used from the dashboard by connected users.
+ * Orchestrates shared components and adds dashboard-specific logic:
+ * - Location hierarchy: ensemble → group → element (cascading selects)
+ * - Uses useTaxonomy hook (with location overrides)
+ * - Detail level (4th taxonomy level)
+ * - onSuccess callback
+ * - Creates ticket via service layer
+ *
+ * REFACTORED: from 912 lines to ~220 lines by extracting shared logic.
+ */
 import React, { useMemo, useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, Send, Loader2, X, Camera, Video, Mic, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
-import { TicketFormStep } from './TicketFormStep';
-import { SignaturePad } from '@/components/report/SignaturePad';
 import DOMPurify from 'dompurify';
+import { createLogger } from '@/lib/logger';
 
-const TOTAL_STEPS = 3;
+import {
+  StepProfile, StepDiagnostic, StepMedia,
+  FormNavigation, FormNavigationButtons,
+  useMediaCapture, useTaxonomySelection,
+} from '@/components/tickets/shared';
 
-const URGENCY_LEVELS = [
-  { value: 4, label: 'Personnes', dot: '🔴', cls: 'border-red-500 bg-red-500/10 text-red-700' },
-  { value: 3, label: 'Immeuble', dot: '🟠', cls: 'border-orange-500 bg-orange-500/10 text-orange-700' },
-  { value: 2, label: 'Moyen', dot: '🟡', cls: 'border-yellow-500 bg-yellow-500/10 text-yellow-700' },
-  { value: 1, label: 'Faible', dot: '🟢', cls: 'border-green-500 bg-green-500/10 text-green-700' },
-] as const;
+import { createTicket } from '@/services/tickets';
+import { fetchProfileSummary } from '@/services/users';
+import {
+  fetchEnsemblesWithRelations,
+  fetchGroupsByOrganization,
+  fetchElementsByOrganization,
+} from '@/services/locations';
 
-const ROLES = [
-  { value: 'locataire', label: 'Locataire' },
-  { value: 'proprietaire', label: 'Propriétaire' },
-  { value: 'prestataire', label: 'Prestataire' },
-  { value: 'visiteur', label: 'Visiteur' },
-  { value: 'gardien', label: 'Gardien' },
-  { value: 'autre', label: 'Autre' },
-];
-
-interface UploadedFile {
-  name: string;
-  url: string;
-  type: string;
-  storagePath: string;
-}
+const log = createLogger('component:ticketCreateForm');
 
 interface TicketCreateFormProps {
   onSuccess?: () => void;
@@ -50,24 +47,22 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const { selectedOrganization } = useOrganization();
   const { toast } = useToast();
 
+  // --- Shared hooks ---
+  const media = useMediaCapture();
+  const tax = useTaxonomySelection();
+
+  // --- Taxonomy (with overrides) ---
+  const { actions, getFilteredCategories, getFilteredObjects, getFilteredDetails, loading: taxLoading } = useTaxonomy();
+
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
-  const cameraVideoRef = React.useRef<HTMLVideoElement>(null);
-  const cameraStreamRef = React.useRef<MediaStream | null>(null);
-  const audioRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const audioStreamRef = React.useRef<MediaStream | null>(null);
-  const audioChunksRef = React.useRef<Blob[]>([]);
-  const videoRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const videoStreamRef = React.useRef<MediaStream | null>(null);
-  const videoChunksRef = React.useRef<Blob[]>([]);
-  const videoPreviewRef = React.useRef<HTMLVideoElement>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [recordingAudio, setRecordingAudio] = useState(false);
-  const [recordingVideo, setRecordingVideo] = useState(false);
-
-  const [mediaMenu, setMediaMenu] = useState<'photo' | 'video' | 'audio' | null>(null);
+  // --- Profile ---
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [profileRole, setProfileRole] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
 
   // --- Location hierarchy ---
   const [ensembles, setEnsembles] = useState<Array<{ id: string; name: string }>>([]);
@@ -77,37 +72,12 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedElementId, setSelectedElementId] = useState('');
 
-  // --- Profile ---
-  const [lastName, setLastName] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [role, setRole] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-
-  // --- Taxonomy ---
-  const { actions, getFilteredCategories, getFilteredObjects, getFilteredDetails, loading: taxLoading } = useTaxonomy();
-
-  const [actionId, setActionId] = useState('');
-  const [actionKey, setActionKey] = useState('');
-  const [actionLabel, setActionLabel] = useState('');
-  const [initiality, setInitiality] = useState<'initial' | 'relance'>('initial');
-  const [categoryId, setCategoryId] = useState('');
-  const [categoryLabel, setCategoryLabel] = useState('');
-  const [objectId, setObjectId] = useState('');
-  const [objectLabel, setObjectLabel] = useState('');
-  const [showFreeObject, setShowFreeObject] = useState(false);
-  const [freeObject, setFreeObject] = useState('');
-  const [detailId, setDetailId] = useState('');
-  const [detailLabel, setDetailLabel] = useState('');
-  const [urgency, setUrgency] = useState(2);
-
-  // --- Media ---
+  // --- Media & details ---
   const [description, setDescription] = useState('');
-  const [notifChannel, setNotifChannel] = useState<'email' | 'sms' | 'none'>('email');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [notifChannel, setNotifChannel] = useState<'email' | 'sms' | 'app' | 'none'>('email');
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
-  // Deduplicate actions
+  // ── Derived taxonomy data ─────────────────────────────────────────
   const uniqueActions = useMemo(() => {
     const seen = new Set<string>();
     return actions.filter((a) => {
@@ -118,15 +88,15 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     });
   }, [actions]);
 
-  const filteredCategories = actionId ? getFilteredCategories(actionId) : [];
-  const filteredObjects = categoryId ? getFilteredObjects(categoryId) : [];
-  const filteredDetails = objectId ? getFilteredDetails(objectId) : [];
+  const filteredCategories = tax.actionId ? getFilteredCategories(tax.actionId) : [];
+  const filteredObjects = tax.categoryId ? getFilteredObjects(tax.categoryId) : [];
+  const filteredDetails = tax.objectId ? getFilteredDetails(tax.objectId) : [];
 
-  // --- Auto-fill profile from auth ---
+  // ── Auto-fill profile ─────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: prof } = await supabase.from('profiles').select('full_name, phone').eq('id', user.id).single();
+      const prof = await fetchProfileSummary(user.id);
       if (prof) {
         const parts = (prof.full_name || '').split(' ');
         setLastName(parts[0] || '');
@@ -137,292 +107,49 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
     })();
   }, [user]);
 
-  // --- Load location ensembles for selected org ---
+  // ── Load location hierarchy ───────────────────────────────────────
   useEffect(() => {
     if (!selectedOrganization) return;
     (async () => {
-      const { data } = await supabase
-        .from('location_ensembles')
-        .select('id, name')
-        .eq('organization_id', selectedOrganization.id)
-        .order('name');
-      setEnsembles(data || []);
+      const data = await fetchEnsemblesWithRelations(selectedOrganization.id);
+      setEnsembles((data || []).map((e: Record<string, unknown>) => ({ id: e.id as string, name: e.name as string })));
     })();
   }, [selectedOrganization]);
 
-  // --- Load groups when ensemble selected ---
   useEffect(() => {
     if (!selectedEnsembleId) { setGroups([]); return; }
     (async () => {
-      const { data } = await supabase
-        .from('location_groups')
-        .select('id, name')
-        .eq('parent_id', selectedEnsembleId)
-        .order('name');
-      setGroups(data || []);
+      const data = await fetchGroupsByOrganization(selectedEnsembleId);
+      setGroups((data || []).map((g: Record<string, unknown>) => ({ id: g.id as string, name: g.name as string })));
     })();
   }, [selectedEnsembleId]);
 
-  // --- Load elements when group selected ---
   useEffect(() => {
     if (!selectedGroupId) { setElements([]); return; }
     (async () => {
-      const { data } = await supabase
-        .from('location_elements')
-        .select('id, name')
-        .eq('parent_id', selectedGroupId)
-        .order('name');
-      setElements(data || []);
+      const data = await fetchElementsByOrganization(selectedGroupId);
+      setElements((data || []).map((el: Record<string, unknown>) => ({ id: el.id as string, name: el.name as string })));
     })();
   }, [selectedGroupId]);
 
-  // --- Helpers ---
-  const buildTitle = () => {
-    const sc = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
-    const parts = [sc(categoryLabel), sc(showFreeObject ? freeObject : objectLabel)];
-    if (detailLabel) parts.push(sc(detailLabel));
-    return parts.join(' — ');
-  };
-
+  // ── Validation ────────────────────────────────────────────────────
   const canProceed = () => {
-    if (step === 1) return !!(lastName && firstName && role);
-    if (step === 2) return !!((actionId && categoryId && (objectId || (showFreeObject && freeObject.trim()))) && urgency > 0);
-    if (step === 3) return !!description.trim() && (actionKey !== 'verifier' || !!signatureDataUrl);
+    if (step === 1) return !!(lastName && firstName && profileRole);
+    if (step === 2) return !!(tax.actionId && tax.categoryId && (tax.objectId || (tax.showFreeObject && tax.freeObject.trim())) && tax.urgency > 0);
+    if (step === 3) return !!description.trim() && (tax.actionKey !== 'verifier' || !!signatureDataUrl);
     return false;
   };
 
-  const selectAction = (a: typeof uniqueActions[0]) => {
-    setActionId(a.id); setActionKey(a.key); setActionLabel(a.label);
-    setCategoryId(''); setCategoryLabel('');
-    setObjectId(''); setObjectLabel('');
-    setShowFreeObject(false); setFreeObject('');
-    setDetailId(''); setDetailLabel('');
-    setUrgency(2);
-  };
-
-  const selectCategory = (id: string) => {
-    const cat = filteredCategories.find(c => c.id === id);
-    setCategoryId(id); setCategoryLabel(cat?.label || '');
-    setObjectId(''); setObjectLabel('');
-    setShowFreeObject(false); setFreeObject('');
-    setDetailId(''); setDetailLabel('');
-    setUrgency(2);
-  };
-
-  const selectObject = (id: string) => {
-    if (id === '__other__') {
-      setObjectId(''); setObjectLabel('');
-      setShowFreeObject(true);
-      setFreeObject('');
-      setDetailId(''); setDetailLabel('');
-      return;
-    }
-    setShowFreeObject(false); setFreeObject('');
-    const obj = filteredObjects.find(o => o.id === id);
-    setObjectId(id); setObjectLabel(obj?.label || '');
-    setDetailId(''); setDetailLabel('');
-    if (obj && 'urgency_level' in obj && obj.urgency_level) setUrgency(obj.urgency_level);
-  };
-
-  const selectDetail = (id: string) => {
-    const det = filteredDetails.find(d => d.id === id);
-    setDetailId(id); setDetailLabel(det?.label || '');
-  };
-
-  // --- File upload ---
-  const uploadFile = async (file: File, fileType: string) => {
-    if (file.size > 20 * 1024 * 1024) {
-      toast({ title: 'Fichier trop volumineux (max 20 Mo)', variant: 'destructive' });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const ext = file.name.split('.').pop() || 'bin';
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from('ticket-attachments').upload(path, file, { contentType: file.type });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from('ticket-attachments').getPublicUrl(path);
-      setUploadedFiles(prev => [...prev, { name: file.name, url: urlData.publicUrl, type: fileType, storagePath: path }]);
-      console.log('[Upload OK]', file.name, urlData.publicUrl);
-    } catch (err) {
-      console.error('[Upload ERROR]', err);
-      toast({ title: 'Erreur upload', variant: 'destructive' });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await uploadFile(file, fileType);
-    e.target.value = '';
-  };
-
-  const stopCameraStream = () => {
-    cameraStreamRef.current?.getTracks().forEach(track => track.stop());
-    cameraStreamRef.current = null;
-    setCameraOpen(false);
-  };
-
-  const stopAudioStream = () => {
-    audioStreamRef.current?.getTracks().forEach(track => track.stop());
-    audioStreamRef.current = null;
-  };
-
-  const startCameraCapture = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      toast({ title: 'Caméra non supportée sur ce navigateur', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      cameraStreamRef.current = stream;
-      setCameraOpen(true);
-      requestAnimationFrame(() => {
-        if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
-      });
-    } catch (error) {
-      console.error('[Camera ERROR]', error);
-      toast({ title: 'Accès caméra refusé ou indisponible', variant: 'destructive' });
-    }
-  };
-
-  const capturePhoto = async () => {
-    const video = cameraVideoRef.current;
-    if (!video) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
-      await uploadFile(file, 'image');
-      stopCameraStream();
-    }, 'image/jpeg', 0.92);
-  };
-
-  const toggleAudioRecording = async () => {
-    if (recordingAudio && audioRecorderRef.current) {
-      audioRecorderRef.current.stop();
-      setRecordingAudio(false);
-      return;
-    }
-
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      const fallback = document.getElementById('upload-audio-fallback') as HTMLInputElement | null;
-      fallback?.click();
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioStreamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
-      audioRecorderRef.current = recorder;
-      audioChunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      recorder.onstop = async () => {
-        const mimeType = recorder.mimeType || 'audio/webm';
-        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
-        const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType });
-        await uploadFile(file, 'audio');
-        stopAudioStream();
-      };
-
-      recorder.start();
-      setRecordingAudio(true);
-    } catch (error) {
-      console.error('[Audio ERROR]', error);
-      toast({ title: 'Accès micro refusé ou indisponible', variant: 'destructive' });
-    }
-  };
-
-  const stopVideoStream = () => {
-    videoStreamRef.current?.getTracks().forEach(track => track.stop());
-    videoStreamRef.current = null;
-  };
-
-  const toggleVideoRecording = async () => {
-    if (recordingVideo && videoRecorderRef.current) {
-      videoRecorderRef.current.stop();
-      setRecordingVideo(false);
-      return;
-    }
-
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      toast({ title: 'Enregistrement vidéo non supporté sur ce navigateur', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: true });
-      videoStreamRef.current = stream;
-      setRecordingVideo(true);
-
-      requestAnimationFrame(() => {
-        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream;
-      });
-
-      const recorder = new MediaRecorder(stream);
-      videoRecorderRef.current = recorder;
-      videoChunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) videoChunksRef.current.push(event.data);
-      };
-
-      recorder.onstop = async () => {
-        const mimeType = recorder.mimeType || 'video/webm';
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        const blob = new Blob(videoChunksRef.current, { type: mimeType });
-        const file = new File([blob], `video-${Date.now()}.${ext}`, { type: mimeType });
-        await uploadFile(file, 'video');
-        stopVideoStream();
-      };
-
-      recorder.start();
-    } catch (error) {
-      console.error('[Video ERROR]', error);
-      toast({ title: 'Accès caméra/micro refusé ou indisponible', variant: 'destructive' });
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (audioRecorderRef.current?.state === 'recording') audioRecorderRef.current.stop();
-      if (videoRecorderRef.current?.state === 'recording') videoRecorderRef.current.stop();
-      stopAudioStream();
-      stopVideoStream();
-      stopCameraStream();
-    };
-  }, []);
-
-  const removeFile = (i: number) => setUploadedFiles(prev => prev.filter((_, idx) => idx !== i));
-
-  // --- REAL Submit ---
+  // ── Submit ────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!canProceed()) return;
-    if (!user) {
+    if (!canProceed() || !user) {
       toast({ title: 'Erreur', description: 'Vous devez être connecté', variant: 'destructive' });
       return;
     }
 
-    const title = DOMPurify.sanitize(buildTitle());
+    const title = DOMPurify.sanitize(tax.buildTitle());
     const desc = DOMPurify.sanitize(description);
-    const priority = urgency === 4 ? 'urgent' : urgency === 3 ? 'high' : urgency === 2 ? 'medium' : 'low';
+    const priority = tax.urgency === 4 ? 'urgent' : tax.urgency === 3 ? 'high' : tax.urgency === 2 ? 'medium' : 'low';
 
     const locationName = elements.find(e => e.id === selectedElementId)?.name
       || groups.find(g => g.id === selectedGroupId)?.name
@@ -430,17 +157,13 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       || null;
 
     const ticketData: Record<string, unknown> = {
-      title,
-      description: desc,
-      priority,
-      status: 'open',
+      title, description: desc, priority, status: 'open',
       created_by: user.id,
       organization_id: selectedOrganization?.id || null,
-      source: 'dashboard',
-      initiality,
-      action_code: actionId || null,
-      category_id: categoryId || null,
-      object_id: showFreeObject ? null : (objectId || null),
+      source: 'dashboard', initiality: tax.initiality,
+      action_code: tax.actionId || null,
+      category_id: tax.categoryId || null,
+      object_id: tax.showFreeObject ? null : (tax.objectId || null),
       reporter_name: DOMPurify.sanitize(`${lastName} ${firstName}`.trim()),
       reporter_email: email || null,
       reporter_phone: phone || null,
@@ -450,463 +173,101 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
         ensemble_id: selectedEnsembleId || null,
         name: locationName,
       },
-      attachments: uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
+      attachments: media.uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
       meta: {
-        reporter_role: role,
-        detail_id: detailId || null,
-        detail_label: detailLabel || null,
-        urgency_level: urgency,
+        reporter_role: profileRole, urgency_level: tax.urgency,
         notification_channel: notifChannel,
-        signature: actionKey === 'verifier' ? signatureDataUrl : null,
-        action_id: actionId,
-        action_key: actionKey,
-        action_label: actionLabel,
-        category_label: categoryLabel,
-        object_label: showFreeObject ? freeObject : objectLabel,
-        ...(showFreeObject ? { free_object: freeObject } : {}),
-        organization_id: selectedOrganization?.id || null,
+        signature: tax.actionKey === 'verifier' ? signatureDataUrl : null,
+        action_id: tax.actionId, action_key: tax.actionKey, action_label: tax.actionLabel,
+        category_label: tax.categoryLabel,
+        object_label: tax.showFreeObject ? tax.freeObject : tax.objectLabel,
+        detail_id: tax.detailId || null, detail_label: tax.detailLabel || null,
+        ...(tax.showFreeObject ? { free_object: tax.freeObject } : {}),
       },
     };
 
-
     try {
       setSubmitting(true);
-      const { error } = await supabase.from('tickets').insert(ticketData as any);
-      if (error) throw error;
+      await createTicket(ticketData);
       toast({ title: 'Ticket créé avec succès !' });
       onSuccess?.();
-    } catch (err: any) {
-      console.error('[TicketCreateForm] INSERT ERROR:', err);
-      toast({ title: 'Erreur', description: err?.message || 'Impossible de créer le ticket', variant: 'destructive' });
+    } catch (err) {
+      log.error('Ticket creation failed', { error: err });
+      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Impossible de créer le ticket', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
   if (taxLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
     <div className="space-y-4">
-      {/* Progress */}
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Étape {step} / {TOTAL_STEPS}</span>
-          <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
-        </div>
-        <Progress value={(step / TOTAL_STEPS) * 100} className="h-2" />
-      </div>
+      <FormNavigation step={step} canProceed={canProceed()} submitting={submitting} onPrevious={() => setStep(s => s - 1)} onNext={() => setStep(s => s + 1)} onSubmit={handleSubmit} />
 
-      {/* ============ ÉTAPE 1 : PROFIL + LIEU ============ */}
       {step === 1 && (
-        <TicketFormStep title="Étape 1 — Qui êtes-vous ?">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cf-last_name">Nom *</Label>
-              <Input id="cf-last_name" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Dupont" className="min-h-[44px]" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cf-first_name">Prénom *</Label>
-              <Input id="cf-first_name" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Jean" className="min-h-[44px]" />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Rôle *</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner votre rôle" /></SelectTrigger>
-              <SelectContent>
-                {ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cf-phone">Mobile</Label>
-              <Input id="cf-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="06 12 34 56 78" className="min-h-[44px]" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cf-email">Email</Label>
-              <Input id="cf-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jean@exemple.com" className="min-h-[44px]" />
-            </div>
-          </div>
-
-          {/* Lieu (hiérarchie Ensemble > Groupe > Élément) */}
+        <StepProfile
+          lastName={lastName} firstName={firstName} profileRole={profileRole} phone={phone} email={email}
+          onLastNameChange={setLastName} onFirstNameChange={setFirstName} onRoleChange={setProfileRole}
+          onPhoneChange={setPhone} onEmailChange={setEmail}
+        >
+          {/* Location hierarchy (dashboard-specific) */}
           <div className="border-t pt-4 mt-4 space-y-3">
             <Label className="text-base font-semibold">Localisation</Label>
-            {selectedOrganization && (
-              <p className="text-xs text-muted-foreground">Organisation : {selectedOrganization.name}</p>
-            )}
-
+            {selectedOrganization && <p className="text-xs text-muted-foreground">Organisation : {selectedOrganization.name}</p>}
             <div className="space-y-2">
               <Label>Ensemble (Copropriété)</Label>
               <Select value={selectedEnsembleId || undefined} onValueChange={v => { setSelectedEnsembleId(v); setSelectedGroupId(''); setSelectedElementId(''); }}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner un ensemble" /></SelectTrigger>
-                <SelectContent>
-                  {ensembles.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{ensembles.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-
             {selectedEnsembleId && groups.length > 0 && (
               <div className="space-y-2">
                 <Label>Groupement (Bâtiment)</Label>
                 <Select value={selectedGroupId || undefined} onValueChange={v => { setSelectedGroupId(v); setSelectedElementId(''); }}>
                   <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner un groupement" /></SelectTrigger>
-                  <SelectContent>
-                    {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
-
             {selectedGroupId && elements.length > 0 && (
               <div className="space-y-2">
                 <Label>Élément (Appartement / Local)</Label>
                 <Select value={selectedElementId || undefined} onValueChange={setSelectedElementId}>
                   <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Sélectionner un élément" /></SelectTrigger>
-                  <SelectContent>
-                    {elements.map(el => <SelectItem key={el.id} value={el.id}>{el.name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{elements.map(el => <SelectItem key={el.id} value={el.id}>{el.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
           </div>
-        </TicketFormStep>
+        </StepProfile>
       )}
 
-      {/* ============ ÉTAPE 2 : DIAGNOSTIC ============ */}
       {step === 2 && (
-        <TicketFormStep title="Étape 2 — Diagnostic">
-          {/* 1. AXE (boutons) */}
-          <div className="space-y-2">
-            <Label>Que souhaitez-vous faire ? *</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {uniqueActions.map(a => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => selectAction(a)}
-                  className={`p-4 rounded-lg border-2 text-center text-sm font-medium transition-all min-h-[60px] ${
-                    actionId === a.id
-                      ? 'border-primary bg-primary/10 shadow-md'
-                      : 'border-border bg-card hover:border-primary/50'
-                  }`}
-                >
-                  {a.label}
-                  {a.description && <span className="block text-xs text-muted-foreground mt-1">{a.description}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. INITIATIVE (boutons) */}
-          {actionId && (
-            <div className="space-y-2">
-              <Label>Initiative *</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInitiality('initial')}
-                  className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
-                    initiality === 'initial' ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
-                  }`}
-                >
-                  Initial
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInitiality('relance')}
-                  className={`p-3 rounded-lg border-2 text-sm font-medium min-h-[44px] ${
-                    initiality === 'relance' ? 'border-primary bg-primary/10 shadow-md' : 'border-border'
-                  }`}
-                >
-                  Relance
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 3. CATÉGORIE (select) */}
-          {actionId && (
-            <div className="space-y-2">
-              <Label>Catégorie *</Label>
-              <Select value={categoryId || undefined} onValueChange={selectCategory}>
-                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* 4. OBJET (select) */}
-          {categoryId && (
-             <div className="space-y-2">
-              <Label>Objet *</Label>
-              <Select value={showFreeObject ? '__other__' : (objectId || undefined)} onValueChange={selectObject}>
-                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Choisir un objet" /></SelectTrigger>
-                <SelectContent>
-                  {filteredObjects.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
-                  <SelectItem value="__other__" className="text-muted-foreground italic">Autre problème…</SelectItem>
-                </SelectContent>
-              </Select>
-              {showFreeObject && (
-                <Textarea
-                  placeholder="Décrivez l'objet de votre signalement…"
-                  value={freeObject}
-                  onChange={e => setFreeObject(e.target.value)}
-                  className="mt-2"
-                  rows={2}
-                />
-              )}
-            </div>
-          )}
-
-          {/* 4b. DÉTAIL (optionnel) */}
-          {objectId && filteredDetails.length > 0 && (
-            <div className="space-y-2">
-              <Label>Nature / Détail</Label>
-              <Select value={detailId || undefined} onValueChange={selectDetail}>
-                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Préciser (optionnel)" /></SelectTrigger>
-                <SelectContent>
-                  {filteredDetails.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* 5. URGENCE (pastilles) */}
-          {(objectId || showFreeObject) && (
-            <div className="space-y-2">
-              <Label>Niveau d'urgence *</Label>
-              <div className="space-y-2">
-                {URGENCY_LEVELS.map(u => (
-                  <button
-                    key={u.value}
-                    type="button"
-                    onClick={() => setUrgency(u.value)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-sm font-medium text-left transition-all min-h-[44px] ${
-                      urgency === u.value ? u.cls + ' shadow-md ring-2 ring-primary/30' : 'border-border hover:border-primary/40'
-                    }`}
-                  >
-                    <span className="text-lg">{u.dot}</span>
-                    <span>{u.value} - {u.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Titre preview */}
-          {actionId && categoryId && (objectId || (showFreeObject && freeObject.trim())) && (
-            <div className="rounded-md bg-muted p-3">
-              <Label className="text-xs text-muted-foreground">Titre final du ticket</Label>
-              <p className="mt-1 text-sm font-mono">{buildTitle()}</p>
-            </div>
-          )}
-        </TicketFormStep>
+        <StepDiagnostic
+          taxonomy={tax}
+          actions={uniqueActions}
+          categories={filteredCategories}
+          objects={filteredObjects as Array<import('@/types').TaxObject>}
+          details={filteredDetails as Array<import('@/types').TaxDetail>}
+          showFreeCategoryOption={false}
+        />
       )}
 
-      {/* ============ ÉTAPE 3 : MÉDIAS ============ */}
       {step === 3 && (
-        <TicketFormStep title="Étape 3 — Détails & Médias">
-          <div className="space-y-2">
-            <Label htmlFor="cf-description">Description *</Label>
-            <Textarea
-              id="cf-description"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={4}
-              placeholder="Décrivez le problème ou la demande en détail..."
-              className="min-h-[100px]"
-            />
-          </div>
-
-          {/* UPLOAD : boutons avec choix capture / fichier */}
-          <div className="space-y-3">
-            <Label>Pièces jointes</Label>
-
-            <div className="grid grid-cols-2 gap-3">
-              {/* === PHOTO === */}
-              <div className="flex flex-col">
-                <button
-                  type="button"
-                  onClick={() => setMediaMenu(mediaMenu === 'photo' ? null : 'photo')}
-                  disabled={uploading}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${mediaMenu === 'photo' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
-                >
-                  <Camera className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Photo</span>
-                </button>
-                {mediaMenu === 'photo' && (
-                  <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <button type="button" onClick={() => { setMediaMenu(null); startCameraCapture(); }}
-                      className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent">📸 Prendre une photo</button>
-                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
-                      📁 Choisir un fichier
-                      <input type="file" accept="image/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'image'); }} />
-                    </label>
-                  </div>
-                )}
-              </div>
-
-              {/* === VIDÉO === */}
-              <div className="flex flex-col">
-                <button
-                  type="button"
-                  onClick={() => setMediaMenu(mediaMenu === 'video' ? null : 'video')}
-                  disabled={uploading}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${mediaMenu === 'video' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
-                >
-                  <Video className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Vidéo</span>
-                </button>
-                {mediaMenu === 'video' && (
-                  <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <button type="button" onClick={() => { setMediaMenu(null); toggleVideoRecording(); }}
-                      className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent">
-                      🎥 Enregistrer une vidéo
-                    </button>
-                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
-                      📁 Choisir un fichier
-                      <input type="file" accept="video/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'video'); }} />
-                    </label>
-                  </div>
-                )}
-              </div>
-
-              {/* === AUDIO === */}
-              <div className="flex flex-col">
-                <button
-                  type="button"
-                  onClick={() => setMediaMenu(mediaMenu === 'audio' ? null : 'audio')}
-                  disabled={uploading}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all min-h-[80px] ${mediaMenu === 'audio' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/50'}`}
-                >
-                  <Mic className="h-6 w-6 text-primary" />
-                  <span className="text-sm font-medium">Audio</span>
-                </button>
-                {mediaMenu === 'audio' && (
-                  <div className="mt-1 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <button type="button" onClick={() => { setMediaMenu(null); toggleAudioRecording(); }}
-                      className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent">
-                      {recordingAudio ? '⏹️ Arrêter l\'enregistrement' : '🎙️ Enregistrer un audio'}
-                    </button>
-                    <label className="text-xs text-left px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
-                      📁 Choisir un fichier
-                      <input type="file" accept="audio/*" className="hidden" onChange={e => { setMediaMenu(null); handleFileUpload(e, 'audio'); }} />
-                    </label>
-                  </div>
-                )}
-              </div>
-
-              {/* === DOCUMENT === */}
-              <label
-                htmlFor="upload-doc"
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-border bg-card hover:border-primary/50 transition-all min-h-[80px] cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <FileText className="h-6 w-6 text-primary" />
-                <span className="text-sm font-medium">Document</span>
-              </label>
-              <input id="upload-doc" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" className="hidden" disabled={uploading} onChange={e => handleFileUpload(e, 'document')} />
-            </div>
-
-            {cameraOpen && (
-              <div className="rounded-lg border border-border bg-card p-3 space-y-3">
-                <video ref={cameraVideoRef} autoPlay playsInline muted className="w-full rounded-md border border-border bg-muted" />
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={stopCameraStream}>Annuler</Button>
-                  <Button type="button" onClick={capturePhoto}>📸 Capturer</Button>
-                </div>
-              </div>
-            )}
-
-            {recordingVideo && (
-              <div className="rounded-lg border border-primary bg-primary/5 p-3 space-y-3">
-                <video ref={videoPreviewRef} autoPlay playsInline muted className="w-full rounded-md border border-border bg-muted" />
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
-                  <span className="text-xs text-muted-foreground flex-1">Enregistrement vidéo…</span>
-                  <Button type="button" size="sm" variant="outline" onClick={toggleVideoRecording}>⏹️ Stop</Button>
-                </div>
-              </div>
-            )}
-
-            {recordingAudio && (
-              <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary/5 p-3">
-                <span className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
-                <span className="text-xs text-muted-foreground flex-1">Enregistrement audio…</span>
-                <Button type="button" size="sm" variant="outline" onClick={toggleAudioRecording}>⏹️ Stop</Button>
-              </div>
-            )}
-
-            {uploading && <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Upload en cours...</p>}
-
-            {uploadedFiles.length > 0 && (
-              <div className="space-y-1">
-                {uploadedFiles.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between rounded border p-2 text-xs">
-                    <span className="truncate">{f.type} — {f.name}</span>
-                    <button type="button" onClick={() => removeFile(i)}><X className="h-3 w-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {actionKey === 'verifier' && (
-            <div className="space-y-2">
-              <Label>Signature numérique (obligatoire)</Label>
-              <SignaturePad value={signatureDataUrl} onChange={setSignatureDataUrl} />
-            </div>
-          )}
-
-          <div className="space-y-2 pt-2">
-            <Label>Notifications</Label>
-            <RadioGroup value={notifChannel} onValueChange={v => setNotifChannel(v as any)} className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="email" id="cf-n-email" />
-                <Label htmlFor="cf-n-email" className="font-normal">Par email</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="sms" id="cf-n-sms" />
-                <Label htmlFor="cf-n-sms" className="font-normal">Par SMS</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="none" id="cf-n-none" />
-                <Label htmlFor="cf-n-none" className="font-normal">Aucune</Label>
-              </div>
-            </RadioGroup>
-          </div>
-        </TicketFormStep>
+        <StepMedia
+          description={description} onDescriptionChange={setDescription}
+          notifChannel={notifChannel} onNotifChannelChange={setNotifChannel}
+          signatureDataUrl={signatureDataUrl} onSignatureChange={setSignatureDataUrl}
+          requireSignature={tax.actionKey === 'verifier'}
+          {...media}
+        />
       )}
 
-      {/* NAV */}
-      <div className="flex gap-3 pt-2">
-        {step > 1 && (
-          <Button type="button" variant="outline" onClick={() => setStep(s => s - 1)} className="min-h-[44px]">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Précédent
-          </Button>
-        )}
-        <div className="flex-1" />
-        {step < TOTAL_STEPS ? (
-          <Button type="button" onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="min-h-[44px]">
-            Suivant <ArrowRight className="ml-1 h-4 w-4" />
-          </Button>
-        ) : (
-          <Button type="button" onClick={handleSubmit} disabled={submitting || !canProceed()} className="min-h-[44px]">
-            {submitting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-            {submitting ? 'Envoi...' : 'Créer le ticket'}
-          </Button>
-        )}
-      </div>
+      <FormNavigationButtons step={step} canProceed={canProceed()} submitting={submitting} onPrevious={() => setStep(s => s - 1)} onNext={() => setStep(s => s + 1)} onSubmit={handleSubmit} />
     </div>
   );
 };

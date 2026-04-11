@@ -127,7 +127,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
     }
     setSending(true);
     try {
-      await supabase.from('ticket_activities').insert({
+      await addTicketActivity({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
         activity_type: 'assignment',
@@ -146,7 +146,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
 
       const ticketAny = ticket as any;
       if (!ticketAny.assigned_at) {
-        await supabase.from('tickets').update({ assigned_at: new Date().toISOString() } as any).eq('id', ticket.id);
+        await updateTicket(ticket.id, { assigned_at: new Date().toISOString() });
       }
 
       const tabLabel = targetType === 'prestataire' ? 'Prestataire' : targetType === 'conseil_syndical' ? 'Conseil Syndical' : 'Concierge';

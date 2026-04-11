@@ -15,11 +15,14 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:roles-permissions');
 
 interface Role {
   id: string;
   code: string;
-  label: any;
+  label: Record<string, string>;
   is_platform_scope: boolean;
   created_at: string;
   parent_id?: string;
@@ -32,7 +35,7 @@ interface Role {
 interface Permission {
   id: string;
   code: string;
-  label: any;
+  label: Record<string, string>;
 }
 
 interface RolePermission {
@@ -106,13 +109,13 @@ export const RolesPermissions = () => {
 
       if (rpError) throw rpError;
 
-      const hierarchicalRoles = buildRoleHierarchy(rolesData || []);
+      const hierarchicalRoles = buildRoleHierarchy((rolesData || []) as unknown as Role[]);
       setRoles(hierarchicalRoles);
-      setPermissions(permissionsData || []);
-      setRolePermissions(rolePermissionsData || []);
+      setPermissions((permissionsData || []) as unknown as Permission[]);
+      setRolePermissions((rolePermissionsData || []) as unknown as RolePermission[]);
     } catch (error) {
       toast.error('Erreur lors du chargement des données');
-      console.error('Error fetching data:', error);
+      log.error('Error fetching roles and permissions', { error });
     } finally {
       setLoading(false);
     }
@@ -161,7 +164,7 @@ export const RolesPermissions = () => {
       fetchData();
     } catch (error) {
       toast.error('Erreur lors de la modification de la permission');
-      console.error('Error toggling permission:', error);
+      log.error('Error toggling permission', { error });
     }
   };
 

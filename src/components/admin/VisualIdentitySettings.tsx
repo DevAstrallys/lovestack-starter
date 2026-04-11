@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { updateOrganization } from '@/services/organizations';
 import { uploadFile } from '@/services/storage';
 import { createLogger } from '@/lib/logger';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -56,16 +56,11 @@ export const VisualIdentitySettings = () => {
         logoUrl = result.publicUrl;
       }
 
-      const { error } = await supabase
-        .from('organizations')
-        .update({
-          primary_color: primaryColor,
-          secondary_color: secondaryColor,
-          logo_url: logoUrl,
-        } as any)
-        .eq('id', selectedOrganization.id);
-
-      if (error) throw error;
+      await updateOrganization(selectedOrganization.id, {
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        logo_url: logoUrl,
+      });
 
       // Update context with new values
       const updatedOrg = {

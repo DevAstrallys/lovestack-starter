@@ -1,8 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, Mic, Video, X, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { uploadFile } from '@/services/storage';
+import { createLogger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
+
+const log = createLogger('component:media-upload');
 
 export interface UploadedFile {
   name: string;

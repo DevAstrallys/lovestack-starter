@@ -278,8 +278,8 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       onClose();
       form.reset();
       setUserRoles([]);
-    } catch (error: any) {
-      const errMsg = error?.message || error?.error_description || JSON.stringify(error);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : JSON.stringify(error);
       log.error('Error inviting user', error);
       toast({
         title: "Erreur",

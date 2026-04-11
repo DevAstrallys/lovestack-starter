@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createUser } from '@/services/admin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -182,16 +182,11 @@ export const OrganizationsManagement = () => {
     try {
       const fullName = `${newUserData.firstName} ${newUserData.lastName}`.trim();
       
-      const { data, error } = await supabase.functions.invoke('create-user', {
-        body: {
-          email: newUserData.email,
-          password: tempPassword,
-          full_name: fullName,
-        },
+      const data = await createUser({
+        email: newUserData.email,
+        password: tempPassword,
+        full_name: fullName,
       });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
       const createdUser: ProfileResult = {
         id: data.user.id,
@@ -215,9 +210,9 @@ export const OrganizationsManagement = () => {
       } catch {
         // clipboard may not be available
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('Error creating user', { error: err });
-      toast({ title: "Erreur", description: err?.message || "Impossible de créer l'utilisateur", variant: "destructive" });
+      toast({ title: "Erreur", description: err instanceof Error ? err.message : 'Erreur inconnue', variant: "destructive" });
     } finally {
       setCreatingUser(false);
     }

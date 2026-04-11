@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // TODO: migrer les requêtes restantes vers services
+import { getCurrentUser } from '@/services/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +104,7 @@ export const RoleRequestsTab: React.FC<RoleRequestsTabProps> = ({ organizationId
         .update({
           status: action,
           reviewed_at: new Date().toISOString(),
-          reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+          reviewed_by: (await getCurrentUser())?.id,
         })
         .eq('id', requestId);
 

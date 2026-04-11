@@ -370,7 +370,7 @@ export const EmailTemplatesManager = () => {
                 <Label htmlFor="templateType">Type</Label>
                 <Select
                   value={newTemplate.type}
-                  onValueChange={(value: string) => setNewTemplate({...newTemplate, type: value})}
+                  onValueChange={(value: string) => setNewTemplate({...newTemplate, type: value as EmailTemplate['type']})}
                 >
                   <SelectTrigger>
                     <SelectValue />

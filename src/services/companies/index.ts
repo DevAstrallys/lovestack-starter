@@ -123,4 +123,20 @@ export async function createCompanyAndAffiliate(
     log.error('Failed to create company and affiliate', { companyName, userId, error: err });
     throw err;
   }
+
+/**
+ * Search company users with profile and company info (for dispatcher contact search).
+ */
+export async function searchCompanyContacts(query: string, limit = 20) {
+  try {
+    const { data, error } = await supabase
+      .from('company_users')
+      .select('user_id, role, companies(id, name, email), profiles:user_id(full_name, phone)')
+      .limit(limit) as any;
+    if (error) throw error;
+    return data ?? [];
+  } catch (err) {
+    log.error('Failed to search company contacts', { query, error: err });
+    return [];
+  }
 }

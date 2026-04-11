@@ -58,7 +58,7 @@ interface MemberAccess {
 interface Role {
   id: string;
   code: string;
-  label: any;
+  label: { fr: string; en: string };
   description: string | null;
 }
 

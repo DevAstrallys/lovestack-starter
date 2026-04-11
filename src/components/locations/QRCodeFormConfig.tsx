@@ -11,11 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { createLogger } from '@/lib/logger';
 import { updateQRCode } from '@/services/locations';
 import { fetchTaxActions, fetchTaxCategories } from '@/services/tickets/taxonomy';
+import type { QRCode } from '@/types';
 
 const log = createLogger('component:QRCodeFormConfig');
 
 interface QRCodeFormConfigProps {
-  qrCode: any;
+  qrCode: QRCode;
   isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;

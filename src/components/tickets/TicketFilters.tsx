@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { X, Filter, RotateCcw } from 'lucide-react';
-import { TicketFilters as ITicketFilters, TicketStatus, TicketPriority } from '@/hooks/useTickets';
+import { TicketFilters as ITicketFilters } from '@/hooks/useTickets';
+import type { TicketStatus, TicketPriority } from '@/types';
 import { useLocations } from '@/hooks/useLocations';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import { TICKET_STATUSES, TICKET_PRIORITIES } from '@/utils/ticketUtils';
@@ -25,7 +26,7 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
     getFilteredObjects 
   } = useTaxonomy(filters.locationId);
 
-  const handleFilterChange = (key: keyof ITicketFilters, value: any) => {
+  const handleFilterChange = (key: keyof ITicketFilters, value: string | string[] | { start: string; end: string } | number | undefined) => {
     onFiltersChange({
       ...filters,
       [key]: value

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { QRCodeFormConfig } from '@/types';
 import { createLogger } from '@/lib/logger';
 import {
   fetchQRCodesByLocation,
@@ -24,7 +25,7 @@ export interface QRCode {
   is_active: boolean;
   last_regenerated_at: string;
   created_at: string;
-  form_config: any;
+  form_config: QRCodeFormConfig | null;
   created_by: string | null;
   location_elements?: { name: string };
   location_groups?: { name: string };

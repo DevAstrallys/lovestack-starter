@@ -50,7 +50,7 @@ interface Membership {
   } | null;
   roles: {
     code: string;
-    label: any;
+    label: { fr: string; en: string };
   };
 }
 

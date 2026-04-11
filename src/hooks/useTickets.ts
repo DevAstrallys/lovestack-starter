@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { TicketAttachment, TicketActivityMeta } from '@/types';
 import { Database } from '@/integrations/supabase/types';
 import {
   fetchTicketById,
@@ -20,11 +21,9 @@ import { createLogger } from '@/lib/logger';
 const log = createLogger('hook:tickets');
 
 type DbTicket = Database['public']['Tables']['tickets']['Row'];
-export type TicketStatus = Database['public']['Enums']['ticket_status'];
-export type TicketPriority = Database['public']['Enums']['ticket_priority'];
 
 export interface Ticket extends DbTicket {
-  attachments: any[];
+  attachments: TicketAttachment[];
   building_name?: string;
   organization_name?: string;
 }
@@ -51,7 +50,7 @@ export interface TicketFilters {
 type DbTicketActivity = Database['public']['Tables']['ticket_activities']['Row'];
 
 export interface TicketActivity extends Omit<DbTicketActivity, 'metadata'> {
-  metadata: any;
+  metadata: TicketActivityMeta | null;
 }
 
 export function useTickets(filters: TicketFilters = {}) {

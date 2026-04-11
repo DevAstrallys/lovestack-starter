@@ -3,9 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, X, CalendarClock, Copy } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // TODO: migrer org fetch + bulk location_memberships insert vers services
 import { createLogger } from '@/lib/logger';
 import { fetchRoles } from '@/services/users';
+import { updateProfile } from '@/services/users';
+import { createUser } from '@/services/admin';
 import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 
 const log = createLogger('component:invite-user-dialog');

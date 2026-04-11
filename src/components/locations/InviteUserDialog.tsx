@@ -3,9 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, X, CalendarClock, Copy } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // TODO: migrer org fetch + bulk location_memberships insert vers services
 import { createLogger } from '@/lib/logger';
 import { fetchRoles } from '@/services/users';
+import { updateProfile } from '@/services/users';
+import { createUser } from '@/services/admin';
 import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 
 const log = createLogger('component:invite-user-dialog');
@@ -210,30 +212,24 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       }
 
       // Create real auth user via Edge Function (also sends welcome email)
-      const { data: result, error: fnError } = await supabase.functions.invoke('create-user', {
-        body: {
-          email: data.email,
-          password: tempPassword,
-          full_name: fullName,
-          organizationName,
-          loginUrl: window.location.origin,
-        },
+      const result = await createUser({
+        email: data.email,
+        password: tempPassword,
+        full_name: fullName,
+        organizationName,
+        loginUrl: window.location.origin,
       });
 
-      if (fnError) throw fnError;
       if (result?.error) throw new Error(result.error);
 
       const userId = result.user.id;
 
       // Update profile with phone and communication mode
       try {
-        await supabase
-          .from('profiles')
-          .update({
-            phone: data.phone || null,
-            communication_mode: data.communicationMode,
-          })
-          .eq('id', userId);
+        await updateProfile(userId, {
+          phone: data.phone || null,
+          communication_mode: data.communicationMode,
+        });
       } catch (err) {
         log.warn('Could not update profile extras', err);
       }
@@ -282,8 +278,8 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       onClose();
       form.reset();
       setUserRoles([]);
-    } catch (error: any) {
-      const errMsg = error?.message || error?.error_description || JSON.stringify(error);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : JSON.stringify(error);
       log.error('Error inviting user', error);
       toast({
         title: "Erreur",

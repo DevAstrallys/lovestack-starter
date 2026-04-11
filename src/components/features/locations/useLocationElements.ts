@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl, openExternalLink } from '@/lib/navigation';
 import { createLogger } from '@/lib/logger';
 import { createQRCode as createQRCodeService } from '@/services/locations';
-import { saveElementWithTags, deleteElement as deleteElementService } from '@/services/locations/elements';
+import {
+  saveElementWithTags,
+  deleteElement as deleteElementService,
+  fetchElements as fetchElementsService,
+  fetchAvailableTags as fetchAvailableTagsService,
+  createTag as createTagService,
+} from '@/services/locations/elements';
 import { LocationTag, LocationElement, ElementFormData, defaultFormData } from './types';
 
 const log = createLogger('hook:locationElements');
@@ -17,19 +22,7 @@ export function useLocationElements(organizationId: string) {
 
   const fetchElements = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_elements' as any)
-        .select(`*, location_element_tags ( location_tags (*) )`)
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-
-      const elementsWithTags = (data || []).map((element: any) => ({
-        ...element,
-        tags: element.location_element_tags?.map((et: any) => et.location_tags) || [],
-      }));
-
+      const elementsWithTags = await fetchElementsService(organizationId);
       setElements(elementsWithTags);
     } catch (error) {
       log.error('Error fetching elements', { error });
@@ -41,14 +34,8 @@ export function useLocationElements(organizationId: string) {
 
   const fetchAvailableTags = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setAvailableTags((data as any) || []);
+      const tags = await fetchAvailableTagsService(organizationId);
+      setAvailableTags(tags);
     } catch (error) {
       log.error('Error fetching tags', { error });
     }
@@ -153,20 +140,14 @@ export function useLocationElements(organizationId: string) {
 
   const createTag = async (name: string, color: string) => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .insert({ name, color, organization_id: organizationId })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await createTagService(name, color, organizationId);
 
       const newTag: LocationTag = {
-        id: (data as any).id,
-        name: (data as any).name,
-        color: (data as any).color,
-        organization_id: (data as any).organization_id,
-        created_at: (data as any).created_at,
+        id: data.id,
+        name: data.name,
+        color: data.color,
+        organization_id: data.organization_id,
+        created_at: data.created_at,
       };
 
       setAvailableTags((prev) => [...prev, newTag]);

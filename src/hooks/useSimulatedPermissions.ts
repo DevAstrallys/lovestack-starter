@@ -1,55 +1,53 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRoleView } from '@/contexts/RoleViewContext';
+/**
+ * /src/hooks/useSimulatedPermissions.ts
+ *
+ * Hook for fetching permissions of a simulated role.
+ * REFACTORED: uses services/users instead of direct supabase calls.
+ */
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRoleView } from "@/contexts/RoleViewContext";
+import { fetchPermissionsByRoleId } from "@/services/users";
+import { createLogger } from "@/lib/logger";
+import type { Permission } from "@/types";
 
-interface Permission {
-  code: string;
+const log = createLogger("hook:useSimulatedPermissions");
+
+interface PermissionWithLabel extends Permission {
   label: { fr: string; en: string };
 }
 
 export const useSimulatedPermissions = () => {
   const { user } = useAuth();
   const { simulatedRole, isSimulating } = useRoleView();
-  const [simulatedPermissions, setSimulatedPermissions] = useState<Permission[]>([]);
+  const [simulatedPermissions, setSimulatedPermissions] = useState<PermissionWithLabel[]>([]);
 
   useEffect(() => {
-    const fetchSimulatedPermissions = async () => {
+    const loadPermissions = async () => {
       if (!isSimulating || !simulatedRole || !user) {
         setSimulatedPermissions([]);
         return;
       }
 
       try {
-        const { data: permissions, error } = await supabase
-          .from('role_permissions')
-          .select(`
-            permission_id,
-            permissions!inner(code, label)
-          `)
-          .eq('role_id', simulatedRole.id);
-
-        if (error) {
-          console.error('Error fetching simulated permissions:', error);
-          return;
-        }
-
-        const permissionsList = (permissions || []).map(rp => ({
-          ...rp.permissions,
-          label: rp.permissions.label as { fr: string; en: string }
-        }));
-        setSimulatedPermissions(permissionsList);
-      } catch (error) {
-        console.error('Error fetching simulated permissions:', error);
+        const permissions = await fetchPermissionsByRoleId(simulatedRole.id);
+        setSimulatedPermissions(
+          permissions.map((p) => ({
+            ...p,
+            label: p.label as { fr: string; en: string },
+          })),
+        );
+      } catch (err) {
+        log.error("Error fetching simulated permissions", { roleId: simulatedRole.id, error: err });
       }
     };
 
-    fetchSimulatedPermissions();
+    loadPermissions();
   }, [isSimulating, simulatedRole, user]);
 
   const hasSimulatedPermission = (permissionCode: string): boolean => {
     if (!isSimulating) return false;
-    return simulatedPermissions.some(perm => perm.code === permissionCode);
+    return simulatedPermissions.some((perm) => perm.code === permissionCode);
   };
 
   return {

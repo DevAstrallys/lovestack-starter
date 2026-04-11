@@ -123,6 +123,7 @@ export async function createCompanyAndAffiliate(
     log.error('Failed to create company and affiliate', { companyName, userId, error: err });
     throw err;
   }
+}
 
 /**
  * Search company users with profile and company info (for dispatcher contact search).

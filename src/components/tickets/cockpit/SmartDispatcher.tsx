@@ -173,9 +173,9 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
       let companyId = existingCompanyId;
 
       if (createMode === 'new' && newCompanyName.trim()) {
-        const { data, error } = await supabase.from('companies').insert({ name: newCompanyName.trim() }).select('id').single();
-        if (error || !data) throw error;
-        companyId = data.id;
+        const company = await createCompany(newCompanyName.trim());
+        if (!company) throw new Error('Company creation failed');
+        companyId = company.id;
       }
 
       // We log the contact creation as metadata since we can't create auth users

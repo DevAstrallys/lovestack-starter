@@ -56,15 +56,10 @@ export function TicketDetail() {
     if (!id || !user) return;
     const checkFollow = async () => {
       try {
-        const { data } = await supabase
-          .from('ticket_followers')
-          .select('user_id')
-          .eq('ticket_id', id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        setIsFollowing(!!data);
+        const following = await isFollowingTicket(id, user.id);
+        setIsFollowing(following);
       } catch (err) {
-        log.error('Failed to check follow status', err);
+        log.error('Failed to check follow status', { error: err });
       }
     };
     checkFollow();

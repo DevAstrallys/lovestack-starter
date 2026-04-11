@@ -212,30 +212,24 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       }
 
       // Create real auth user via Edge Function (also sends welcome email)
-      const { data: result, error: fnError } = await supabase.functions.invoke('create-user', {
-        body: {
-          email: data.email,
-          password: tempPassword,
-          full_name: fullName,
-          organizationName,
-          loginUrl: window.location.origin,
-        },
+      const result = await createUser({
+        email: data.email,
+        password: tempPassword,
+        full_name: fullName,
+        organizationName,
+        loginUrl: window.location.origin,
       });
 
-      if (fnError) throw fnError;
       if (result?.error) throw new Error(result.error);
 
       const userId = result.user.id;
 
       // Update profile with phone and communication mode
       try {
-        await supabase
-          .from('profiles')
-          .update({
-            phone: data.phone || null,
-            communication_mode: data.communicationMode,
-          })
-          .eq('id', userId);
+        await updateProfile(userId, {
+          phone: data.phone || null,
+          communication_mode: data.communicationMode,
+        });
       } catch (err) {
         log.warn('Could not update profile extras', err);
       }

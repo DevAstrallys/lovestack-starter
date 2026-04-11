@@ -1,8 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, Mic, Video, X, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { uploadFile } from '@/services/storage';
+import { createLogger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
+
+const log = createLogger('component:media-upload');
 
 export interface UploadedFile {
   name: string;
@@ -42,24 +45,16 @@ export function MediaUpload({ files, onFilesChange }: MediaUploadProps) {
       const ext = file.name.split('.').pop() || 'bin';
       const path = `${crypto.randomUUID()}.${ext}`;
 
-      const { error } = await supabase.storage
-        .from('ticket-attachments')
-        .upload(path, file, { contentType: file.type });
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from('ticket-attachments')
-        .getPublicUrl(path);
+      const result = await uploadFile('ticket-attachments', path, file, { contentType: file.type });
 
       onFilesChange([...files, {
         name: file.name,
-        url: urlData.publicUrl,
+        url: result.publicUrl,
         type,
-        storagePath: path,
+        storagePath: result.path,
       }]);
     } catch (err) {
-      console.error('Upload error:', err);
+      log.error('Upload error', { error: err });
       toast({ title: 'Erreur d\'upload', description: 'Impossible d\'envoyer le fichier', variant: 'destructive' });
     } finally {
       setUploading(false);

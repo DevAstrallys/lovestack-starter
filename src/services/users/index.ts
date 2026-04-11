@@ -88,8 +88,8 @@ export async function checkAdminAccess(userId: string) {
     if (error) throw error;
 
     const adminRoles = (data || [])
-      .filter((m: any) => m.roles && ADMIN_ROLES.includes(m.roles.code))
-      .map((m: any) => m.roles.code as string);
+      .filter((m: Record<string, unknown>) => m.roles && ADMIN_ROLES.includes((m.roles as Record<string, unknown>).code as string))
+      .map((m: Record<string, unknown>) => (m.roles as Record<string, unknown>).code as string);
 
     return { isAdmin: adminRoles.length > 0, roles: adminRoles };
   } catch (err) {
@@ -171,5 +171,73 @@ export async function fetchLocationMembershipsWithDetails(filters: { organizatio
   } catch (err) {
     log.error('Failed to fetch location memberships with details', { filters, error: err });
     throw err;
+  }
+}
+
+/**
+ * Fetch permissions for a given role ID.
+ * Used by useSimulatedPermissions hook.
+ */
+export async function fetchPermissionsByRoleId(roleId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select(`
+        permission_id,
+        permissions!inner(id, code, label)
+      `)
+      .eq('role_id', roleId);
+    if (error) throw error;
+    return (data || []).map((rp: Record<string, unknown>) => {
+      const perm = rp.permissions as Record<string, unknown>;
+      return {
+        id: perm.id as string,
+        code: perm.code as string,
+        label: perm.label as Record<string, string>,
+      };
+    });
+  } catch (err) {
+    log.error('Failed to fetch permissions by role', { roleId, error: err });
+    return [];
+  }
+}
+
+/**
+ * Get the primary role code for a user within an organization.
+ * Uses the fn_get_user_primary_role RPC function.
+ */
+export async function fetchUserPrimaryRole(
+  userId: string,
+  organizationId: string,
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('fn_get_user_primary_role', {
+      uid: userId,
+      org_id: organizationId,
+    });
+    if (error) throw error;
+    return data?.[0]?.role_code ?? null;
+  } catch (err) {
+    log.error('Failed to fetch user primary role', { userId, organizationId, error: err });
+    return null;
+  }
+}
+
+/**
+ * Fetch a user's profile name and phone.
+ * Used by TicketCreateForm to pre-fill reporter info.
+ */
+export async function fetchProfileSummary(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    log.error('Failed to fetch profile summary', { userId, error: err });
+    return null;
   }
 }

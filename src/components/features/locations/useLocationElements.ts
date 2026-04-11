@@ -77,26 +77,13 @@ export function useLocationElements(organizationId: string) {
       organization_id: organizationId,
     };
 
-    let elementId: string;
+    const elementId = await saveElementWithTags(
+      elementData,
+      formData.selectedTags,
+      editingElement?.id,
+    );
 
-    if (editingElement) {
-      const { error } = await supabase.from('location_elements' as any).update(elementData).eq('id', editingElement.id);
-      if (error) throw error;
-      elementId = editingElement.id;
-    } else {
-      const { data, error } = await supabase.from('location_elements' as any).insert(elementData).select().maybeSingle();
-      if (error) throw error;
-      elementId = (data as any).id;
-    }
-
-    // Update tags
-    await supabase.from('location_element_tags' as any).delete().eq('element_id', elementId);
-
-    if (formData.selectedTags.length > 0) {
-      const tagInserts = formData.selectedTags.map((tagId) => ({ element_id: elementId, tag_id: tagId }));
-      const { error: tagError } = await supabase.from('location_element_tags' as any).insert(tagInserts);
-      if (tagError) throw tagError;
-    }
+    if (!elementId) throw new Error('Failed to save element');
 
     // Auto-generate QR code for new elements
     if (!editingElement) {
@@ -125,8 +112,7 @@ export function useLocationElements(organizationId: string) {
   const deleteElement = async (elementId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) return;
     try {
-      const { error } = await supabase.from('location_elements' as any).delete().eq('id', elementId);
-      if (error) throw error;
+      await deleteElementService(elementId);
       toast({ title: 'Succès', description: 'Élément supprimé' });
       fetchElements();
     } catch (error) {

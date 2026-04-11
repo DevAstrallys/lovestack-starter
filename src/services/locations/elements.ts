@@ -7,7 +7,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
-import type { LocationElement } from '@/types';
+import type { Json } from '@/integrations/supabase/types';
 
 const log = createLogger('service:locations:elements');
 
@@ -16,7 +16,7 @@ interface ElementData {
   description?: string | null;
   parent_id?: string | null;
   organization_id?: string | null;
-  location_data?: Record<string, unknown> | null;
+  location_data?: Json | null;
 }
 
 /**

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadFile } from '@/services/storage';
+import { createLogger } from '@/lib/logger';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { OrgLogo } from '@/components/ui/org-logo';
 import { Palette, Upload, RotateCcw, Save } from 'lucide-react';
 import { toast } from 'sonner';
+
+const log = createLogger('component:visual-identity');
 
 export const VisualIdentitySettings = () => {
   const { selectedOrganization, setSelectedOrganization, organizations } = useOrganization();

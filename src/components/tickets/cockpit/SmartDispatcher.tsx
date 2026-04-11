@@ -108,7 +108,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
   // Load companies for quick create
   useEffect(() => {
     if (showQuickCreate && companies.length === 0) {
-      supabase.from('companies').select('id, name').then(({ data }) => setCompanies(data || []));
+      fetchCompanies().then(data => setCompanies(data.map(c => ({ id: c.id, name: c.name }))));
     }
   }, [showQuickCreate]);
 

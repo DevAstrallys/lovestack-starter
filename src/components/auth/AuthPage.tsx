@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { signUp, signInWithEmail, signInWithOtp } from '@/services/auth';
+import { createLogger } from '@/lib/logger';
 import { AUTH_REDIRECT_URL } from '@/lib/app-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2, Building2 } from 'lucide-react';
+
+const log = createLogger('component:auth-page');
 
 export const AuthPage = () => {
   const [loading, setLoading] = useState(false);
@@ -30,36 +33,21 @@ export const AuthPage = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: AUTH_REDIRECT_URL,
-          data: {
-            full_name: fullName,
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Sign up error:', error);
-        if (error.message.includes('already registered')) {
-          toast.error('Cet email est déjà enregistré. Essayez de vous connecter.');
-        } else if (error.message.includes('Email address')) {
-          toast.error('Adresse email invalide');
-        } else {
-          toast.error(error.message);
-        }
+      await signUp(email, password, { full_name: fullName });
+      toast.success('Inscription réussie ! Vérifiez votre email pour confirmer votre compte.');
+      setEmail('');
+      setPassword('');
+      setFullName('');
+    } catch (error: unknown) {
+      log.error('Sign up error', { error });
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      if (msg.includes('already registered')) {
+        toast.error('Cet email est déjà enregistré. Essayez de vous connecter.');
+      } else if (msg.includes('Email address')) {
+        toast.error('Adresse email invalide');
       } else {
-        toast.success('Inscription réussie ! Vérifiez votre email pour confirmer votre compte.');
-        // Réinitialiser le formulaire
-        setEmail('');
-        setPassword('');
-        setFullName('');
+        toast.error(msg);
       }
-    } catch (error) {
-      console.error('Unexpected sign up error:', error);
-      toast.error('Une erreur est survenue lors de l\'inscription');
     } finally {
       setLoading(false);
     }
@@ -75,26 +63,18 @@ export const AuthPage = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Sign in error:', error);
-        if (error.message.includes('Invalid login credentials')) {
-          toast.error('Email ou mot de passe incorrect');
-        } else if (error.message.includes('Email not confirmed')) {
-          toast.error('Veuillez confirmer votre email avant de vous connecter');
-        } else {
-          toast.error(error.message);
-        }
+      await signInWithEmail(email, password);
+      toast.success('Connexion réussie !');
+    } catch (error: unknown) {
+      log.error('Sign in error', { error });
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      if (msg.includes('Invalid login credentials')) {
+        toast.error('Email ou mot de passe incorrect');
+      } else if (msg.includes('Email not confirmed')) {
+        toast.error('Veuillez confirmer votre email avant de vous connecter');
       } else {
-        toast.success('Connexion réussie !');
+        toast.error(msg);
       }
-    } catch (error) {
-      console.error('Unexpected sign in error:', error);
-      toast.error('Une erreur est survenue lors de la connexion');
     } finally {
       setLoading(false);
     }
@@ -108,22 +88,11 @@ export const AuthPage = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: AUTH_REDIRECT_URL
-        }
-      });
-
-      if (error) {
-        console.error('Magic link error:', error);
-        throw error;
-      }
-      
+      await signInWithOtp(email);
       toast.success('Lien magique envoyé ! Vérifiez votre email.');
-    } catch (error: any) {
-      console.error('Unexpected magic link error:', error);
-      toast.error('Erreur: ' + (error.message || 'Impossible d\'envoyer le lien magique'));
+    } catch (error: unknown) {
+      log.error('Magic link error', { error });
+      toast.error('Erreur: ' + (error instanceof Error ? error.message : 'Impossible d\'envoyer le lien magique'));
     } finally {
       setLoading(false);
     }

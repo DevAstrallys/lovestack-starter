@@ -9,9 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Forward, Shield, Send, UserPlus, Building, Users, HardHat, Plus, Check, Search, Loader2, Briefcase } from 'lucide-react';
 import { Ticket, TicketActivity } from '@/hooks/useTickets';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchCompanies, createCompany, searchCompanyContacts } from '@/services/companies';
+import { addTicketActivity, updateTicket } from '@/services/tickets';
+import { createLogger } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+const log = createLogger('component:smart-dispatcher');
 
 interface SmartDispatcherProps {
   ticket: Ticket;
@@ -67,10 +71,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
     const timer = setTimeout(async () => {
       setLoadingContacts(true);
       try {
-        const { data } = await supabase
-          .from('company_users')
-          .select('user_id, role, companies(id, name, email), profiles:user_id(full_name, phone)')
-          .limit(20) as any;
+        const data = await searchCompanyContacts(contactSearch);
 
         const results: ContactOption[] = [];
         for (const cu of data || []) {
@@ -107,7 +108,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
   // Load companies for quick create
   useEffect(() => {
     if (showQuickCreate && companies.length === 0) {
-      supabase.from('companies').select('id, name').then(({ data }) => setCompanies(data || []));
+      fetchCompanies().then(data => setCompanies(data.map(c => ({ id: c.id, name: c.name }))));
     }
   }, [showQuickCreate]);
 
@@ -126,7 +127,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
     }
     setSending(true);
     try {
-      await supabase.from('ticket_activities').insert({
+      await addTicketActivity({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
         activity_type: 'assignment',
@@ -145,7 +146,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
 
       const ticketAny = ticket as any;
       if (!ticketAny.assigned_at) {
-        await supabase.from('tickets').update({ assigned_at: new Date().toISOString() } as any).eq('id', ticket.id);
+        await updateTicket(ticket.id, { assigned_at: new Date().toISOString() });
       }
 
       const tabLabel = targetType === 'prestataire' ? 'Prestataire' : targetType === 'conseil_syndical' ? 'Conseil Syndical' : 'Concierge';
@@ -172,9 +173,9 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
       let companyId = existingCompanyId;
 
       if (createMode === 'new' && newCompanyName.trim()) {
-        const { data, error } = await supabase.from('companies').insert({ name: newCompanyName.trim() }).select('id').single();
-        if (error || !data) throw error;
-        companyId = data.id;
+        const company = await createCompany(newCompanyName.trim());
+        if (!company) throw new Error('Company creation failed');
+        companyId = company.id;
       }
 
       // We log the contact creation as metadata since we can't create auth users

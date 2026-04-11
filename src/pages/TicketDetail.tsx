@@ -13,7 +13,8 @@ import {
   Wrench, Send, FileText, Clock, Bell, BellOff,
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
-import { useTicketActivities, TicketStatus } from '@/hooks/useTickets';
+import { useTicketActivities } from '@/hooks/useTickets';
+import type { TicketStatus } from '@/types';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';

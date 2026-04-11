@@ -71,10 +71,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
     const timer = setTimeout(async () => {
       setLoadingContacts(true);
       try {
-        const { data } = await supabase
-          .from('company_users')
-          .select('user_id, role, companies(id, name, email), profiles:user_id(full_name, phone)')
-          .limit(20) as any;
+        const data = await searchCompanyContacts(contactSearch);
 
         const results: ContactOption[] = [];
         for (const cu of data || []) {

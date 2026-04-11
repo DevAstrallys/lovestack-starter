@@ -58,7 +58,7 @@ export const LocationGroups: React.FC<LocationGroupsProps> = ({ organizationId }
   const fetchGroups = async () => {
     try {
       const result = await fetchGroupsWithRelations(organizationId);
-      setGroups(result);
+      setGroups(result as unknown as LocationGroup[]);
     } catch (error) {
       log.error('Error fetching groups', { error });
       toast({

@@ -123,7 +123,7 @@ export const AccessSecurityManager = () => {
       // Process location memberships
       (locMemberships || []).forEach((lm) => {
         const locType = lm.ensemble_id ? 'ensemble' : lm.group_id ? 'group' : 'element';
-        const locName = (lm as Record<string, Record<string, string>>).location_ensembles?.name || (lm as Record<string, Record<string, string>>).location_groups?.name || (lm as Record<string, Record<string, string>>).location_elements?.name || '—';
+        const locName = lm.location_ensembles?.name || lm.location_groups?.name || lm.location_elements?.name || '—';
         allMembers.push({
           id: lm.id,
           user_id: lm.user_id,

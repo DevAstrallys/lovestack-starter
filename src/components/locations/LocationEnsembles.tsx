@@ -58,7 +58,7 @@ export const LocationEnsembles: React.FC<LocationEnsemblesProps> = ({ organizati
   const fetchEnsembles = async () => {
     try {
       const result = await fetchEnsemblesWithRelations(organizationId);
-      setEnsembles(result as unknown as typeof ensembles extends (infer T)[] ? T[] : never[]);
+      setEnsembles(result as unknown as LocationEnsemble[]);
     } catch (error) {
       log.error('Error fetching ensembles', { error });
       toast({

@@ -3,6 +3,7 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger('component:users-management');
 import { supabase } from '@/integrations/supabase/client';
+import { updateUserEmail, deleteUser } from '@/services/admin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -154,16 +155,12 @@ export const UsersManagement = () => {
     if (!selectedUser || !editEmail) return;
     setIsSavingEmail(true);
     try {
-      const { data, error } = await supabase.functions.invoke('update-user-email', {
-        body: { userId: selectedUser.id, newEmail: editEmail },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await updateUserEmail(selectedUser.id, editEmail);
       toast.success('Email mis à jour avec succès');
       setEditEmail('');
-    } catch (error: any) {
-      log.error('Error updating email', error);
-      toast.error(error?.message || 'Erreur lors de la mise à jour de l\'email');
+    } catch (error: unknown) {
+      log.error('Error updating email', { error });
+      toast.error(error instanceof Error ? error.message : 'Erreur');
     } finally {
       setIsSavingEmail(false);
     }
@@ -223,16 +220,12 @@ export const UsersManagement = () => {
     if (!userToDelete) return;
     setIsDeleting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { userId: userToDelete.id },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await deleteUser(userToDelete.id);
       toast.success('Utilisateur supprimé avec succès');
       fetchUsers();
-    } catch (error: any) {
-      log.error('Error deleting user', error);
-      toast.error(error?.message || 'Erreur lors de la suppression');
+    } catch (error: unknown) {
+      log.error('Error deleting user', { error });
+      toast.error(error instanceof Error ? error.message : 'Erreur');
     } finally {
       setIsDeleting(false);
       setUserToDelete(null);

@@ -2,6 +2,28 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 
+interface MembershipRow {
+  id: string;
+  role_id: string;
+  element_id: string | null;
+  group_id: string | null;
+  ensemble_id: string | null;
+  organization_id: string;
+  roles: {
+    id: string;
+    code: string;
+    label: unknown;
+    parent_id: string | null;
+    sort_order: number;
+    is_platform_scope: boolean;
+  };
+}
+
+interface NamedRow {
+  id: string;
+  name: string;
+}
+
 interface Role {
   id: string;
   code: string;
@@ -89,9 +111,9 @@ export const RoleViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         // Resolve location names
-        const elementIds = memberships.filter((m: any) => m.element_id).map((m: any) => m.element_id);
-        const groupIds = memberships.filter((m: any) => m.group_id).map((m: any) => m.group_id);
-        const ensembleIds = memberships.filter((m: any) => m.ensemble_id).map((m: any) => m.ensemble_id);
+        const elementIds = memberships.filter((m: MembershipRow) => m.element_id).map((m: MembershipRow) => m.element_id);
+        const groupIds = memberships.filter((m: MembershipRow) => m.group_id).map((m: MembershipRow) => m.group_id);
+        const ensembleIds = memberships.filter((m: MembershipRow) => m.ensemble_id).map((m: MembershipRow) => m.ensemble_id);
 
         const [elemRes, grpRes, ensRes] = await Promise.all([
           elementIds.length ? supabase.from('location_elements').select('id, name').in('id', elementIds) : { data: [] },
@@ -100,11 +122,11 @@ export const RoleViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ]);
 
         const nameMap: Record<string, string> = {};
-        (elemRes.data || []).forEach((e: any) => { nameMap[e.id] = e.name; });
-        (grpRes.data || []).forEach((g: any) => { nameMap[g.id] = g.name; });
-        (ensRes.data || []).forEach((e: any) => { nameMap[e.id] = e.name; });
+        (elemRes.data || []).forEach((e: NamedRow) => { nameMap[e.id] = e.name; });
+        (grpRes.data || []).forEach((g: NamedRow) => { nameMap[g.id] = g.name; });
+        (ensRes.data || []).forEach((e: NamedRow) => { nameMap[e.id] = e.name; });
 
-        const resolved: UserLocationMembership[] = memberships.map((m: any) => {
+        const resolved: UserLocationMembership[] = memberships.map((m: MembershipRow) => {
           const locId = m.ensemble_id || m.group_id || m.element_id;
           const locType = m.ensemble_id ? 'ensemble' : m.group_id ? 'group' : 'element';
           return {

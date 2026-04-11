@@ -10,6 +10,7 @@ import {
   Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
 import { Ticket, useTicketActivities, TicketActivity } from '@/hooks/useTickets';
+import type { TicketAttachment } from '@/types';
 import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -311,7 +312,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
             Pièces jointes ({ticket.attachments.length})
           </h4>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {ticket.attachments.map((att: any, i: number) => (
+            {ticket.attachments.map((att: TicketAttachment, i: number) => (
               <a
                 key={i}
                 href={att.url}

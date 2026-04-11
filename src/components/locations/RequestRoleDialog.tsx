@@ -70,7 +70,7 @@ export const RequestRoleDialog: React.FC<RequestRoleDialogProps> = ({
 
   const locationType = form.watch('locationType');
 
-  const buildRoleHierarchy = (roles: any[]): Role[] => {
+  const buildRoleHierarchy = (roles: Role[]): Role[] => {
     const roleMap = new Map();
     const rootRoles: Role[] = [];
 
@@ -99,7 +99,7 @@ export const RequestRoleDialog: React.FC<RequestRoleDialogProps> = ({
         fetchEnsemblesWithRelations(organizationId),
       ]);
 
-      setRoles(buildRoleHierarchy(rolesData));
+      setRoles(buildRoleHierarchy(rolesData as unknown as Role[]));
       setElements(elementsData as Location[]);
       setGroups(groupsData as Location[]);
       setEnsembles(ensemblesData as Location[]);

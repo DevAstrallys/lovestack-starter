@@ -3,6 +3,14 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
+import type { Database } from '@/integrations/supabase/types';
+
+type EnsembleRow = Database['public']['Tables']['location_ensembles']['Row'];
+type GroupRow = Database['public']['Tables']['location_groups']['Row'];
+type ElementRow = Database['public']['Tables']['location_elements']['Row'];
+
+interface GroupTagJoin { group_id: string; location_tags: { id: string; name: string; color: string } }
+interface EnsembleTagJoin { ensemble_id: string; location_tags: { id: string; name: string; color: string } }
 
 const log = createLogger('service:locations');
 
@@ -371,7 +379,7 @@ export async function fetchEnsemblesWithRelations(organizationId: string) {
 
     if (error) throw error;
 
-    const ensembleIds = (data || []).map((e: any) => e.id);
+    const ensembleIds = (data || []).map((e: EnsembleRow) => e.id);
     if (ensembleIds.length === 0) return [];
 
     const [groupsRes, tagsRes] = await Promise.all([
@@ -382,17 +390,17 @@ export async function fetchEnsemblesWithRelations(organizationId: string) {
     if (groupsRes.error) throw groupsRes.error;
     if (tagsRes.error) throw tagsRes.error;
 
-    const groupsByEnsemble = (groupsRes.data || []).reduce((acc: any, g: any) => {
+    const groupsByEnsemble = (groupsRes.data || []).reduce((acc: Record<string, GroupRow[]>, g: GroupRow & { parent_id: string }) => {
       (acc[g.parent_id] = acc[g.parent_id] || []).push(g);
       return acc;
     }, {});
 
-    const tagsByEnsemble = (tagsRes.data || []).reduce((acc: any, et: any) => {
+    const tagsByEnsemble = (tagsRes.data || []).reduce((acc: Record<string, { id: string; name: string; color: string }[]>, et: EnsembleTagJoin) => {
       (acc[et.ensemble_id] = acc[et.ensemble_id] || []).push(et.location_tags);
       return acc;
-    }, {});
+    }, {} as Record<string, { id: string; name: string; color: string }[]>);
 
-    const result = (data || []).map((ensemble: any) => ({
+    const result = (data || []).map((ensemble: EnsembleRow) => ({
       ...ensemble,
       groups: groupsByEnsemble[ensemble.id] || [],
       tags: tagsByEnsemble[ensemble.id] || []
@@ -514,7 +522,7 @@ export async function fetchGroupsWithRelations(organizationId: string) {
 
     if (error) throw error;
 
-    const groupIds = (data || []).map((g: any) => g.id);
+    const groupIds = (data || []).map((g: GroupRow) => g.id);
     if (groupIds.length === 0) return [];
 
     const [elementsRes, tagsRes] = await Promise.all([
@@ -525,17 +533,17 @@ export async function fetchGroupsWithRelations(organizationId: string) {
     if (elementsRes.error) throw elementsRes.error;
     if (tagsRes.error) throw tagsRes.error;
 
-    const elementsByGroup = (elementsRes.data || []).reduce((acc: any, e: any) => {
+    const elementsByGroup = (elementsRes.data || []).reduce((acc: Record<string, ElementRow[]>, e: ElementRow & { parent_id: string }) => {
       (acc[e.parent_id] = acc[e.parent_id] || []).push(e);
       return acc;
     }, {});
 
-    const tagsByGroup = (tagsRes.data || []).reduce((acc: any, gt: any) => {
+    const tagsByGroup = (tagsRes.data || []).reduce((acc: Record<string, { id: string; name: string; color: string }[]>, gt: GroupTagJoin) => {
       (acc[gt.group_id] = acc[gt.group_id] || []).push(gt.location_tags);
       return acc;
-    }, {});
+    }, {} as Record<string, { id: string; name: string; color: string }[]>);
 
-    const result = (data || []).map((group: any) => ({
+    const result = (data || []).map((group: GroupRow) => ({
       ...group,
       elements: elementsByGroup[group.id] || [],
       tags: tagsByGroup[group.id] || []

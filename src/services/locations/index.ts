@@ -395,10 +395,10 @@ export async function fetchEnsemblesWithRelations(organizationId: string) {
       return acc;
     }, {});
 
-    const tagsByEnsemble = (tagsRes.data || []).reduce((acc: Record<string, unknown[]>, et: EnsembleTagJoin) => {
+    const tagsByEnsemble = (tagsRes.data || []).reduce((acc: Record<string, { id: string; name: string; color: string }[]>, et: EnsembleTagJoin) => {
       (acc[et.ensemble_id] = acc[et.ensemble_id] || []).push(et.location_tags);
       return acc;
-    }, {});
+    }, {} as Record<string, { id: string; name: string; color: string }[]>);
 
     const result = (data || []).map((ensemble: EnsembleRow) => ({
       ...ensemble,
@@ -538,10 +538,10 @@ export async function fetchGroupsWithRelations(organizationId: string) {
       return acc;
     }, {});
 
-    const tagsByGroup = (tagsRes.data || []).reduce((acc: Record<string, unknown[]>, gt: GroupTagJoin) => {
+    const tagsByGroup = (tagsRes.data || []).reduce((acc: Record<string, { id: string; name: string; color: string }[]>, gt: GroupTagJoin) => {
       (acc[gt.group_id] = acc[gt.group_id] || []).push(gt.location_tags);
       return acc;
-    }, {});
+    }, {} as Record<string, { id: string; name: string; color: string }[]>);
 
     const result = (data || []).map((group: GroupRow) => ({
       ...group,

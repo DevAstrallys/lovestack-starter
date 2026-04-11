@@ -105,12 +105,12 @@ export const AccessSecurityManager = () => {
       const allMembers: MemberAccess[] = [];
 
       // Process memberships
-      (memberships || []).forEach((m: { role_id: string; organization_id: string | null; is_active: boolean; expires_at: string | null; created_at: string; user_id: string; roles?: { code: string; label: { fr: string; en: string } }; organizations?: { name: string }; profiles?: { full_name: string } }) => {
+      (memberships || []).forEach((m) => {
         allMembers.push({
-          id: m.id,
+          id: (m as Record<string, unknown>).id as string,
           user_id: m.user_id,
-          role_code: m.roles?.code || '?',
-          role_label: m.roles?.label?.fr || m.roles?.code || '?',
+          role_code: (m.roles as Record<string, unknown>)?.code as string || '?',
+          role_label: ((m.roles as Record<string, unknown>)?.label as Record<string, string>)?.fr || (m.roles as Record<string, unknown>)?.code as string || '?',
           is_active: m.is_active,
           expires_at: m.expires_at,
           created_at: m.created_at,
@@ -121,14 +121,14 @@ export const AccessSecurityManager = () => {
       });
 
       // Process location memberships
-      (locMemberships || []).forEach((lm: { id: string; user_id: string; role_id: string; organization_id: string; element_id: string | null; group_id: string | null; ensemble_id: string | null; is_active: boolean; expires_at: string | null; created_at: string; roles?: { code: string; label: { fr: string; en: string } }; location_ensembles?: { name: string }; location_groups?: { name: string }; location_elements?: { name: string }; profiles?: { full_name: string } }) => {
+      (locMemberships || []).forEach((lm) => {
         const locType = lm.ensemble_id ? 'ensemble' : lm.group_id ? 'group' : 'element';
-        const locName = lm.location_ensembles?.name || lm.location_groups?.name || lm.location_elements?.name || '—';
+        const locName = (lm as Record<string, Record<string, string>>).location_ensembles?.name || (lm as Record<string, Record<string, string>>).location_groups?.name || (lm as Record<string, Record<string, string>>).location_elements?.name || '—';
         allMembers.push({
           id: lm.id,
           user_id: lm.user_id,
-          role_code: lm.roles?.code || '?',
-          role_label: lm.roles?.label?.fr || lm.roles?.code || '?',
+          role_code: (lm.roles as Record<string, unknown>)?.code as string || '?',
+          role_label: ((lm.roles as Record<string, unknown>)?.label as Record<string, string>)?.fr || (lm.roles as Record<string, unknown>)?.code as string || '?',
           is_active: lm.is_active,
           expires_at: lm.expires_at,
           created_at: lm.created_at,
@@ -587,7 +587,7 @@ export const AccessSecurityManager = () => {
             {/* Scope */}
             <div className="space-y-2">
               <Label>Périmètre d'accès</Label>
-              <Select value={addForm.scopeType} onValueChange={(v: string) => setAddForm(f => ({ ...f, scopeType: v, locationId: '' }))}>
+              <Select value={addForm.scopeType} onValueChange={(v: 'organization' | 'ensemble' | 'group' | 'element') => setAddForm(f => ({ ...f, scopeType: v, locationId: '' }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

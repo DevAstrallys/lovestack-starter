@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
 import { fetchRoles } from '@/services/users';
-import type { Role } from '@/types';
 import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -100,7 +99,7 @@ export const RequestRoleDialog: React.FC<RequestRoleDialogProps> = ({
         fetchEnsemblesWithRelations(organizationId),
       ]);
 
-      setRoles(buildRoleHierarchy(rolesData));
+      setRoles(buildRoleHierarchy(rolesData as unknown as Role[]));
       setElements(elementsData as Location[]);
       setGroups(groupsData as Location[]);
       setEnsembles(ensemblesData as Location[]);

@@ -24,6 +24,7 @@ interface NamedRow {
   name: string;
 }
 
+interface Role {
   id: string;
   code: string;
   label: { fr: string; en: string };

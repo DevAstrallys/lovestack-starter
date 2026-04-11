@@ -370,7 +370,7 @@ export const EmailTemplatesManager = () => {
                 <Label htmlFor="templateType">Type</Label>
                 <Select
                   value={newTemplate.type}
-                  onValueChange={(value: any) => setNewTemplate({...newTemplate, type: value})}
+                  onValueChange={(value: string) => setNewTemplate({...newTemplate, type: value})}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -512,7 +512,7 @@ export const EmailTemplatesManager = () => {
                     <Label>Type</Label>
                     <Select
                       value={selectedTemplate.type}
-                      onValueChange={(value: any) => setSelectedTemplate({
+                      onValueChange={(value: string) => setSelectedTemplate({
                         ...selectedTemplate,
                         type: value
                       })}

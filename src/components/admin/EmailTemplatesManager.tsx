@@ -148,7 +148,7 @@ export const EmailTemplatesManager = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [newTemplate, setNewTemplate] = useState({
     name: '',
-    type: 'custom' as const,
+    type: 'custom' as EmailTemplate['type'],
     subject: '',
     content: '',
     variables: [] as string[]
@@ -370,7 +370,7 @@ export const EmailTemplatesManager = () => {
                 <Label htmlFor="templateType">Type</Label>
                 <Select
                   value={newTemplate.type}
-                  onValueChange={(value: any) => setNewTemplate({...newTemplate, type: value})}
+                  onValueChange={(value: string) => setNewTemplate({...newTemplate, type: value as EmailTemplate['type']})}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -512,9 +512,9 @@ export const EmailTemplatesManager = () => {
                     <Label>Type</Label>
                     <Select
                       value={selectedTemplate.type}
-                      onValueChange={(value: any) => setSelectedTemplate({
+                      onValueChange={(value: string) => setSelectedTemplate({
                         ...selectedTemplate,
-                        type: value
+                        type: value as EmailTemplate['type']
                       })}
                     >
                       <SelectTrigger>

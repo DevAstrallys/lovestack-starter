@@ -1,5 +1,8 @@
 /**
+ * /src/services/auth/index.ts
+ *
  * Auth service — all authentication-related Supabase calls.
+ * NO direct supabase import should exist outside this file for auth operations.
  */
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
@@ -18,7 +21,11 @@ export async function signInWithEmail(email: string, password: string) {
   }
 }
 
-export async function signUp(email: string, password: string, metadata?: Record<string, unknown>) {
+export async function signUp(
+  email: string,
+  password: string,
+  metadata?: Record<string, unknown>,
+) {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -30,6 +37,21 @@ export async function signUp(email: string, password: string, metadata?: Record<
     return data;
   } catch (err) {
     log.error('Sign-up failed', { email, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Magic-link / OTP authentication.
+ * Used by AuthPage for passwordless sign-in.
+ */
+export async function signInWithOtp(email: string) {
+  try {
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) throw error;
+    log.info('OTP sent', { email });
+  } catch (err) {
+    log.error('OTP send failed', { email, error: err });
     throw err;
   }
 }
@@ -59,8 +81,12 @@ export async function getSession() {
 /**
  * Subscribe to auth state changes. Returns the subscription for cleanup.
  */
-export function onAuthStateChange(callback: Parameters<typeof supabase.auth.onAuthStateChange>[0]) {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+export function onAuthStateChange(
+  callback: Parameters<typeof supabase.auth.onAuthStateChange>[0],
+) {
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(callback);
   return subscription;
 }
 

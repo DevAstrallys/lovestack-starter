@@ -177,7 +177,7 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
       .eq('organization_id', organizationId);
 
     if (error) throw error;
-    setElements(data || []);
+    setElements((data || []) as unknown as LocationElement[]);
   };
 
   const fetchGroups = async () => {

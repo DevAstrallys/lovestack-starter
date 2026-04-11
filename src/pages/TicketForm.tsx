@@ -296,8 +296,8 @@ export function TicketForm() {
       locationPayload = { name: freeLocation };
     }
 
-    const ticketData: Record<string, unknown> = {
-      title, description: desc, priority, status: 'open',
+    const ticketData = {
+      title, description: desc, priority, status: 'open' as const,
       created_by: user?.id || null,
       building_id: qrCode?.building_id || null,
       organization_id: qrCode?.organization_id || null,
@@ -332,7 +332,7 @@ export function TicketForm() {
       if (tax.showFreeObject && tax.freeObject.trim()) {
         await upsertTaxSuggestion({ type: 'object', free_text: tax.freeObject, context: { module: 'tickets', level: 'object', organization_id: qrCode?.organization_id as string, qr_code_id: qrCode?.id as string }, category_id: tax.showFreeCategory ? undefined : tax.categoryId });
       }
-      const ticket = await createTicketService(ticketData);
+      const ticket = await createTicketService(ticketData as Parameters<typeof createTicketService>[0]);
       setTicketShortId(ticket.id.substring(0, 8).toUpperCase());
       if (newTrackingCode) setTrackingCode(newTrackingCode);
 

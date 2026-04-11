@@ -24,7 +24,7 @@ export interface LocationElement {
   id: string;
   name: string;
   description?: string;
-  location_data?: any;
+  location_data?: Record<string, unknown> | null;
   organization_id: string;
   created_at: string;
   updated_at: string;

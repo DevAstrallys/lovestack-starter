@@ -15,6 +15,7 @@ export type {
   TicketPriority,
   Ticket,
   TicketActivity,
+  TicketActivityMeta,
   TicketAttachment,
   TicketFilters,
   TicketLocation,

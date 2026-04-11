@@ -58,7 +58,7 @@ interface MemberAccess {
 interface Role {
   id: string;
   code: string;
-  label: any;
+  label: { fr: string; en: string };
   description: string | null;
 }
 
@@ -144,7 +144,7 @@ export const AccessSecurityManager = () => {
 
       // Fetch roles via service
       const rolesData = await fetchRolesService();
-      setRoles(rolesData as Role[]);
+      setRoles(rolesData as unknown as Role[]);
 
       // Fetch locations via service
       const [ensData, grpData, elmData] = await Promise.all([

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { QRCodeFormConfig } from '@/types';
 import { createLogger } from '@/lib/logger';
 import {
   fetchQRCodesByLocation,
@@ -24,7 +25,7 @@ export interface QRCode {
   is_active: boolean;
   last_regenerated_at: string;
   created_at: string;
-  form_config: any;
+  form_config: QRCodeFormConfig | null;
   created_by: string | null;
   location_elements?: { name: string };
   location_groups?: { name: string };
@@ -43,9 +44,9 @@ export function useQRCodes(locationElementId?: string) {
       setError(null);
 
       const data = await fetchQRCodesByLocation(locationElementId);
-      setQRCodes(data as QRCode[]);
+      setQRCodes(data as unknown as QRCode[]);
       const active = data.find(qr => qr.is_active) || null;
-      setActiveQR(active as QRCode | null);
+      setActiveQR(active as unknown as QRCode | null);
     } catch (err) {
       log.error('Error loading QR codes', { error: err });
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des QR codes');

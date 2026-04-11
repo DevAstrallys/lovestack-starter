@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
-import { fetchCompanies as fetchCompaniesService, fetchCompanyUsersByUserId } from '@/services/organizations';
+import { fetchCompanies as fetchCompaniesService, fetchCompanyUsersByUserId, affiliateUserToCompany, removeCompanyUser, createCompanyAndAffiliate } from '@/services/companies';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -81,13 +80,13 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
   const handleAdd = async () => {
     if (!selectedCompanyId) return toast.error('Sélectionnez une entreprise');
     setSaving(true);
-    const { error } = await supabase.from('company_users').insert({
-      user_id: userId,
-      company_id: selectedCompanyId,
-      role: role || null,
-    });
+    try {
+      await affiliateUserToCompany({ user_id: userId, company_id: selectedCompanyId, role: role || undefined });
+    } catch (err) {
+      setSaving(false);
+      return toast.error('Erreur lors de l\'ajout');
+    }
     setSaving(false);
-    if (error) return toast.error('Erreur : ' + error.message);
     toast.success('Affiliation ajoutée');
     setShowAdd(false);
     setSelectedCompanyId('');
@@ -98,25 +97,12 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
   const handleCreateCompanyAndLink = async () => {
     if (!newCompany.name.trim()) return toast.error('Nom requis');
     setSaving(true);
-    const { data, error } = await supabase.from('companies').insert({
-      name: newCompany.name.trim(),
-      email: newCompany.email || null,
-      phone: newCompany.phone || null,
-      address: newCompany.address || null,
-      city: newCompany.city || null,
-      tags: newCompany.tags ? newCompany.tags.split(',').map(t => t.trim()) : null,
-    }).select('id').single();
-
-    if (error || !data) {
+    try {
+      await createCompanyAndAffiliate(newCompany.name.trim(), userId, role || undefined);
+    } catch (err) {
       setSaving(false);
       return toast.error('Erreur création entreprise');
     }
-
-    await supabase.from('company_users').insert({
-      user_id: userId,
-      company_id: data.id,
-      role: role || null,
-    });
 
     setSaving(false);
     toast.success(`Entreprise "${newCompany.name}" créée et liée`);
@@ -129,8 +115,11 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
   };
 
   const handleRemove = async (id: string) => {
-    const { error } = await supabase.from('company_users').delete().eq('id', id);
-    if (error) return toast.error('Erreur');
+    try {
+      await removeCompanyUser(id);
+    } catch (err) {
+      return toast.error('Erreur');
+    }
     toast.success('Affiliation supprimée');
     fetchAffiliations();
   };

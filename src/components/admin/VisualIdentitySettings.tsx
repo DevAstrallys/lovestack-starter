@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadFile } from '@/services/storage';
+import { createLogger } from '@/lib/logger';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { OrgLogo } from '@/components/ui/org-logo';
 import { Palette, Upload, RotateCcw, Save } from 'lucide-react';
 import { toast } from 'sonner';
+
+const log = createLogger('component:visual-identity');
 
 export const VisualIdentitySettings = () => {
   const { selectedOrganization, setSelectedOrganization, organizations } = useOrganization();
@@ -48,18 +52,8 @@ export const VisualIdentitySettings = () => {
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const path = `org-logos/${selectedOrganization.id}/logo.${ext}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('ticket-attachments')
-          .upload(path, logoFile, { upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('ticket-attachments')
-          .getPublicUrl(path);
-        
-        logoUrl = urlData.publicUrl;
+        const result = await uploadFile('ticket-attachments', path, logoFile);
+        logoUrl = result.publicUrl;
       }
 
       const { error } = await supabase
@@ -84,9 +78,10 @@ export const VisualIdentitySettings = () => {
 
       toast.success('Identité visuelle mise à jour');
       setLogoFile(null);
-    } catch (error: any) {
-      console.error('Error saving visual identity:', error);
-      toast.error('Erreur lors de la sauvegarde : ' + error.message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      log.error('Error saving visual identity', { error });
+      toast.error('Erreur lors de la sauvegarde : ' + msg);
     } finally {
       setSaving(false);
     }

@@ -116,3 +116,53 @@ export async function saveElementWithTags(
   }
   return savedId;
 }
+
+/**
+ * Fetch all elements for an organization, with joined tags.
+ */
+export async function fetchElements(organizationId: string) {
+  const { data, error } = await supabase
+    .from('location_elements')
+    .select(`*, location_element_tags ( location_tags (*) )`)
+    .eq('organization_id', organizationId)
+    .order('name');
+
+  if (error) throw error;
+
+  return (data || []).map((element: any) => ({
+    ...element,
+    tags: element.location_element_tags?.map((et: any) => et.location_tags) || [],
+  }));
+}
+
+/**
+ * Fetch all tags for an organization.
+ */
+export async function fetchAvailableTags(organizationId: string) {
+  const { data, error } = await supabase
+    .from('location_tags')
+    .select('*')
+    .eq('organization_id', organizationId)
+    .order('name');
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Create a new tag for an organization.
+ */
+export async function createTag(
+  name: string,
+  color: string,
+  organizationId: string,
+) {
+  const { data, error } = await supabase
+    .from('location_tags')
+    .insert({ name, color, organization_id: organizationId })
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}

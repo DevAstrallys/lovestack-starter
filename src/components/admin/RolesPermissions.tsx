@@ -109,10 +109,10 @@ export const RolesPermissions = () => {
 
       if (rpError) throw rpError;
 
-      const hierarchicalRoles = buildRoleHierarchy(rolesData || []);
+      const hierarchicalRoles = buildRoleHierarchy((rolesData || []) as unknown as Role[]);
       setRoles(hierarchicalRoles);
-      setPermissions(permissionsData || []);
-      setRolePermissions(rolePermissionsData || []);
+      setPermissions((permissionsData || []) as unknown as Permission[]);
+      setRolePermissions((rolePermissionsData || []) as unknown as RolePermission[]);
     } catch (error) {
       toast.error('Erreur lors du chargement des données');
       log.error('Error fetching roles and permissions', { error });

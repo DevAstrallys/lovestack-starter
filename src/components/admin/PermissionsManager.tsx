@@ -31,7 +31,7 @@ import { toast } from 'sonner';
 interface Role {
   id: string;
   code: string;
-  label: any;
+  label: Record<string, string>;
   is_platform_scope: boolean;
   parent_id?: string;
   is_active: boolean;
@@ -40,7 +40,7 @@ interface Role {
 interface Permission {
   id: string;
   code: string;
-  label: any;
+  label: Record<string, string>;
   category?: string;
   action_type?: string;
 }

@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UserPlus, Users, Mail, Shield, Search, X, UserCheck, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // TODO: migrer les requêtes restantes vers services
+import { deleteUser } from '@/services/admin';
 import { useToast } from '@/hooks/use-toast';
 import { createLogger } from '@/lib/logger';
 
@@ -217,17 +218,13 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
     if (!userToDelete) return;
     setIsDeleting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { userId: userToDelete.id },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await deleteUser(userToDelete.id);
       toast({
         title: 'Utilisateur supprimé',
         description: `${userToDelete.full_name || 'L\'utilisateur'} a été supprimé avec succès.`,
       });
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Error deleting user', error);
       toast({
         title: 'Erreur',

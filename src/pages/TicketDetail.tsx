@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { updateTicket as updateTicketService } from '@/services/tickets';
 import { notifyStatusChange } from '@/services/tickets/notifications';
-import { supabase } from '@/integrations/supabase/client';
+import { isFollowingTicket, followTicket, unfollowTicket } from '@/services/tickets/followers';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 

@@ -97,8 +97,8 @@ export const PermissionsManager = () => {
 
       if (rpError) throw rpError;
 
-      setRoles(rolesData || []);
-      setPermissions(permissionsData || []);
+      setRoles((rolesData || []) as unknown as Role[]);
+      setPermissions((permissionsData || []) as unknown as Permission[]);
       setRolePermissions(rolePermissionsData || []);
     } catch (error) {
       toast.error('Erreur lors du chargement des données');

@@ -1,39 +1,18 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+/**
+ * /src/hooks/useTaxonomy.ts
+ *
+ * Hook for loading and filtering taxonomy data.
+ * REFACTORED: uses services/taxonomy instead of direct supabase calls.
+ * Types imported from @/types instead of inline definitions.
+ */
+import { useState, useEffect } from "react";
+import { createLogger } from "@/lib/logger";
+import { fetchAllTaxonomy, fetchLocationOverrides } from "@/services/taxonomy";
+import type { TaxAction, TaxCategory, TaxObject, TaxDetail } from "@/types";
 
-export interface TaxAction {
-  id: string;
-  label: string;
-  key: string;
-  icon?: string;
-  color?: string;
-  description?: string;
-}
+const log = createLogger("hook:useTaxonomy");
 
-export interface TaxCategory {
-  id: string;
-  action_id: string;
-  label: string;
-  key: string;
-}
-
-export interface TaxObject {
-  id: string;
-  category_id: string;
-  label: string;
-  key: string;
-  urgency_level?: number;
-  is_private?: boolean;
-}
-
-export interface TaxDetail {
-  id: string;
-  object_id: string;
-  label: string;
-  key: string;
-  urgency_level: number;
-  is_private: boolean;
-}
+export type { TaxAction, TaxCategory, TaxObject, TaxDetail };
 
 export interface LocationOverride {
   category_overrides: Record<string, boolean>;
@@ -59,29 +38,19 @@ export function useTaxonomy(locationId?: string) {
       setLoading(true);
       setError(null);
 
-      const [actionsRes, categoriesRes, objectsRes, detailsRes] = await Promise.all([
-        supabase.from('tax_actions').select('*').order('label'),
-        supabase.from('tax_categories').select('*').order('label'),
-        supabase.from('tax_objects').select('*').order('label'),
-        supabase.from('tax_details').select('*').order('label')
-      ]);
+      const taxonomy = await fetchAllTaxonomy();
 
-      if (actionsRes.error) throw actionsRes.error;
-      if (categoriesRes.error) throw categoriesRes.error;
-      if (objectsRes.error) throw objectsRes.error;
-      if (detailsRes.error) throw detailsRes.error;
-
-      setActions(actionsRes.data || []);
-      setCategories(categoriesRes.data || []);
-      setObjects(objectsRes.data || []);
-      setDetails(detailsRes.data || []);
+      setActions(taxonomy.actions);
+      setCategories(taxonomy.categories);
+      setObjects(taxonomy.objects);
+      setDetails(taxonomy.details);
 
       if (locationId) {
         await loadLocationOverrides(locationId);
       }
     } catch (err) {
-      console.error('Error loading taxonomy:', err);
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      log.error("Error loading taxonomy", { error: err });
+      setError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
       setLoading(false);
     }
@@ -89,52 +58,66 @@ export function useTaxonomy(locationId?: string) {
 
   const loadLocationOverrides = async (locId: string) => {
     try {
-      const [categoryOverridesRes, objectOverridesRes, customObjectsRes] = await Promise.all([
-        supabase.from('location_category_overrides').select('category_id, enabled').eq('location_id', locId),
-        supabase.from('location_object_overrides').select('object_id, enabled').eq('location_id', locId),
-        supabase.from('location_custom_objects').select('category_id, custom_label').eq('location_id', locId).eq('enabled', true)
-      ]);
+      const overrideData = await fetchLocationOverrides(locId);
 
       const catOv: Record<string, boolean> = {};
-      categoryOverridesRes.data?.forEach(o => { catOv[o.category_id] = o.enabled; });
+      overrideData.categoryOverrides.forEach((o) => {
+        catOv[o.category_id] = o.enabled;
+      });
 
       const objOv: Record<string, boolean> = {};
-      objectOverridesRes.data?.forEach(o => { objOv[o.object_id] = o.enabled; });
+      overrideData.objectOverrides.forEach((o) => {
+        objOv[o.object_id] = o.enabled;
+      });
 
-      const custom = customObjectsRes.data?.map(o => ({ category_id: o.category_id, label: o.custom_label })) || [];
+      const custom = overrideData.customObjects.map((o) => ({
+        category_id: o.category_id,
+        label: o.custom_label,
+      }));
 
-      setOverrides({ category_overrides: catOv, object_overrides: objOv, custom_objects: custom });
+      setOverrides({
+        category_overrides: catOv,
+        object_overrides: objOv,
+        custom_objects: custom,
+      });
     } catch (err) {
-      console.error('Error loading location overrides:', err);
+      log.error("Error loading location overrides", { locationId: locId, error: err });
     }
   };
 
   const getFilteredCategories = (actionId: string): TaxCategory[] => {
-    const base = categories.filter(c => c.action_id === actionId);
+    const base = categories.filter((c) => c.action_id === actionId);
     if (!overrides) return base;
-    return base.filter(c => !(c.id in overrides.category_overrides) || overrides.category_overrides[c.id]);
+    return base.filter((c) => !(c.id in overrides.category_overrides) || overrides.category_overrides[c.id]);
   };
 
   const getFilteredObjects = (categoryId: string): Array<TaxObject | { id: string; label: string; isCustom: true }> => {
-    let base = objects.filter(o => o.category_id === categoryId);
+    let base = objects.filter((o) => o.category_id === categoryId);
     if (overrides) {
-      base = base.filter(o => !(o.id in overrides.object_overrides) || overrides.object_overrides[o.id]);
+      base = base.filter((o) => !(o.id in overrides.object_overrides) || overrides.object_overrides[o.id]);
       const custom = overrides.custom_objects
-        .filter(co => co.category_id === categoryId)
-        .map(co => ({ id: `custom_${co.label}`, label: co.label, isCustom: true as const }));
+        .filter((co) => co.category_id === categoryId)
+        .map((co) => ({ id: `custom_${co.label}`, label: co.label, isCustom: true as const }));
       return [...base, ...custom];
     }
     return base;
   };
 
   const getFilteredDetails = (objectId: string): TaxDetail[] => {
-    return details.filter(d => d.object_id === objectId);
+    return details.filter((d) => d.object_id === objectId);
   };
 
   return {
-    actions, categories, objects, details,
-    overrides, loading, error,
-    getFilteredCategories, getFilteredObjects, getFilteredDetails,
-    reload: loadTaxonomy
+    actions,
+    categories,
+    objects,
+    details,
+    overrides,
+    loading,
+    error,
+    getFilteredCategories,
+    getFilteredObjects,
+    getFilteredDetails,
+    reload: loadTaxonomy,
   };
 }

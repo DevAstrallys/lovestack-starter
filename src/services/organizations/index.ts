@@ -38,3 +38,26 @@ export async function fetchCompanyUsersByUserId(userId: string) {
     throw err;
   }
 }
+
+/**
+ * Update an organization's fields.
+ */
+export async function updateOrganization(
+  organizationId: string,
+  updates: Record<string, unknown>,
+) {
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .update(updates)
+      .eq('id', organizationId)
+      .select()
+      .single();
+    if (error) throw error;
+    log.info('Organization updated', { organizationId });
+    return data;
+  } catch (err) {
+    log.error('Failed to update organization', { organizationId, error: err });
+    throw err;
+  }
+}

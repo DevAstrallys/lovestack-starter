@@ -228,7 +228,7 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
       log.error('Error deleting user', error);
       toast({
         title: 'Erreur',
-        description: error?.message || 'Impossible de supprimer l\'utilisateur',
+        description: error instanceof Error ? error.message : 'Impossible de supprimer l\'utilisateur',
         variant: 'destructive',
       });
     } finally {

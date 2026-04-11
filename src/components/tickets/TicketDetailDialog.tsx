@@ -184,42 +184,35 @@ function ReplyForm({ ticket, onSent }: { ticket: Ticket; onSent?: () => void }) 
     if (!content.trim() || !canReply) return;
     setSending(true);
     try {
-      const { error: activityError } = await supabase
-        .from('ticket_activities')
-        .insert({
-          ticket_id: ticket.id,
-          actor_id: user?.id || null,
-          activity_type: 'reply',
-          content: content.trim(),
-          metadata: { direction: 'outbound', sent_to: ticket.reporter_email },
-        });
+      await addTicketActivity({
+        ticket_id: ticket.id,
+        actor_id: user?.id || null,
+        activity_type: 'reply',
+        content: content.trim(),
+        metadata: { direction: 'outbound', sent_to: ticket.reporter_email },
+      });
 
-      if (activityError) throw activityError;
-
-      const { error: emailError } = await supabase.functions.invoke('send-email', {
-        body: {
+      try {
+        await sendEmail({
           template: 'reply',
-          to: [ticket.reporter_email],
+          to: [ticket.reporter_email!],
           data: {
             ticketTitle: ticket.title,
             replyContent: content.trim(),
             replierName: user?.user_metadata?.full_name || 'L\'équipe support',
             ticketId: ticket.id,
           },
-        },
-      });
-
-      if (emailError) {
-        console.error('Email send error:', emailError);
-        toast.warning('Réponse enregistrée mais l\'email n\'a pas pu être envoyé.');
-      } else {
+        });
         toast.success('Réponse envoyée par email.');
+      } catch (emailErr) {
+        log.error('Email send error', { error: emailErr });
+        toast.warning('Réponse enregistrée mais l\'email n\'a pas pu être envoyé.');
       }
 
       setContent('');
       onSent?.();
-    } catch (err) {
-      console.error('Error sending reply:', err);
+    } catch (err: unknown) {
+      log.error('Error sending reply', { error: err });
       toast.error('Erreur lors de l\'envoi de la réponse.');
     } finally {
       setSending(false);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
 import { fetchRoles as fetchRolesService } from '@/services/users';
+import { createMembership, createLocationMembership } from '@/services/admin';
 import { fetchMembershipsWithDetails, fetchLocationMembershipsWithDetails } from '@/services/users';
 import { fetchEnsemblesWithRelations, fetchGroupsByOrganization, fetchElementsByOrganization } from '@/services/locations';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -231,38 +232,33 @@ export const AccessSecurityManager = () => {
       // For now, we need a user_id. In a real flow, we'd look up by email or invite.
       // This simplified version creates the membership directly.
       if (addForm.scopeType === 'organization') {
-        const { error } = await supabase.from('memberships').insert({
-          user_id: '', // Would be resolved from email lookup
-          organization_id: selectedOrganization.id,
+        await createMembership({
+          user_id: '',
           role_id: addForm.roleId,
-          is_active: true,
-          expires_at: addForm.expiresAt?.toISOString() || null,
+          organization_id: selectedOrganization.id,
         });
-        if (error) throw error;
       } else {
-        const locField = addForm.scopeType === 'ensemble' ? 'ensemble_id' 
-          : addForm.scopeType === 'group' ? 'group_id' : 'element_id';
-        const { error } = await supabase.from('location_memberships').insert({
-          user_id: '', // Would be resolved from email lookup
-          organization_id: selectedOrganization.id,
+        await createLocationMembership({
+          user_id: '',
           role_id: addForm.roleId,
-          [locField]: addForm.locationId,
-          is_active: true,
-          expires_at: addForm.expiresAt?.toISOString() || null,
+          organization_id: selectedOrganization.id,
+          ensemble_id: addForm.scopeType === 'ensemble' ? addForm.locationId : null,
+          group_id: addForm.scopeType === 'group' ? addForm.locationId : null,
+          element_id: addForm.scopeType === 'element' ? addForm.locationId : null,
         });
-        if (error) throw error;
       }
 
       toast.success('Intervenant ajouté avec succès');
       setIsAddDialogOpen(false);
       setAddForm({ email: '', roleId: '', scopeType: 'organization', locationId: '', expiresAt: null });
       fetchData();
-    } catch (err: any) {
-      toast.error(`Erreur: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erreur: ${err instanceof Error ? err.message : 'Erreur'}`);
       log.error('Error adding intervenant', { error: err });
     }
   };
 
+  // TODO: migrer toggleAccess vers service admin
   const toggleAccess = async (member: MemberAccess) => {
     try {
       const table = member.source === 'membership' ? 'memberships' : 'location_memberships';

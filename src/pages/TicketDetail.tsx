@@ -70,22 +70,16 @@ export function TicketDetail() {
     setFollowLoading(true);
     try {
       if (isFollowing) {
-        await supabase
-          .from('ticket_followers')
-          .delete()
-          .eq('ticket_id', id)
-          .eq('user_id', user.id);
+        await unfollowTicket(id, user.id);
         setIsFollowing(false);
         toast.success('Vous ne suivez plus ce ticket');
       } else {
-        await supabase
-          .from('ticket_followers')
-          .insert({ ticket_id: id, user_id: user.id });
+        await followTicket(id, user.id);
         setIsFollowing(true);
         toast.success('Vous suivez ce ticket');
       }
     } catch (err) {
-      log.error('Failed to toggle follow', err);
+      log.error('Failed to toggle follow', { error: err });
       toast.error('Erreur');
     } finally {
       setFollowLoading(false);

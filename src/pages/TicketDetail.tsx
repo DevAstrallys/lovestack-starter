@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { updateTicket as updateTicketService } from '@/services/tickets';
 import { notifyStatusChange } from '@/services/tickets/notifications';
-import { supabase } from '@/integrations/supabase/client';
+import { isFollowingTicket, followTicket, unfollowTicket } from '@/services/tickets/followers';
 import { toast } from 'sonner';
 import { createLogger } from '@/lib/logger';
 
@@ -56,15 +56,10 @@ export function TicketDetail() {
     if (!id || !user) return;
     const checkFollow = async () => {
       try {
-        const { data } = await supabase
-          .from('ticket_followers')
-          .select('user_id')
-          .eq('ticket_id', id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        setIsFollowing(!!data);
+        const following = await isFollowingTicket(id, user.id);
+        setIsFollowing(following);
       } catch (err) {
-        log.error('Failed to check follow status', err);
+        log.error('Failed to check follow status', { error: err });
       }
     };
     checkFollow();
@@ -75,22 +70,16 @@ export function TicketDetail() {
     setFollowLoading(true);
     try {
       if (isFollowing) {
-        await supabase
-          .from('ticket_followers')
-          .delete()
-          .eq('ticket_id', id)
-          .eq('user_id', user.id);
+        await unfollowTicket(id, user.id);
         setIsFollowing(false);
         toast.success('Vous ne suivez plus ce ticket');
       } else {
-        await supabase
-          .from('ticket_followers')
-          .insert({ ticket_id: id, user_id: user.id });
+        await followTicket(id, user.id);
         setIsFollowing(true);
         toast.success('Vous suivez ce ticket');
       }
     } catch (err) {
-      log.error('Failed to toggle follow', err);
+      log.error('Failed to toggle follow', { error: err });
       toast.error('Erreur');
     } finally {
       setFollowLoading(false);

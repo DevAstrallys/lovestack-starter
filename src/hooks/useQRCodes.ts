@@ -44,9 +44,9 @@ export function useQRCodes(locationElementId?: string) {
       setError(null);
 
       const data = await fetchQRCodesByLocation(locationElementId);
-      setQRCodes(data as QRCode[]);
+      setQRCodes(data as unknown as QRCode[]);
       const active = data.find(qr => qr.is_active) || null;
-      setActiveQR(active as QRCode | null);
+      setActiveQR(active as unknown as QRCode | null);
     } catch (err) {
       log.error('Error loading QR codes', { error: err });
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des QR codes');

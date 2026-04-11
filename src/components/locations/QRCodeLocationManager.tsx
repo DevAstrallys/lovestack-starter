@@ -330,7 +330,7 @@ export function QRCodeLocationManager({ organizationId }: QRCodeLocationManagerP
 
       {configQRCode && (
         <QRCodeFormConfig
-          qrCode={configQRCode}
+          qrCode={configQRCode as unknown as import('@/types').QRCode}
           isOpen={!!configQRCode}
           onClose={() => setConfigQRCode(null)}
           onUpdate={loadData}

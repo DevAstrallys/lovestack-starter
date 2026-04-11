@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TicketAttachment, TicketActivityMeta } from '@/types';
+import type { TicketStatus, TicketPriority } from '@/types';
 import { Database } from '@/integrations/supabase/types';
 import {
   fetchTicketById,
@@ -22,7 +23,7 @@ const log = createLogger('hook:tickets');
 
 type DbTicket = Database['public']['Tables']['tickets']['Row'];
 
-export interface Ticket extends DbTicket {
+export interface Ticket extends Omit<DbTicket, 'attachments'> {
   attachments: TicketAttachment[];
   building_name?: string;
   organization_name?: string;
@@ -205,9 +206,9 @@ export function useTicketActivities(ticketId: string) {
 
       const data = await fetchTicketActivities(ticketId);
 
-      const transformedData = (data || []).map(activity => ({
+      const transformedData: TicketActivity[] = (data || []).map(activity => ({
         ...activity,
-        metadata: activity.metadata || {}
+        metadata: (activity.metadata || {}) as TicketActivityMeta,
       }));
 
       setActivities(transformedData);
@@ -229,9 +230,9 @@ export function useTicketActivities(ticketId: string) {
     const activityData = { ...activity, ticket_id: ticketId };
     const data = await addTicketActivityService(activityData);
     
-    const transformedActivity = {
+    const transformedActivity: TicketActivity = {
       ...data,
-      metadata: data.metadata || {}
+      metadata: (data.metadata || {}) as TicketActivityMeta,
     };
     
     setActivities(prev => [transformedActivity, ...prev]);

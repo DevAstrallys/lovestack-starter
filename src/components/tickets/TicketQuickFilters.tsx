@@ -1,5 +1,6 @@
 import React from 'react';
-import { TicketFilters as ITicketFilters, TicketStatus, TicketPriority } from '@/hooks/useTickets';
+import { TicketFilters as ITicketFilters } from '@/hooks/useTickets';
+import type { TicketStatus, TicketPriority } from '@/types';
 import { URGENCY_CONFIG, STATUS_CONFIG } from './TicketsList';
 import { cn } from '@/lib/utils';
 

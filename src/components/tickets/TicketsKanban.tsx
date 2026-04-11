@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Ticket, TicketStatus } from '@/hooks/useTickets';
+import { Ticket } from '@/hooks/useTickets';
+import type { TicketStatus } from '@/types';
 import { URGENCY_CONFIG, STATUS_CONFIG } from './TicketsList';
 import { Calendar, MapPin, User, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

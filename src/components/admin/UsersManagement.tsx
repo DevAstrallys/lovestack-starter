@@ -104,7 +104,7 @@ export const UsersManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUsers(data || []);
+      setUsers((data || []) as unknown as UserWithMemberships[]);
     } catch (error) {
       toast.error('Erreur lors du chargement des utilisateurs');
       log.error('Error fetching users', { error });

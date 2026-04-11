@@ -16,6 +16,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:system-settings');
 
 export const SystemSettings = () => {
   const [stats, setStats] = useState({
@@ -60,7 +63,7 @@ export const SystemSettings = () => {
         activeUsers: activeUsersCount || 0
       });
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      log.error('Error fetching stats', { error });
     } finally {
       setLoading(false);
     }

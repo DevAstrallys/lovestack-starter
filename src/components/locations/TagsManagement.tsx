@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createLogger } from '@/lib/logger';
+import { fetchLocationTags, updateLocationTag, deleteLocationTag, createLocationTag } from '@/services/locations';
 
 const log = createLogger('component:tags-management');
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Tag, Palette } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { LocationTag } from './LocationsManagement';
 
@@ -43,14 +43,8 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }
 
   const fetchTags = async () => {
     try {
-      const { data, error } = await supabase
-        .from('location_tags' as any)
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('name');
-
-      if (error) throw error;
-      setTags((data as any) || []);
+      const data = await fetchLocationTags(organizationId);
+      setTags(data as LocationTag[]);
     } catch (error) {
       log.error('Error fetching tags', { error });
       toast({
@@ -72,18 +66,9 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }
       };
 
       if (editingTag) {
-        const { error } = await supabase
-          .from('location_tags' as any)
-          .update(tagData)
-          .eq('id', editingTag.id);
-
-        if (error) throw error;
+        await updateLocationTag(editingTag.id, tagData);
       } else {
-        const { error } = await supabase
-          .from('location_tags' as any)
-          .insert(tagData);
-
-        if (error) throw error;
+        await createLocationTag(tagData);
       }
 
       toast({
@@ -117,12 +102,7 @@ export const TagsManagement: React.FC<TagsManagementProps> = ({ organizationId }
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce tag ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('location_tags' as any)
-        .delete()
-        .eq('id', tagId);
-
-      if (error) throw error;
+      await deleteLocationTag(tagId);
 
       toast({
         title: "Succès",

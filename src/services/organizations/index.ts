@@ -167,6 +167,57 @@ export async function fetchOrgAdmin(organizationId: string) {
   }
 }
 
+/** Fetch a single organization by ID. */
+export async function fetchOrganizationById(organizationId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', organizationId)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    log.error('Failed to fetch organization by ID', { organizationId, error: err });
+    throw err;
+  }
+}
+
+/** Fetch active organizations with visual identity fields. */
+export async function fetchActiveOrganizationsWithBranding() {
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('id, name, description, is_active, primary_color, secondary_color, logo_url')
+      .eq('is_active', true)
+      .order('name');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    log.error('Failed to fetch active organizations with branding', { error: err });
+    throw err;
+  }
+}
+
+/** Check if user has platform admin membership. */
+export async function checkPlatformAdminStatus(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('memberships')
+      .select('id, roles!inner(code, is_platform_scope)')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+    if (error) throw error;
+    return (data || []).some((m: Record<string, unknown>) => {
+      const roles = m.roles as Record<string, unknown> | null;
+      return roles && (roles.code === 'admin_platform' || roles.code === 'super_admin' || roles.is_platform_scope === true);
+    });
+  } catch (err) {
+    log.error('Failed to check platform admin status', { userId, error: err });
+    return false;
+  }
+}
+
 /** Find the admin_org role ID. */
 export async function findAdminOrgRoleId(): Promise<string | null> {
   try {

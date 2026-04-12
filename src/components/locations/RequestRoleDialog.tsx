@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
 import { fetchRoles } from '@/services/users';
+import { createRoleRequest } from '@/services/roles';
 import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -158,7 +158,7 @@ export const RequestRoleDialog: React.FC<RequestRoleDialogProps> = ({
 
     setIsLoading(true);
     try {
-      const requestData = {
+      await createRoleRequest({
         user_id: user.id,
         organization_id: organizationId,
         role_id: data.roleId,
@@ -166,13 +166,7 @@ export const RequestRoleDialog: React.FC<RequestRoleDialogProps> = ({
         group_id: data.locationType === 'group' ? data.locationId : null,
         ensemble_id: data.locationType === 'ensemble' ? data.locationId : null,
         message: data.message,
-      };
-
-      const { error } = await (supabase as any)
-        .from('role_requests')
-        .insert(requestData);
-
-      if (error) throw error;
+      });
 
       toast({
         title: "Succès",

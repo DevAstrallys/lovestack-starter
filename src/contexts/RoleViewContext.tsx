@@ -1,28 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchActiveRoles, fetchLocationMemberships, fetchLocationNames } from '@/services/roles';
 import { useAuth } from './AuthContext';
+import { createLogger } from '@/lib/logger';
 
-interface MembershipRow {
-  id: string;
-  role_id: string;
-  element_id: string | null;
-  group_id: string | null;
-  ensemble_id: string | null;
-  organization_id: string;
-  roles: {
-    id: string;
-    code: string;
-    label: unknown;
-    parent_id: string | null;
-    sort_order: number;
-    is_platform_scope: boolean;
-  };
-}
-
-interface NamedRow {
-  id: string;
-  name: string;
-}
+const log = createLogger('context:role-view');
 
 interface Role {
   id: string;
@@ -72,6 +53,23 @@ export const useRoleView = () => {
   return context;
 };
 
+interface MembershipRow {
+  id: string;
+  role_id: string;
+  element_id: string | null;
+  group_id: string | null;
+  ensemble_id: string | null;
+  organization_id: string;
+  roles: {
+    id: string;
+    code: string;
+    label: unknown;
+    parent_id: string | null;
+    sort_order: number;
+    is_platform_scope: boolean;
+  };
+}
+
 export const RoleViewProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [simulatedRole, setSimulatedRole] = useState<Role | null>(null);
@@ -84,54 +82,35 @@ export const RoleViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const fetchRolesAndMemberships = async () => {
       try {
-        // Fetch all roles
-        const { data: roles } = await supabase
-          .from('roles')
-          .select('id, code, label, parent_id, sort_order, is_platform_scope')
-          .eq('is_active', true)
-          .order('sort_order')
-          .order('code');
-
+        const roles = await fetchActiveRoles();
         const typedRoles = (roles || []).map(role => ({
           ...role,
+          sort_order: role.sort_order ?? 0,
           label: role.label as { fr: string; en: string }
         }));
         setAvailableRoles(typedRoles);
 
-        // Fetch user's location memberships with role and location details
-        const { data: memberships } = await (supabase as any)
-          .from('location_memberships')
-          .select('id, role_id, element_id, group_id, ensemble_id, organization_id, roles(id, code, label, parent_id, sort_order, is_platform_scope)')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
+        const memberships = await fetchLocationMemberships({ userId: user.id });
 
         if (!memberships?.length) {
           setUserMemberships([]);
           return;
         }
 
-        // Resolve location names
-        const elementIds = memberships.filter((m: MembershipRow) => m.element_id).map((m: MembershipRow) => m.element_id);
-        const groupIds = memberships.filter((m: MembershipRow) => m.group_id).map((m: MembershipRow) => m.group_id);
-        const ensembleIds = memberships.filter((m: MembershipRow) => m.ensemble_id).map((m: MembershipRow) => m.ensemble_id);
+        const typedMemberships = memberships as unknown as MembershipRow[];
 
-        const [elemRes, grpRes, ensRes] = await Promise.all([
-          elementIds.length ? supabase.from('location_elements').select('id, name').in('id', elementIds) : { data: [] },
-          groupIds.length ? (supabase as any).from('location_groups').select('id, name').in('id', groupIds) : { data: [] },
-          ensembleIds.length ? (supabase as any).from('location_ensembles').select('id, name').in('id', ensembleIds) : { data: [] },
-        ]);
+        const elementIds = typedMemberships.filter(m => m.element_id).map(m => m.element_id as string);
+        const groupIds = typedMemberships.filter(m => m.group_id).map(m => m.group_id as string);
+        const ensembleIds = typedMemberships.filter(m => m.ensemble_id).map(m => m.ensemble_id as string);
 
-        const nameMap: Record<string, string> = {};
-        (elemRes.data || []).forEach((e: NamedRow) => { nameMap[e.id] = e.name; });
-        (grpRes.data || []).forEach((g: NamedRow) => { nameMap[g.id] = g.name; });
-        (ensRes.data || []).forEach((e: NamedRow) => { nameMap[e.id] = e.name; });
+        const nameMap = await fetchLocationNames({ elementIds, groupIds, ensembleIds });
 
-        const resolved: UserLocationMembership[] = memberships.map((m: MembershipRow) => {
-          const locId = m.ensemble_id || m.group_id || m.element_id;
+        const resolved: UserLocationMembership[] = typedMemberships.map(m => {
+          const locId = (m.ensemble_id || m.group_id || m.element_id) as string;
           const locType = m.ensemble_id ? 'ensemble' : m.group_id ? 'group' : 'element';
           return {
             id: m.id,
-            role: { ...m.roles, label: m.roles.label as { fr: string; en: string } },
+            role: { ...m.roles, sort_order: m.roles.sort_order ?? 0, label: m.roles.label as { fr: string; en: string } },
             location_type: locType,
             location_id: locId,
             location_name: nameMap[locId] || '—',
@@ -141,7 +120,7 @@ export const RoleViewProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         setUserMemberships(resolved);
       } catch (error) {
-        console.error('Error fetching roles/memberships:', error);
+        log.error('Error fetching roles/memberships', { error });
       }
     };
 

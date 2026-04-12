@@ -135,11 +135,49 @@ export async function createRoleRequest(params: {
 }
 
 /** Approve or reject a role request. */
-export async function updateRoleRequest(requestId: string, status: 'approved' | 'rejected') {
+export async function updateRoleRequest(requestId: string, status: 'approved' | 'rejected', reviewedBy?: string) {
+  const updates: Record<string, unknown> = { status, reviewed_at: new Date().toISOString() };
+  if (reviewedBy) updates.reviewed_by = reviewedBy;
   const { error } = await supabase
     .from('role_requests')
-    .update({ status })
+    .update(updates)
     .eq('id', requestId);
   if (error) throw error;
   log.info('Role request updated', { requestId, status });
+}
+
+/** Fetch role requests with full details (profiles, roles, locations). */
+export async function fetchRoleRequestsWithDetails(organizationId: string) {
+  const { data, error } = await supabase
+    .from('role_requests')
+    .select(`
+      *,
+      profiles!role_requests_user_id_fkey(full_name),
+      roles(code, label),
+      location_elements(name),
+      location_groups(name),
+      location_ensembles(name)
+    `)
+    .eq('organization_id', organizationId)
+    .order('requested_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Fetch location names by IDs (for resolving location_memberships). */
+export async function fetchLocationNames(ids: {
+  elementIds: string[];
+  groupIds: string[];
+  ensembleIds: string[];
+}): Promise<Record<string, string>> {
+  const nameMap: Record<string, string> = {};
+  const [elemRes, grpRes, ensRes] = await Promise.all([
+    ids.elementIds.length ? supabase.from('location_elements').select('id, name').in('id', ids.elementIds) : { data: [] },
+    ids.groupIds.length ? supabase.from('location_groups').select('id, name').in('id', ids.groupIds) : { data: [] },
+    ids.ensembleIds.length ? supabase.from('location_ensembles').select('id, name').in('id', ids.ensembleIds) : { data: [] },
+  ]);
+  for (const row of (elemRes.data || [])) nameMap[row.id] = row.name;
+  for (const row of (grpRes.data || [])) nameMap[row.id] = row.name;
+  for (const row of (ensRes.data || [])) nameMap[row.id] = row.name;
+  return nameMap;
 }

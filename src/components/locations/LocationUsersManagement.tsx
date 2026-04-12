@@ -157,7 +157,7 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
 
   const fetchEnsemblesData = async () => {
     const data = await fetchEnsemblesWithRelations(organizationId);
-    setEnsembles(data || []);
+    setEnsembles((data || []) as unknown as LocationEnsemble[]);
   };
 
   const fetchRolesData = async () => {

@@ -3,11 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, X, CalendarClock, Copy } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client'; // TODO: migrer org fetch + bulk location_memberships insert vers services
 import { createLogger } from '@/lib/logger';
 import { fetchRoles } from '@/services/users';
 import { updateProfile } from '@/services/users';
-import { createUser } from '@/services/admin';
+import { createUser, createBulkLocationMemberships } from '@/services/admin';
+import { fetchOrganizationById } from '@/services/organizations';
 import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 
 const log = createLogger('component:invite-user-dialog');
@@ -201,11 +201,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
       // Fetch organization name for welcome email
       let organizationName = 'la plateforme';
       try {
-        const { data: org } = await supabase
-          .from('organizations')
-          .select('name')
-          .eq('id', organizationId)
-          .single();
+        const org = await fetchOrganizationById(organizationId);
         if (org?.name) organizationName = org.name;
       } catch (err) {
         log.warn('Could not fetch organization name', err);
@@ -245,11 +241,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
         expires_at: userRole.expiresAt || null,
       }));
 
-      const { error: membershipsError } = await supabase
-        .from('location_memberships')
-        .insert(membershipRows);
-
-      if (membershipsError) throw membershipsError;
+      await createBulkLocationMemberships(membershipRows);
 
       toast({
         title: "Utilisateur invité avec succès",

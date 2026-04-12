@@ -21,6 +21,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import DOMPurify from 'dompurify';
 import { createLogger } from '@/lib/logger';
+import type { Database } from '@/integrations/supabase/types';
 
 
 import {
@@ -157,7 +158,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       || ensembles.find(e => e.id === selectedEnsembleId)?.name
       || null;
 
-    const ticketData = {
+    const ticketData: Database['public']['Tables']['tickets']['Insert'] = {
       title, description: desc, priority, status: 'open',
       created_by: user.id,
       organization_id: selectedOrganization?.id || null,

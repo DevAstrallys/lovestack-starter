@@ -6,7 +6,12 @@
  */
 import React, { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { LocationTag } from '@/types';
+/** Minimal tag shape used for display — compatible with full LocationTag */
+interface DisplayTag {
+  id: string;
+  name: string;
+  color: string;
+}
 import { TagSelector } from './TagSelector';
 import { createLogger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';

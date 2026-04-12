@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Forward, Shield, Send, UserPlus, Building, Users, HardHat, Plus, Check, Search, Loader2, Briefcase } from 'lucide-react';
-import { Ticket, TicketActivity } from '@/hooks/useTickets';
+import type { Ticket, TicketActivity } from '@/types';
 import { fetchCompanies, createCompany, searchCompanyContacts } from '@/services/companies';
 import { addTicketActivity, updateTicket } from '@/services/tickets';
 import { createLogger } from '@/lib/logger';

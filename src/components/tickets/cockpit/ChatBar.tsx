@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Send, Smile, ImagePlus, Paperclip, Lock, Globe } from 'lucide-react';
-import { Ticket } from '@/hooks/useTickets';
+import type { Ticket } from '@/types';
 import { addTicketActivity, updateTicket, uploadTicketAttachment } from '@/services/tickets';
 import { sendEmail } from '@/services/notifications';
 import { useAuth } from '@/contexts/AuthContext';

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchTicketById, fetchOrganizations } from '@/services/tickets';
-import { Ticket } from '@/hooks/useTickets';
+import type { Ticket } from '@/types';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('hook:ticket');

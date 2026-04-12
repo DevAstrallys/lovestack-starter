@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Building2, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
-import { Ticket } from '@/hooks/useTickets';
+import type { Ticket } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface Building {

@@ -14,7 +14,7 @@ import {
   Tag,
   CircleDot
 } from 'lucide-react';
-import { Ticket } from '@/hooks/useTickets';
+import type { Ticket } from '@/types';
 import { TICKET_STATUSES, TICKET_PRIORITIES, extractSubject } from '@/utils/ticketUtils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';

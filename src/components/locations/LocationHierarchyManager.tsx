@@ -32,9 +32,9 @@ interface HierarchyItem {
   name: string;
   description?: string | null;
   created_at: string;
-  tags?: LocationTag[];
+  tags?: Array<{ id: string; name: string; color: string }>;
   /** Children array — groups for ensembles, elements for groups */
-  children?: { id: string; name: string }[];
+  children?: { id: string; name: string; [key: string]: unknown }[];
 }
 
 // ── Child item (for the checkbox list in the dialog) ────────────────

@@ -158,14 +158,9 @@ export const AccessSecurityManager = () => {
       ];
       setLocations(locs);
 
-      // Fetch audit logs — TODO: migrate to service layer
-      const { data: logs } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .in('entity', ['membership', 'location_membership'])
-        .order('created_at', { ascending: false })
-        .limit(50);
-      setAuditLogs(logs || []);
+      // Fetch audit logs via service
+      const logs = await fetchAuditLogs({ entities: ['membership', 'location_membership'], limit: 50 });
+      setAuditLogs(logs);
 
     } catch (err) {
       log.error('Error fetching access data', { error: err });
@@ -257,15 +252,10 @@ export const AccessSecurityManager = () => {
     }
   };
 
-  // TODO: migrer toggleAccess vers service admin
   const toggleAccess = async (member: MemberAccess) => {
     try {
-      const table = member.source === 'membership' ? 'memberships' : 'location_memberships';
-      const { error } = await supabase
-        .from(table)
-        .update({ is_active: !member.is_active })
-        .eq('id', member.id);
-      if (error) throw error;
+      const table = member.source === 'membership' ? 'memberships' as const : 'location_memberships' as const;
+      await toggleMembershipStatus(table, member.id, !member.is_active);
       toast.success(member.is_active ? 'Accès révoqué' : 'Accès réactivé');
       fetchData();
     } catch (err) {

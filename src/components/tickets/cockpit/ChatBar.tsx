@@ -56,9 +56,8 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
           content: content.trim(),
           metadata: { direction: 'outbound', sent_to: ticket.reporter_email || null },
         });
-        const ticketAny = ticket as any;
-        if (!ticketAny.first_responded_at) {
-          await updateTicket(ticket.id, { first_responded_at: new Date().toISOString() } as any);
+        if (!ticket.first_responded_at) {
+          await updateTicket(ticket.id, { first_responded_at: new Date().toISOString() });
         }
         if (hasEmail) {
           try {

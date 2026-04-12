@@ -116,7 +116,7 @@ export function TicketLanding() {
         },
       };
 
-      await createTicketService(ticketData as any);
+      await createTicketService(ticketData);
 
       // Notify organization managers (non-blocking)
       if (qrCode?.organization_id) {

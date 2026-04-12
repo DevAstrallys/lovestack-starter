@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchTicketById, fetchOrganizations } from '@/services/tickets';
-import type { Ticket } from '@/types';
+import type { EnrichedTicket } from '@/types';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('hook:ticket');
 
 export function useTicket(id: string | undefined) {
-  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [ticket, setTicket] = useState<EnrichedTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,15 +24,15 @@ export function useTicket(id: string | undefined) {
           ? JSON.parse(data.attachments)
           : [],
         location: (typeof data.location === 'string' ? JSON.parse(data.location) : data.location) ?? null,
-      } as Ticket;
+      } as EnrichedTicket;
 
       // Enrich with org name
       if (t.organization_id) {
         const orgs = await fetchOrganizations([t.organization_id]);
         if (orgs?.[0]) t.organization_name = orgs[0].name;
       }
-      if (!t.organization_name && (t.organization_id || (t.meta as any)?.organization_id)) {
-        const oid = t.organization_id || (t.meta as any)?.organization_id;
+      if (!t.organization_name && (t.organization_id || t.meta?.organization_id)) {
+        const oid = t.organization_id || (t.meta?.organization_id as string);
         const orgs = await fetchOrganizations([oid]);
         if (orgs?.[0]) t.organization_name = orgs[0].name;
       }

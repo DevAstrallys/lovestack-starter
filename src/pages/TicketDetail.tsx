@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
 import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
-import type { TicketStatus, TicketAttachment } from '@/types';
+import type { TicketStatus, TicketPriority, TicketAttachment, TicketActivityMeta, TicketLocation } from '@/types';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { URGENCY_CONFIG, STATUS_CONFIG } from '@/components/tickets/TicketsList';
@@ -128,15 +128,14 @@ export function TicketDetail() {
   const urgency = URGENCY_CONFIG[(ticket.priority as keyof typeof URGENCY_CONFIG)] ?? URGENCY_CONFIG.medium;
   const status = STATUS_CONFIG[(ticket.status as keyof typeof STATUS_CONFIG)] ?? STATUS_CONFIG.open;
   const StatusIcon = status.icon;
-  const location = ticket.location as Record<string, any> | null;
-  const locationName = location?.name || location?.element_name || null;
-  const ticketAny = ticket as any;
+  const location = ticket.location as TicketLocation | null;
+  const locationName = location?.element_name || null;
   const titleBadges = extractTitleBadges(ticket.title);
   const subject = extractSubject(ticket.title);
 
   const priorityLabel = TICKET_PRIORITIES[ticket.priority as keyof typeof TICKET_PRIORITIES] || ticket.priority;
   const categoryLabel = ticket.category_code || null;
-  const actionLabel = ticketAny.action_code || null;
+  const actionLabel = ticket.action_code || null;
 
   const replyActivities = (activities || [])
     .filter((a) => a.activity_type === 'reply' || a.activity_type === 'message')
@@ -150,7 +149,7 @@ export function TicketDetail() {
     try {
       const oldStatus = ticket.status;
       const updates: Record<string, string> = { status: newStatus };
-      if (!ticketAny.first_opened_at && newStatus !== 'open') {
+      if (!ticket.first_opened_at && newStatus !== 'open') {
         updates.first_opened_at = new Date().toISOString();
       }
       await updateTicketService(ticket.id, updates);
@@ -176,7 +175,7 @@ export function TicketDetail() {
   const handlePriorityChange = async (newPriority: string) => {
     if (!canManageTicket) return;
     try {
-      await updateTicketService(ticket.id, { priority: newPriority as any });
+      await updateTicketService(ticket.id, { priority: newPriority as TicketPriority });
       toast.success('Priorité mise à jour');
       refresh();
     } catch (err) {
@@ -190,7 +189,7 @@ export function TicketDetail() {
     const dupId = prompt('ID du ticket original (UUID) :');
     if (!dupId?.trim()) return;
     try {
-      await updateTicketService(ticket.id, { duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus } as any);
+      await updateTicketService(ticket.id, { duplicate_of_id: dupId.trim(), status: 'closed' as TicketStatus });
       toast.success('Marqué comme doublon');
       refresh();
     } catch (err) {
@@ -259,7 +258,7 @@ export function TicketDetail() {
                 )}
 
                 <div className="flex flex-wrap items-center gap-2 mt-3">
-                  {ticketAny.assigned_to && (
+                  {ticket.assigned_to && (
                     <Badge variant="secondary" className="text-xs px-3 py-1">
                       Prestataire : Assigné
                     </Badge>
@@ -273,7 +272,7 @@ export function TicketDetail() {
                       <QrCode className="h-3 w-3 mr-1" /> QR Code
                     </Badge>
                   )}
-                  {ticketAny.duplicate_of_id && (
+                  {ticket.duplicate_of_id && (
                     <Badge variant="outline" className="text-xs px-3 py-1 gap-1 text-orange-600 border-orange-300">
                       <Copy className="h-3 w-3" /> Doublon
                     </Badge>
@@ -427,7 +426,7 @@ export function TicketDetail() {
                     )}
 
                     {replyActivities.map((activity) => {
-                      const meta = activity.metadata as any;
+                      const meta = activity.metadata as TicketActivityMeta;
                       const isInbound = meta?.direction === 'inbound';
 
                       return (

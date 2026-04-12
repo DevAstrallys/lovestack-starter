@@ -9,9 +9,8 @@ import {
   Calendar, MapPin, Tag, User, Phone, Mail, 
   Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
-import type { Ticket, TicketActivity } from '@/types';
+import type { Ticket, TicketActivity, TicketAttachment, TicketLocation } from '@/types';
 import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
-import type { TicketAttachment } from '@/types';
 import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -98,7 +97,7 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
       )}
 
       {replyActivities.map((activity) => {
-        const meta = activity.metadata as any;
+        const meta = activity.metadata as Record<string, unknown> | null;
         const isInbound = meta?.direction === 'inbound';
 
         if (isInbound) {
@@ -250,8 +249,8 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
 
   if (!ticket) return null;
 
-  const location = ticket.location as Record<string, any> | null;
-  const locationName = location?.name || location?.element_name || null;
+  const location = ticket.location as TicketLocation | null;
+  const locationName = location?.element_name || null;
 
   const headerContent = (
     <>

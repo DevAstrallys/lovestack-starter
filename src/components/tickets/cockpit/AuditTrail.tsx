@@ -34,47 +34,47 @@ export function AuditTrail({ ticket, activities, loading, onNoteAdded }: AuditTr
     icon: '📥',
   });
 
-  const ticketAny = ticket as any;
+  // Access ticket fields directly (typed via Ticket interface)
 
-  if (ticketAny.first_opened_at) {
+  if (ticket.first_opened_at) {
     systemEntries.push({
-      time: ticketAny.first_opened_at,
+      time: ticket.first_opened_at,
       label: '📍 Ouvert par le gestionnaire',
       icon: '👁️',
     });
   }
 
-  if (ticketAny.first_responded_at) {
-    const bh = businessHoursBetween(new Date(ticket.created_at), new Date(ticketAny.first_responded_at));
+  if (ticket.first_responded_at) {
+    const bh = businessHoursBetween(new Date(ticket.created_at), new Date(ticket.first_responded_at));
     systemEntries.push({
-      time: ticketAny.first_responded_at,
+      time: ticket.first_responded_at,
       label: `📍 Première réponse après ${formatBusinessHours(bh)}`,
       icon: '💬',
     });
   }
 
-  if (ticketAny.assigned_at) {
+  if (ticket.assigned_at) {
     systemEntries.push({
-      time: ticketAny.assigned_at,
+      time: ticket.assigned_at,
       label: '📍 Transféré à un tiers',
       icon: '🔄',
     });
   }
 
-  if (ticketAny.resolved_at) {
+  if (ticket.resolved_at) {
     systemEntries.push({
-      time: ticketAny.resolved_at,
+      time: ticket.resolved_at,
       label: '📍 Résolu',
       icon: '✅',
     });
   }
 
   // SLA calculation
-  const responseTime = ticketAny.first_responded_at
-    ? businessHoursBetween(new Date(ticket.created_at), new Date(ticketAny.first_responded_at))
+  const responseTime = ticket.first_responded_at
+    ? businessHoursBetween(new Date(ticket.created_at), new Date(ticket.first_responded_at))
     : businessHoursBetween(new Date(ticket.created_at), new Date());
   const score = slaScore(responseTime);
-  const hasResponded = !!ticketAny.first_responded_at;
+  const hasResponded = !!ticket.first_responded_at;
 
   const handleAddNote = async () => {
     if (!note.trim()) return;

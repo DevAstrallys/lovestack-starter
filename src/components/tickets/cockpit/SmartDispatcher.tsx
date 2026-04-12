@@ -144,8 +144,7 @@ export function SmartDispatcher({ ticket, activities, onDispatched, selectedMess
         },
       });
 
-      const ticketAny = ticket as any;
-      if (!ticketAny.assigned_at) {
+      if (!ticket.assigned_at) {
         await updateTicket(ticket.id, { assigned_at: new Date().toISOString() });
       }
 

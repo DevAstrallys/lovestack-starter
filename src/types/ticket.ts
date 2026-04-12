@@ -83,6 +83,12 @@ export interface Ticket {
   organization_name?: string;
 }
 
+/** Ticket enrichi avec les noms résolus côté client */
+export interface EnrichedTicket extends Ticket {
+  organization_name?: string;
+  building_name?: string;
+}
+
 // ── Ticket Activity ──────────────────────────────────────────────────
 
 export interface TicketActivityMeta {

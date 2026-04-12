@@ -13,7 +13,7 @@ import { TicketQuickFilters } from '@/components/tickets/TicketQuickFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTicketsQuery, useUpdateTicket } from '@/hooks/useTicketsQuery';
-import type { TicketFilters as ITicketFilters, Ticket, TicketStatus } from '@/types';
+import type { TicketFilters as ITicketFilters, Ticket, TicketStatus, TicketPriority, TicketLocation } from '@/types';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
@@ -48,11 +48,11 @@ export const Tickets = () => {
     const f: ITicketFilters = {};
     const statusParam = searchParams.get('status');
     if (statusParam) {
-      f.status = statusParam.split(',') as any;
+      f.status = statusParam.split(',') as TicketStatus[];
     }
     const priorityParam = searchParams.get('priority');
     if (priorityParam) {
-      f.priority = priorityParam.split(',') as any;
+      f.priority = priorityParam.split(',') as TicketPriority[];
     }
     const createdParam = searchParams.get('created');
     if (createdParam === 'today') {
@@ -104,7 +104,7 @@ export const Tickets = () => {
 
   // Filter tickets by selected ensemble (client-side for instant feedback)
   const displayedTickets = selectedEnsembleId
-    ? tickets.filter(t => (t.location as any)?.ensemble_id === selectedEnsembleId)
+    ? tickets.filter(t => (t.location as TicketLocation | null)?.ensemble_id === selectedEnsembleId)
     : tickets;
 
   const handleFiltersChange = (newFilters: ITicketFilters) => setFilters(newFilters);

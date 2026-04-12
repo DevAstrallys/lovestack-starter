@@ -194,16 +194,17 @@ export function useTicketQuery(id: string | undefined) {
       if (!id) throw new Error('No ticket ID');
       const data = await fetchTicketById(id);
 
+      const raw = data as unknown as Record<string, unknown>;
       const t: EnrichedTicket = {
-        ...data,
+        ...(raw as unknown as EnrichedTicket),
         attachments: Array.isArray(data.attachments)
-          ? data.attachments
+          ? (data.attachments as unknown as EnrichedTicket['attachments'])
           : typeof data.attachments === 'string'
           ? JSON.parse(data.attachments)
           : [],
         location: (typeof data.location === 'string'
           ? JSON.parse(data.location)
-          : data.location) ?? null,
+          : data.location) as EnrichedTicket['location'],
       };
 
       if (t.organization_id) {

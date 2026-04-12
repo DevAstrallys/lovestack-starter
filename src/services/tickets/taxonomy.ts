@@ -175,7 +175,7 @@ export async function followTicket(params: {
       log.warn('Cannot follow ticket without user_id or email', { ticketId });
       return false;
     }
-    const row: Record<string, unknown> = { ticket_id: ticketId };
+    const row: { ticket_id: string; user_id?: string; follower_email?: string; follower_name?: string; follower_phone?: string } = { ticket_id: ticketId };
     if (userId) row.user_id = userId;
     if (email) row.follower_email = email;
     if (name) row.follower_name = name;
@@ -183,7 +183,7 @@ export async function followTicket(params: {
 
     const { error } = await supabase
       .from('ticket_followers')
-      .insert(row as any);
+      .insert(row);
     if (error) throw error;
     log.info('Ticket followed', { ticketId, userId, email });
     return true;

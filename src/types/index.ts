@@ -41,6 +41,7 @@ export type {
 } from './user';
 
 export type {
+  LocationData,
   LocationEnsemble,
   LocationGroup,
   LocationElement,

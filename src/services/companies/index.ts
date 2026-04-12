@@ -128,14 +128,21 @@ export async function createCompanyAndAffiliate(
 /**
  * Search company users with profile and company info (for dispatcher contact search).
  */
-export async function searchCompanyContacts(query: string, limit = 20) {
+interface CompanyContact {
+  user_id: string;
+  role: string | null;
+  companies: { id: string; name: string; email: string | null } | null;
+  profiles: { full_name: string | null; phone: string | null } | null;
+}
+
+export async function searchCompanyContacts(query: string, limit = 20): Promise<CompanyContact[]> {
   try {
     const { data, error } = await supabase
       .from('company_users')
       .select('user_id, role, companies(id, name, email), profiles:user_id(full_name, phone)')
-      .limit(limit) as any;
+      .limit(limit);
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as unknown as CompanyContact[];
   } catch (err) {
     log.error('Failed to search company contacts', { query, error: err });
     return [];

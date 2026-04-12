@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Edit, Trash2, QrCode } from 'lucide-react';
 import { LocationElement } from './types';
+import type { LocationData } from '@/types';
 
 interface ElementsTableProps {
   elements: LocationElement[];
@@ -13,7 +14,7 @@ interface ElementsTableProps {
   onGenerateQR: (id: string, name: string) => void;
 }
 
-function formatAddress(locationData: Record<string, unknown> | null): string {
+function formatAddress(locationData: LocationData | null): string {
   return [
     locationData?.address,
     locationData?.zipCode && locationData?.city
@@ -42,7 +43,7 @@ export const ElementsTable: React.FC<ElementsTableProps> = ({ elements, onEdit, 
         </TableHeader>
         <TableBody>
           {elements.map((element) => {
-            const locationData = element.location_data as any;
+            const locationData = element.location_data as LocationData | null;
             return (
               <TableRow key={element.id}>
                 <TableCell className="font-medium">{element.name}</TableCell>

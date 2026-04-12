@@ -117,7 +117,7 @@ export function useLocationElements(organizationId: string) {
       }
 
       const element = elements.find((e) => e.id === elementId);
-      const locationData = element?.location_data as any;
+      const locationData = element?.location_data as Record<string, unknown> | null | undefined;
 
       log.info('generateQRCode: calling service', { elementId, organizationId });
 

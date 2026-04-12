@@ -25,7 +25,7 @@ interface HierarchyFormDialogProps {
   onResetAndOpen: () => void;
   onToggleChild: (childId: string) => void;
   onToggleTag: (tagId: string) => void;
-  onCreateTag: (name: string, color: string) => void;
+  onCreateTag: (name: string, color: string) => Promise<void> | void;
 }
 
 function capitalize(s: string): string {

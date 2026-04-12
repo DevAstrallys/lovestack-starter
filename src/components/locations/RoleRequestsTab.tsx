@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client'; // TODO: migrer les requêtes restantes vers services
 import { getCurrentUser } from '@/services/auth';
+import { fetchRoleRequestsWithDetails, updateRoleRequest } from '@/services/roles';
+import { createLocationMembership } from '@/services/admin';
+import { createLogger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +11,8 @@ import { Check, X, Clock, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+const log = createLogger('component:role-requests-tab');
 
 interface RoleRequest {
   id: string;
@@ -44,23 +48,10 @@ export const RoleRequestsTab: React.FC<RoleRequestsTabProps> = ({ organizationId
   const fetchRequests = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await (supabase as any)
-        .from('role_requests')
-        .select(`
-          *,
-          profiles!role_requests_user_id_fkey(full_name),
-          roles(code, label),
-          location_elements(name),
-          location_groups(name),
-          location_ensembles(name)
-        `)
-        .eq('organization_id', organizationId)
-        .order('requested_at', { ascending: false });
-
-      if (error) throw error;
-      setRequests(data || []);
+      const data = await fetchRoleRequestsWithDetails(organizationId);
+      setRequests((data as unknown as RoleRequest[]) || []);
     } catch (error) {
-      console.error('Error fetching role requests:', error);
+      log.error('Error fetching role requests', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les demandes de rôles",
@@ -83,32 +74,18 @@ export const RoleRequestsTab: React.FC<RoleRequestsTabProps> = ({ organizationId
       if (!request) return;
 
       if (action === 'approved') {
-        // Create the location membership
-        const { error: membershipError } = await supabase
-          .from('location_memberships')
-          .insert({
-            user_id: request.user_id,
-            organization_id: organizationId,
-            role_id: request.role_id,
-            element_id: request.element_id,
-            group_id: request.group_id,
-            ensemble_id: request.ensemble_id,
-          });
-
-        if (membershipError) throw membershipError;
+        await createLocationMembership({
+          user_id: request.user_id,
+          organization_id: organizationId,
+          role_id: request.role_id,
+          element_id: request.element_id,
+          group_id: request.group_id,
+          ensemble_id: request.ensemble_id,
+        });
       }
 
-      // Update the request status
-      const { error: updateError } = await (supabase as any)
-        .from('role_requests')
-        .update({
-          status: action,
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: (await getCurrentUser())?.id,
-        })
-        .eq('id', requestId);
-
-      if (updateError) throw updateError;
+      const currentUser = await getCurrentUser();
+      await updateRoleRequest(requestId, action, currentUser?.id);
 
       toast({
         title: "Succès",
@@ -117,7 +94,7 @@ export const RoleRequestsTab: React.FC<RoleRequestsTabProps> = ({ organizationId
 
       fetchRequests();
     } catch (error) {
-      console.error('Error updating request:', error);
+      log.error('Error updating request', { error });
       toast({
         title: "Erreur",
         description: "Impossible de traiter la demande",

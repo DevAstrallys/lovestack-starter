@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchActiveOrganizationsWithBranding, checkPlatformAdminStatus } from '@/services/organizations';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLogger } from '@/lib/logger';
 
@@ -42,8 +42,6 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [selectedOrganization, _setSelectedOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [isplatformAdmin, setIsplatformAdmin] = useState(false);
-  // Track whether the user (or initial load) has made an explicit choice.
-  // Prevents auto-selecting first org after user chose "Toutes les organisations".
   const hasInitialized = React.useRef(false);
 
   const setSelectedOrganization = React.useCallback((org: Organization | null) => {
@@ -62,26 +60,8 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const checkPlatformAdmin = async () => {
     if (!user) return;
-
     try {
-      const { data: memberships, error } = await supabase
-        .from('memberships')
-        .select(`
-          id,
-          roles!inner(code, is_platform_scope)
-        `)
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
-      if (error) {
-        log.error('Error checking platform admin', { error });
-        return;
-      }
-
-      const isPlatformAdmin = memberships?.some(m => 
-        m.roles && (m.roles.code === 'admin_platform' || m.roles.code === 'super_admin' || m.roles.is_platform_scope)
-      ) || false;
-
+      const isPlatformAdmin = await checkPlatformAdminStatus(user.id);
       setIsplatformAdmin(isPlatformAdmin);
     } catch (error) {
       log.error('Error checking platform admin', { error });
@@ -93,22 +73,9 @@ export const OrganizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     try {
       setLoading(true);
-
-      // Si c'est un admin plateforme, récupérer toutes les organisations
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('id, name, description, is_active, primary_color, secondary_color, logo_url')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) {
-        log.error('Error loading organizations', { error });
-        return;
-      }
-
+      const data = await fetchActiveOrganizationsWithBranding();
       setOrganizations(data || []);
       
-      // Auto-select first org only on initial load, never after user chose "all orgs"
       if (data && data.length > 0 && !hasInitialized.current) {
         setSelectedOrganization(data[0]);
       }

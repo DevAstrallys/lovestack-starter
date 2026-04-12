@@ -22,6 +22,7 @@ import {
 } from '@/services/locations';
 import type {
   Ticket,
+  EnrichedTicket,
   TicketAttachment,
   TicketActivity,
   TicketActivityMeta,
@@ -180,5 +181,43 @@ export function useTicketIdsByEnsemble(ensembleId: string | undefined) {
     },
     enabled: !!ensembleId,
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Fetch a single ticket by ID with org name enrichment.
+ */
+export function useTicketQuery(id: string | undefined) {
+  return useQuery({
+    queryKey: ['ticket', id],
+    queryFn: async () => {
+      if (!id) throw new Error('No ticket ID');
+      const data = await fetchTicketById(id);
+
+      const t: EnrichedTicket = {
+        ...data,
+        attachments: Array.isArray(data.attachments)
+          ? data.attachments
+          : typeof data.attachments === 'string'
+          ? JSON.parse(data.attachments)
+          : [],
+        location: (typeof data.location === 'string'
+          ? JSON.parse(data.location)
+          : data.location) ?? null,
+      };
+
+      if (t.organization_id) {
+        const orgs = await fetchOrganizations([t.organization_id]);
+        if (orgs?.[0]) t.organization_name = orgs[0].name;
+      }
+      if (!t.organization_name && t.meta?.organization_id) {
+        const oid = t.meta.organization_id as string;
+        const orgs = await fetchOrganizations([oid]);
+        if (orgs?.[0]) t.organization_name = orgs[0].name;
+      }
+
+      return t;
+    },
+    enabled: !!id,
   });
 }

@@ -9,6 +9,7 @@ import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { WhiteLabelProvider } from "@/contexts/WhiteLabelContext";
 import { ProtectedAdminRoute } from "@/components/auth/ProtectedAdminRoute";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 // Static imports — critical for first render / public pages
 import Index from "./pages/Index";
@@ -50,25 +51,27 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-muted-foreground">Chargement...</div></div>}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/admin" element={<ProtectedAdminRoute><Admin /></ProtectedAdminRoute>} />
-                  <Route path="/locations" element={<Locations />} />
-                  <Route path="/users" element={<ProtectedAdminRoute><Users /></ProtectedAdminRoute>} />
-                  <Route path="/tickets" element={<Tickets />} />
-                  <Route path="/tickets/:id" element={<TicketDetail />} />
-                  <Route path="/ticket-form/:slug" element={<TicketLanding />} />
-                  <Route path="/ticket-form/:slug/form" element={<TicketForm />} />
-                  <Route path="/report/:slug" element={<TicketForm />} />
-                  <Route path="/suivi/:slug" element={<TicketTracking />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/health" element={<Health />} />
-                  <Route path="/unauthorized" element={<Unauthorized />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+              <ErrorBoundary fallbackTitle="Erreur critique">
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-muted-foreground">Chargement...</div></div>}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/admin" element={<ProtectedAdminRoute><ErrorBoundary fallbackTitle="Erreur Administration"><Admin /></ErrorBoundary></ProtectedAdminRoute>} />
+                    <Route path="/locations" element={<ErrorBoundary fallbackTitle="Erreur Lieux"><Locations /></ErrorBoundary>} />
+                    <Route path="/users" element={<ProtectedAdminRoute><ErrorBoundary fallbackTitle="Erreur Utilisateurs"><Users /></ErrorBoundary></ProtectedAdminRoute>} />
+                    <Route path="/tickets" element={<ErrorBoundary fallbackTitle="Erreur Tickets"><Tickets /></ErrorBoundary>} />
+                    <Route path="/tickets/:id" element={<ErrorBoundary fallbackTitle="Erreur Ticket"><TicketDetail /></ErrorBoundary>} />
+                    <Route path="/ticket-form/:slug" element={<TicketLanding />} />
+                    <Route path="/ticket-form/:slug/form" element={<TicketForm />} />
+                    <Route path="/report/:slug" element={<TicketForm />} />
+                    <Route path="/suivi/:slug" element={<ErrorBoundary fallbackTitle="Erreur Suivi"><TicketTracking /></ErrorBoundary>} />
+                    <Route path="/profile" element={<ErrorBoundary fallbackTitle="Erreur Profil"><Profile /></ErrorBoundary>} />
+                    <Route path="/health" element={<Health />} />
+                    <Route path="/unauthorized" element={<Unauthorized />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
             </BrowserRouter>
           </TooltipProvider>
         </RoleViewProvider>

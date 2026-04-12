@@ -423,9 +423,9 @@ export const UsersManagement = () => {
                        </SelectTrigger>
                        <SelectContent>
                          {roles.map((role) => (
-                           <SelectItem key={role.id} value={role.id}>
-                             {role.code}
-                           </SelectItem>
+                            <SelectItem key={role.id as string} value={role.id as string}>
+                              {role.code as string}
+                            </SelectItem>
                          ))}
                        </SelectContent>
                      </Select>

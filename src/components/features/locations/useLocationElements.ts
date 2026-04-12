@@ -148,6 +148,7 @@ export function useLocationElements(organizationId: string) {
         color: data.color,
         organization_id: data.organization_id,
         created_at: data.created_at,
+        updated_at: data.updated_at ?? data.created_at,
       };
 
       setAvailableTags((prev) => [...prev, newTag]);

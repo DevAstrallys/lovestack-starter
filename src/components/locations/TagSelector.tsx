@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tag, Plus, Palette } from 'lucide-react';
-import { LocationTag } from './LocationsManagement';
+import type { LocationTag } from '@/types';
 
 const PREDEFINED_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',

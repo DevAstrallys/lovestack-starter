@@ -27,7 +27,15 @@ const TicketDetail = lazy(() => import('./pages/TicketDetail').then(m => ({ defa
 const TicketTracking = lazy(() => import('./pages/TicketTracking').then(m => ({ default: m.TicketTracking })));
 const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

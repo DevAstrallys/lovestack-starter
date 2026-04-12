@@ -9,9 +9,7 @@ import {
   Calendar, MapPin, Tag, User, Phone, Mail, 
   Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
-import type { Ticket, TicketActivity } from '@/types';
-import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
-import type { TicketAttachment } from '@/types';
+import type { Ticket, TicketActivity, TicketAttachment, TicketLocation } from '@/types';
 import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';

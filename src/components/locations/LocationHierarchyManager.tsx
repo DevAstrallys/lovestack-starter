@@ -37,7 +37,7 @@ interface HierarchyItem {
   name: string;
   description?: string | null;
   created_at: string;
-  tags?: LocationTag[];
+  tags?: DisplayTag[];
   /** Children array — groups for ensembles, elements for groups */
   children?: { id: string; name: string }[];
 }
@@ -62,7 +62,7 @@ export interface LocationHierarchyManagerProps {
   /** Fetch available children to assign */
   fetchChildren: (orgId: string) => Promise<ChildItem[]>;
   /** Fetch available tags */
-  fetchTags: (orgId: string) => Promise<LocationTag[]>;
+  fetchTags: (orgId: string) => Promise<DisplayTag[]>;
   /** Save (create or update) — returns created id or void */
   saveItem: (params: {
     id?: string;
@@ -75,7 +75,7 @@ export interface LocationHierarchyManagerProps {
   /** Delete an item */
   deleteItem: (id: string) => Promise<void>;
   /** Create a new tag */
-  createTag: (params: { name: string; color: string; organization_id: string }) => Promise<LocationTag>;
+  createTag: (params: { name: string; color: string; organization_id: string }) => Promise<DisplayTag>;
   /** Label for children column (e.g. "groupements", "éléments") */
   childLabel: string;
   /** Singular label for the item type (e.g. "ensemble", "groupement") */
@@ -98,7 +98,7 @@ export const LocationHierarchyManager: React.FC<LocationHierarchyManagerProps> =
 }) => {
   const [items, setItems] = useState<HierarchyItem[]>([]);
   const [availableChildren, setAvailableChildren] = useState<ChildItem[]>([]);
-  const [availableTags, setAvailableTags] = useState<LocationTag[]>([]);
+  const [availableTags, setAvailableTags] = useState<DisplayTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<HierarchyItem | null>(null);

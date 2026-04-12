@@ -1,73 +1,107 @@
-# Welcome to your Lovable project
+# Astra-Link
 
-## Project info
+Plateforme SaaS de gestion et copropriété immobilière. Système central pour la gestion des bâtiments résidentiels et portefeuilles immobiliers.
 
-**URL**: https://lovable.dev/projects/b959c7f6-a91a-4583-ae6b-f833e5a61f78
+## Stack technique
 
-## How can I edit this code?
+- **Frontend** : React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui
+- **Backend** : Supabase (PostgreSQL, RLS, Edge Functions, Auth)
+- **State** : React Query (TanStack Query)
+- **Routing** : React Router v6 avec lazy loading
+- **Développement** : Lovable.dev (environnement browser)
+- **Tests** : Vitest + Testing Library
 
-There are several ways of editing your application.
+## Démarrage rapide
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/b959c7f6-a91a-4583-ae6b-f833e5a61f78) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install
+npm run dev       # Serveur de développement
+npm run build     # Build production
+npm run test      # Tests unitaires
 ```
 
-**Edit a file directly in GitHub**
+## Architecture du projet
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+src/
+├── components/          # Composants UI organisés par domaine
+│   ├── admin/           # Administration plateforme
+│   ├── auth/            # Authentification et routes protégées
+│   ├── features/        # Composants feature-specific
+│   ├── locations/       # Gestion des lieux (hierarchy manager)
+│   ├── tickets/         # Cockpit tickets, filtres, détail
+│   └── ui/              # Composants shadcn/ui + ErrorBoundary
+├── contexts/            # React Contexts (Auth, Organization, RoleView, WhiteLabel)
+├── hooks/               # Hooks React Query (useTicketsQuery, useTicketQuery, useQRCodes)
+├── integrations/        # Client Supabase auto-généré (NE PAS MODIFIER)
+├── lib/                 # Utilitaires (logger structuré, utils)
+├── pages/               # Pages routes (lazy-loaded pour les pages internes)
+├── services/            # Couche d'accès données — SEUL point d'appel Supabase
+│   ├── admin/           # Edge functions (create-user, delete-user)
+│   ├── auth/            # Authentification
+│   ├── companies/       # Entreprises
+│   ├── locations/       # Hiérarchie lieux + QR codes
+│   ├── notifications/   # Email (Resend)
+│   ├── organizations/   # Organisations
+│   ├── roles/           # Rôles, permissions, memberships
+│   ├── storage/         # Upload fichiers
+│   ├── system/          # Stats système, audit logs
+│   ├── taxonomy/        # Actions, catégories, objets, détails
+│   ├── tickets/         # CRUD tickets, activités, suivi
+│   └── users/           # Profils utilisateurs
+├── test/                # Infrastructure de test (setup, mocks)
+└── types/               # Types TypeScript centralisés
+```
 
-**Use GitHub Codespaces**
+## Conventions de code
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Règles absolues
 
-## What technologies are used for this project?
+1. **Aucun `any`** — chaque variable, paramètre et retour est typé
+2. **Aucun `console.log`** — utiliser le logger structuré `createLogger()` de `/src/lib/logger.ts`
+3. **Aucun import Supabase hors de `/src/services/`** — les composants et hooks appellent les services, jamais Supabase directement
+4. **Types centralisés dans `/src/types/`** — aucune interface dupliquée dans les composants
 
-This project is built with:
+### Patterns
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Services** : chaque domaine a son fichier dans `/src/services/[domain]/index.ts`
+- **Hooks** : React Query pour toutes les requêtes (useQuery, useMutation)
+- **Error Boundaries** : chaque page lazy-loaded a son ErrorBoundary
+- **Lazy loading** : les pages internes (Admin, Tickets, Locations…) sont lazy-loaded, les pages publiques (TicketForm, TicketLanding) sont statiques
 
-## How can I deploy this project?
+### Imports
 
-Simply open [Lovable](https://lovable.dev/projects/b959c7f6-a91a-4583-ae6b-f833e5a61f78) and click on Share -> Publish.
+```typescript
+// Types — toujours depuis @/types
+import type { Ticket, EnrichedTicket, Organization } from '@/types';
 
-## Can I connect a custom domain to my Lovable project?
+// Services — depuis @/services/[domain]
+import { fetchFilteredTickets } from '@/services/tickets';
 
-Yes, you can!
+// Logger — depuis @/lib/logger
+import { createLogger } from '@/lib/logger';
+const log = createLogger('component:mon-composant');
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Hiérarchie des lieux
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+```
+Organisation
+└── Ensemble (résidence, site, portefeuille)
+      └── Groupe (bâtiment, escalier, étage)
+            └── Élément (appartement, local, zone technique)
+                  └── QR Code (point de déclaration)
+```
+
+⚠️ Ne jamais utiliser la table legacy `buildings` — utiliser `location_ensembles → location_groups → location_elements → qr_codes`.
+
+## Système de rôles
+
+43 rôles triés par `sort_order` (de `admin_platform=1` à `administration_publique=43`). Les permissions sont assignées par rôle via la table `role_permissions`. Les memberships sont scopées à deux niveaux :
+
+- **Organisation** : table `memberships` (rôle global dans l'org)
+- **Lieu** : table `location_memberships` (rôle sur un ensemble/groupe/élément spécifique)
+
+## Documentation complémentaire
+
+- `CLAUDE.md` — Brief projet complet pour les assistants IA (architecture, sécurité, flux métier, glossaire)

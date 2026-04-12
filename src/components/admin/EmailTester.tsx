@@ -8,6 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendTestEmail } from '@/services/notifications';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:email-tester');
 
 export const EmailTester = () => {
   const [email, setEmail] = useState('');
@@ -53,11 +56,11 @@ export const EmailTester = () => {
         title: "Email envoyé !",
         description: "L'email de test a été envoyé avec succès",
       });
-    } catch (error: any) {
-      console.error('Unexpected error:', error);
+    } catch (error: unknown) {
+      log.error('Unexpected error sending test email', { error });
       setLastResult({ 
         success: false, 
-        message: `Erreur inattendue: ${error.message}` 
+        message: `Erreur inattendue: ${error instanceof Error ? error.message : 'Erreur inconnue'}` 
       });
       toast({
         title: "Erreur",

@@ -82,7 +82,7 @@ export const WhiteLabelProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return;
     }
 
-    const org = selectedOrganization as any;
+    const org = selectedOrganization;
     const primaryColor = org.primary_color || null;
     const secondaryColor = org.secondary_color || null;
     const logoUrl = org.logo_url || null;

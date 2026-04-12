@@ -29,16 +29,16 @@ export function EmergencyButton({ ticket }: EmergencyButtonProps) {
   // Show emergency button only for urgent/high priority tickets
   if (!isUrgentPriority) return null;
 
-  const location = ticket.location as Record<string, any> | null;
-  const locationName = location?.name || location?.element_name || location?.ensemble_name || location?.group_name || 'Site inconnu';
+  const location = ticket.location as Record<string, unknown> | null;
+  const locationName = (location?.name as string) || (location?.element_name as string) || (location?.ensemble_name as string) || (location?.group_name as string) || 'Site inconnu';
   const address = location?.address
-    ? `${location.address}, ${location.city || ''}`
+    ? `${location.address as string}, ${(location.city as string) || ''}`
     : 'Adresse non renseignée';
 
   // Extract access codes from location data if available
   const accessCodes = location?.access_codes || location?.vigik || location?.digicode || null;
   // Extract emergency contacts from location data if available
-  const emergencyContacts = (location?.emergency_contacts as any[]) || [];
+  const emergencyContacts = (location?.emergency_contacts as EmergencyContact[] | undefined) || [];
 
   const generateScript = (type: string) => {
     let script = `Alerte Astralink sur le site ${locationName}. Adresse : ${address}. Nature : ${type}.`;

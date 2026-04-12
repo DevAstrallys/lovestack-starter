@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { LocationElement } from './LocationsManagement';
+import type { LocationElement } from '@/types';
 import type { LocationData } from '@/types';
 import { ElementFormData, defaultFormData } from '@/components/features/locations/types';
 import { useLocationElements } from '@/components/features/locations/useLocationElements';

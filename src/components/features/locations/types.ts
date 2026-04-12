@@ -1,4 +1,4 @@
-import { LocationTag, LocationElement } from '@/components/locations/LocationsManagement';
+import type { LocationTag, LocationElement } from '@/types';
 
 export type { LocationTag, LocationElement };
 

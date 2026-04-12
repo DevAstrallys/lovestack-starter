@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { QRCodeTemplates } from './QRCodeTemplates';
 import { QRCodeFormConfig } from './QRCodeFormConfig';
-import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
+import type { LocationElement, LocationGroup, LocationEnsemble } from '@/types';
 
 const log = createLogger('component:QRCodeLocationManager');
 

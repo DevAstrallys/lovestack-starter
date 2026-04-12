@@ -89,6 +89,9 @@ export interface EnrichedTicket extends Ticket {
   building_name?: string;
 }
 
+/** Shape used when inserting a new ticket via the service layer */
+export type TicketInsert = Omit<Ticket, 'id' | 'created_at' | 'updated_at'>;
+
 // ── Ticket Activity ──────────────────────────────────────────────────
 
 export interface TicketActivityMeta {

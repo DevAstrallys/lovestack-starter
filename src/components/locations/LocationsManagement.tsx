@@ -12,46 +12,6 @@ import { OrganizationSelector } from '@/components/ui/organization-selector';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { AlertCircle } from 'lucide-react';
 
-export interface LocationTag {
-  id: string;
-  name: string;
-  color: string;
-  organization_id: string;
-  created_at: string;
-}
-
-export interface LocationElement {
-  id: string;
-  name: string;
-  description?: string;
-  location_data?: Record<string, unknown> | null;
-  organization_id: string;
-  created_at: string;
-  updated_at: string;
-  tags?: LocationTag[];
-}
-
-export interface LocationGroup {
-  id: string;
-  name: string;
-  description?: string;
-  organization_id: string;
-  created_at: string;
-  updated_at: string;
-  elements?: LocationElement[];
-  tags?: LocationTag[];
-}
-
-export interface LocationEnsemble {
-  id: string;
-  name: string;
-  description?: string;
-  organization_id: string;
-  created_at: string;
-  updated_at: string;
-  groups?: LocationGroup[];
-  tags?: LocationTag[];
-}
 
 export const LocationsManagement: React.FC = () => {
   const { selectedOrganization, setSelectedOrganization, organizations, loading, isplatformAdmin } = useOrganization();

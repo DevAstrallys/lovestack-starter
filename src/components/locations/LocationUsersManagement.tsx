@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('locations:users');
-import { LocationElement, LocationGroup, LocationEnsemble } from './LocationsManagement';
+import type { LocationElement, LocationGroup, LocationEnsemble } from '@/types';
 import { InviteUserDialog } from './InviteUserDialog';
 import { RoleRequestsTab } from './RoleRequestsTab';
 import { RequestRoleDialog } from './RequestRoleDialog';

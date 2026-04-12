@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { LocationTag } from './LocationsManagement';
+import type { LocationTag } from '@/types';
 import { TagSelector } from './TagSelector';
 import { createLogger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';

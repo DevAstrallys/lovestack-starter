@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Tag, Palette } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { LocationTag } from './LocationsManagement';
+import type { LocationTag } from '@/types';
 
 interface TagsManagementProps {
   organizationId: string;

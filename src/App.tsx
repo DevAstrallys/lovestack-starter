@@ -30,9 +30,12 @@ const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Pro
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30_000,
       retry: 1,
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });

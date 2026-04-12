@@ -164,6 +164,26 @@ export async function addMembershipFull(params: {
   }
 }
 
+/** Create multiple location memberships in bulk. */
+export async function createBulkLocationMemberships(rows: Array<{
+  user_id: string;
+  organization_id: string;
+  role_id: string;
+  element_id?: string | null;
+  group_id?: string | null;
+  ensemble_id?: string | null;
+  expires_at?: string | null;
+}>) {
+  try {
+    const { error } = await supabase.from('location_memberships').insert(rows);
+    if (error) throw error;
+    log.info('Bulk location memberships created', { count: rows.length });
+  } catch (err) {
+    log.error('Create bulk location memberships failed', { error: err });
+    throw err;
+  }
+}
+
 /** Create a membership for an admin on a new organization. */
 export async function createAdminMembership(userId: string, organizationId: string, roleId: string) {
   try {

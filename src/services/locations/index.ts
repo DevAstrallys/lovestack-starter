@@ -695,6 +695,40 @@ export async function fetchLocationTags(organizationId: string) {
 }
 
 /**
+ * Updates an existing location tag.
+ */
+export async function updateLocationTag(tagId: string, params: { name: string; color: string; organization_id: string }) {
+  try {
+    const { error } = await supabase
+      .from('location_tags')
+      .update({ name: params.name, color: params.color, organization_id: params.organization_id })
+      .eq('id', tagId);
+    if (error) throw error;
+    log.info('Location tag updated', { tagId });
+  } catch (err) {
+    log.error('Failed to update location tag', { tagId, error: err });
+    throw err;
+  }
+}
+
+/**
+ * Deletes a location tag by ID.
+ */
+export async function deleteLocationTag(tagId: string) {
+  try {
+    const { error } = await supabase
+      .from('location_tags')
+      .delete()
+      .eq('id', tagId);
+    if (error) throw error;
+    log.info('Location tag deleted', { tagId });
+  } catch (err) {
+    log.error('Failed to delete location tag', { tagId, error: err });
+    throw err;
+  }
+}
+
+/**
  * Creates a new location tag.
  */
 export async function createLocationTag(params: { name: string; color: string; organization_id: string }) {

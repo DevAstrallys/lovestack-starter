@@ -267,7 +267,7 @@ export const SystemSettings = () => {
             
             <Button 
               variant="outline"
-              onClick={fetchSystemStats}
+              onClick={fetchStats}
               className="flex items-center space-x-2"
             >
               <Activity className="h-4 w-4" />

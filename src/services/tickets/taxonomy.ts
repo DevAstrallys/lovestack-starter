@@ -183,7 +183,7 @@ export async function followTicket(params: {
 
     const { error } = await supabase
       .from('ticket_followers')
-      .insert(row as any);
+      .insert(row as Record<string, unknown>);
     if (error) throw error;
     log.info('Ticket followed', { ticketId, userId, email });
     return true;

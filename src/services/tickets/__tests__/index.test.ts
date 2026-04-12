@@ -80,7 +80,7 @@ describe('tickets service', () => {
       const chain = chainable({ data: [], error: null, count: 0 });
       mockFrom.mockReturnValue(chain);
 
-      await fetchFilteredTickets({ status: ['open', 'in_progress'] as any });
+      await fetchFilteredTickets({ status: ['open', 'in_progress'] } as Partial<Parameters<typeof fetchFilteredTickets>[0]>);
 
       expect(mockIn).toHaveBeenCalledWith('status', ['open', 'in_progress']);
     });
@@ -95,12 +95,12 @@ describe('tickets service', () => {
 
   describe('createTicket', () => {
     it('calls insert and returns created ticket', async () => {
-      const newTicket = { title: 'New ticket', description: 'desc', status: 'open' as const };
+      const newTicket = { title: 'New ticket', description: 'desc', status: 'open' as const } as Parameters<typeof createTicket>[0];
       const createdTicket = { id: 'new-id', ...newTicket };
       const chain = chainable({ data: createdTicket, error: null });
       mockFrom.mockReturnValue(chain);
 
-      const result = await createTicket(newTicket as any);
+      const result = await createTicket(newTicket);
 
       expect(mockFrom).toHaveBeenCalledWith('tickets');
       expect(mockInsert).toHaveBeenCalledWith(newTicket);
@@ -111,7 +111,7 @@ describe('tickets service', () => {
       const chain = chainable({ data: null, error: { message: 'insert failed' } });
       mockFrom.mockReturnValue(chain);
 
-      await expect(createTicket({ title: 'fail' } as any)).rejects.toEqual({ message: 'insert failed' });
+      await expect(createTicket({ title: 'fail' } as Parameters<typeof createTicket>[0])).rejects.toEqual({ message: 'insert failed' });
     });
   });
 

@@ -76,8 +76,8 @@ export async function checkAdminAccess(userId: string) {
     if (error) throw error;
 
     const adminRoles = (data || [])
-      .filter((m: any) => m.roles && ADMIN_ROLES.includes(m.roles.code))
-      .map((m: any) => m.roles.code as string);
+      .filter((m: { roles: { code: string; is_platform_scope: boolean } | null }) => m.roles && ADMIN_ROLES.includes(m.roles.code))
+      .map((m: { roles: { code: string; is_platform_scope: boolean } | null }) => m.roles!.code);
 
     return { isAdmin: adminRoles.length > 0, roles: adminRoles };
   } catch (err) {

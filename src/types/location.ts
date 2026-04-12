@@ -8,6 +8,21 @@
  *   components/admin/AccessSecurityManager.tsx
  */
 
+// ── LocationData (JSON stored in location_elements.location_data) ────
+
+/** Structure attendue du champ JSON location_data sur les éléments */
+export interface LocationData {
+  address?: string;
+  city?: string;
+  zipCode?: string;
+  country?: string;
+  qrLocation?: string;
+  floor?: string;
+  door?: string;
+  lot_number?: string;
+  [key: string]: unknown;
+}
+
 // ── Tag ──────────────────────────────────────────────────────────────
 
 export interface LocationTag {

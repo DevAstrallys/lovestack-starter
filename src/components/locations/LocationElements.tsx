@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { LocationElement } from './LocationsManagement';
+import type { LocationData } from '@/types';
 import { ElementFormData, defaultFormData } from '@/components/features/locations/types';
 import { useLocationElements } from '@/components/features/locations/useLocationElements';
 import { ElementFormDialog } from '@/components/features/locations/ElementFormDialog';
@@ -49,7 +50,7 @@ export const LocationElements: React.FC<LocationElementsProps> = ({ organization
 
   const handleEdit = (element: LocationElement) => {
     setEditingElement(element);
-    const ld = element.location_data as any;
+    const ld = element.location_data as LocationData | null;
     setFormData({
       name: element.name,
       description: element.description || '',

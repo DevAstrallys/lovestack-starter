@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UserPlus, Users, Mail, Shield, Search, X, UserCheck, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client'; // TODO: migrer les requêtes restantes vers services
 import { deleteUser } from '@/services/admin';
+import { fetchLocationMembershipsWithDetails, fetchRoles as fetchUserRoles } from '@/services/users';
+import { fetchElementsByOrganization, fetchGroupsByOrganization, fetchEnsemblesWithRelations } from '@/services/locations';
 import { useToast } from '@/hooks/use-toast';
 import { createLogger } from '@/lib/logger';
 
@@ -77,11 +78,11 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
         fetchUsers(),
         fetchElements(),
         fetchGroups(),
-        fetchEnsembles(),
-        fetchRoles()
+        fetchEnsemblesData(),
+        fetchRolesData()
       ]);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      log.error('Error fetching data', { error });
       toast({
         title: "Erreur",
         description: "Impossible de charger les données",
@@ -94,68 +95,42 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
 
   const fetchUsers = async () => {
     try {
-      // Récupérer les memberships avec les informations des rôles et lieux
-      const { data: memberships, error: membershipsError } = await supabase
-        .from('location_memberships')
-        .select(`
-          id,
-          user_id,
-          role_id,
-          element_id,
-          group_id,
-          ensemble_id,
-          is_active,
-          created_at,
-          roles(id, code, label),
-          location_elements(id, name),
-          location_groups(id, name),
-          location_ensembles(id, name)
-        `)
-        .eq('organization_id', organizationId);
+      const memberships = await fetchLocationMembershipsWithDetails({ organizationId });
 
-      if (membershipsError) throw membershipsError;
-
-      // Récupérer les profils des utilisateurs
-      const userIds = [...new Set(memberships?.map(m => m.user_id) || [])];
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Grouper les memberships par utilisateur
+      // Group memberships by user
       const usersMap = new Map<string, User>();
       
-      memberships?.forEach((membership: any) => {
-        const userId = membership.user_id;
-        const profile = profiles?.find(p => p.id === userId);
-        const locationName = membership.location_elements?.name || 
-                           membership.location_groups?.name || 
-                           membership.location_ensembles?.name || 'Lieu inconnu';
+      (memberships || []).forEach((membership: Record<string, unknown>) => {
+        const userId = membership.user_id as string;
+        const rolesData = membership.roles as Record<string, unknown> | null;
+        const elemData = membership.location_elements as Record<string, unknown> | null;
+        const grpData = membership.location_groups as Record<string, unknown> | null;
+        const ensData = membership.location_ensembles as Record<string, unknown> | null;
+        
+        const locationName = (elemData?.name || grpData?.name || ensData?.name || 'Lieu inconnu') as string;
         
         const locationType = membership.element_id ? 'element' :
                            membership.group_id ? 'group' :
                            membership.ensemble_id ? 'ensemble' : 'element';
 
         const userMembership: UserMembership = {
-          id: membership.id,
+          id: membership.id as string,
           user_id: userId,
-          role_id: membership.role_id,
+          role_id: membership.role_id as string,
           location_type: locationType as 'element' | 'group' | 'ensemble',
-          location_id: membership.element_id || membership.group_id || membership.ensemble_id || '',
+          location_id: ((membership.element_id || membership.group_id || membership.ensemble_id) as string) || '',
           location_name: locationName,
-          role_name: membership.roles?.label?.fr || membership.roles?.code || 'Rôle inconnu',
-          role_code: membership.roles?.code || '',
-          is_active: membership.is_active,
-          created_at: membership.created_at
+          role_name: ((rolesData?.label as Record<string, string>)?.fr || rolesData?.code || 'Rôle inconnu') as string,
+          role_code: (rolesData?.code || '') as string,
+          is_active: membership.is_active as boolean,
+          created_at: membership.created_at as string
         };
 
         if (!usersMap.has(userId)) {
           usersMap.set(userId, {
             id: userId,
-            email: `user${userId.slice(0, 8)}@example.com`, // Email temporaire
-            full_name: profile?.full_name || 'Utilisateur',
+            email: `user${userId.slice(0, 8)}@example.com`,
+            full_name: 'Utilisateur',
             memberships: []
           });
         }
@@ -165,48 +140,28 @@ export const LocationUsersManagement: React.FC<LocationUsersManagementProps> = (
 
       setUsers(Array.from(usersMap.values()));
     } catch (error) {
-      console.error('Error fetching users:', error);
+      log.error('Error fetching users', { error });
       throw error;
     }
   };
 
   const fetchElements = async () => {
-    const { data, error } = await supabase
-      .from('location_elements')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await fetchElementsByOrganization(organizationId);
     setElements((data || []) as unknown as LocationElement[]);
   };
 
   const fetchGroups = async () => {
-    const { data, error } = await supabase
-      .from('location_groups')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+    const data = await fetchGroupsByOrganization(organizationId);
     setGroups(data || []);
   };
 
-  const fetchEnsembles = async () => {
-    const { data, error } = await supabase
-      .from('location_ensembles')
-      .select('*')
-      .eq('organization_id', organizationId);
-
-    if (error) throw error;
+  const fetchEnsemblesData = async () => {
+    const data = await fetchEnsemblesWithRelations(organizationId);
     setEnsembles(data || []);
   };
 
-  const fetchRoles = async () => {
-    const { data, error } = await supabase
-      .from('roles')
-      .select('*')
-      .eq('is_platform_scope', false);
-
-    if (error) throw error;
+  const fetchRolesData = async () => {
+    const data = await fetchUserRoles({ platformScope: false });
     setRoles(data || []);
   };
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TicketAttachment, TicketActivityMeta } from '@/types';
 import type { TicketStatus, TicketPriority } from '@/types';
-import { Database } from '@/integrations/supabase/types';
 import {
   fetchTicketById,
   fetchTicketActivities,

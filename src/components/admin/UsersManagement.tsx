@@ -149,17 +149,13 @@ export const UsersManagement = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('memberships')
-        .insert({
-          user_id: selectedUser.id,
-          organization_id: newMembershipForm.organizationId,
-          role_id: newMembershipForm.roleId,
-          is_active: true,
-          can_validate_user_requests: newMembershipForm.canValidateUserRequests
-        });
-
-      if (error) throw error;
+      await addMembershipFull({
+        user_id: selectedUser.id,
+        organization_id: newMembershipForm.organizationId,
+        role_id: newMembershipForm.roleId,
+        is_active: true,
+        can_validate_user_requests: newMembershipForm.canValidateUserRequests
+      });
       
       toast.success('Membership ajouté avec succès');
       fetchUsers();
@@ -177,13 +173,7 @@ export const UsersManagement = () => {
 
   const toggleMembership = async (membershipId: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
-        .from('memberships')
-        .update({ is_active: !isActive })
-        .eq('id', membershipId);
-
-      if (error) throw error;
-      
+      await toggleMembershipStatus('memberships', membershipId, !isActive);
       toast.success('Membership mis à jour');
       fetchUsers();
     } catch (error) {

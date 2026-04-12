@@ -78,7 +78,7 @@ export const AccessSecurityManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired' | 'expiring'>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<Record<string, unknown>[]>([]);
+  const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; entity: string; created_at: string; data: unknown }[]>([]);
   const [activeSubTab, setActiveSubTab] = useState('members');
 
   // Add form state

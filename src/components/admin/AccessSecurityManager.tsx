@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
+import { toggleMembershipStatus } from '@/services/admin';
 import { fetchRoles as fetchRolesService } from '@/services/users';
 import { createMembership, createLocationMembership } from '@/services/admin';
 import { fetchMembershipsWithDetails, fetchLocationMembershipsWithDetails } from '@/services/users';
-import { fetchEnsemblesWithRelations, fetchGroupsByOrganization, fetchElementsByOrganization } from '@/services/locations';
+import { fetchAuditLogs } from '@/services/system';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +79,7 @@ export const AccessSecurityManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired' | 'expiring'>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<Record<string, unknown>[]>([]);
   const [activeSubTab, setActiveSubTab] = useState('members');
 
   // Add form state

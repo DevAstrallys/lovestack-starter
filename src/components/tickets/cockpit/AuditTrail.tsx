@@ -34,9 +34,9 @@ export function AuditTrail({ ticket, activities, loading, onNoteAdded }: AuditTr
     icon: '📥',
   });
 
-  const ticketAny = ticket as any;
+  // Access ticket fields directly (typed via Ticket interface)
 
-  if (ticketAny.first_opened_at) {
+  if (ticket.first_opened_at) {
     systemEntries.push({
       time: ticketAny.first_opened_at,
       label: '📍 Ouvert par le gestionnaire',

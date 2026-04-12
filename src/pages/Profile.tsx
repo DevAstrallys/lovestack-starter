@@ -57,8 +57,8 @@ export function Profile() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast.success('Données exportées');
-    } catch (err: any) {
-      toast.error('Erreur : ' + (err.message || 'Erreur inconnue'));
+    } catch (err: unknown) {
+      toast.error('Erreur : ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     } finally { setExporting(false); }
   };
 
@@ -69,8 +69,8 @@ export function Profile() {
       toast.success('Votre compte a été supprimé.');
       await signOut();
       navigate('/');
-    } catch (err: any) {
-      toast.error('Erreur : ' + (err.message || 'Erreur inconnue'));
+    } catch (err: unknown) {
+      toast.error('Erreur : ' + (err instanceof Error ? err.message : 'Erreur inconnue'));
     } finally { setDeleting(false); }
   };
 

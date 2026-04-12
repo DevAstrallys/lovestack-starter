@@ -1,36 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// --- Mock supabase ---
-const mockFrom = vi.fn();
-const mockUpdate = vi.fn();
-const mockEq = vi.fn();
-const mockSelect = vi.fn();
-const mockOrder = vi.fn();
+const { mockFrom, mockUpdate, mockEq, mockSelect, mockOrder } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockEq: vi.fn(),
+  mockSelect: vi.fn(),
+  mockOrder: vi.fn(),
+}));
 
 function chainable(resolveWith: Record<string, unknown> = { data: [], error: null }) {
-  const chain: Record<string, any> = {
-    select: vi.fn(),
-    update: vi.fn(),
-    eq: vi.fn(),
-    in: vi.fn(),
-    or: vi.fn(),
-    order: vi.fn(),
-    delete: vi.fn(),
-    insert: vi.fn(),
-    single: vi.fn().mockImplementation(() => Promise.resolve(resolveWith)),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve(resolveWith)),
-    then: (resolve: (v: unknown) => void) => resolve(resolveWith),
-  };
-  // Make each method return the chain
-  for (const key of Object.keys(chain)) {
-    if (key === 'then' || key === 'single' || key === 'maybeSingle') continue;
-    chain[key] = vi.fn().mockReturnValue(chain);
+  const chain: Record<string, any> = {};
+  const methods = ['select', 'update', 'eq', 'in', 'or', 'order', 'delete', 'insert', 'single', 'maybeSingle'];
+  for (const m of methods) {
+    chain[m] = vi.fn().mockReturnValue(chain);
   }
-  // Wire outer refs
   chain.select = mockSelect.mockReturnValue(chain);
   chain.update = mockUpdate.mockReturnValue(chain);
   chain.eq = mockEq.mockReturnValue(chain);
   chain.order = mockOrder.mockReturnValue(chain);
+  // Final resolution
+  chain.then = (resolve: (v: unknown) => void) => resolve(resolveWith);
   return chain;
 }
 
@@ -47,6 +36,15 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
 import { fetchOrganizationLocations, deactivateQRCodesForLocation } from '../index';
 
 describe('locations service', () => {
@@ -60,7 +58,6 @@ describe('locations service', () => {
       const groups = [{ id: 'g1', name: 'Bât A' }];
       const ensembles = [{ id: 'en1', name: 'Résidence' }];
 
-      // 3 parallel calls to supabase.from()
       let callIdx = 0;
       mockFrom.mockImplementation(() => {
         const datasets = [

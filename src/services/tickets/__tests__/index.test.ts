@@ -1,48 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// --- Mock supabase before importing services ---
-const mockSelect = vi.fn();
-const mockInsert = vi.fn();
-const mockUpdate = vi.fn();
-const mockEq = vi.fn();
-const mockIn = vi.fn();
-const mockOrder = vi.fn();
-const mockRange = vi.fn();
-const mockSingle = vi.fn();
-const mockFrom = vi.fn();
+// Use vi.hoisted so mocks are available when vi.mock factory runs
+const { mockFrom, mockSelect, mockInsert, mockUpdate, mockEq, mockIn, mockOrder, mockRange, mockSingle } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockSelect: vi.fn(),
+  mockInsert: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockEq: vi.fn(),
+  mockIn: vi.fn(),
+  mockOrder: vi.fn(),
+  mockRange: vi.fn(),
+  mockSingle: vi.fn(),
+}));
 
-// Build chainable query mock
 function chainable(resolveWith: Record<string, unknown> = { data: [], error: null, count: 0 }) {
-  const chain = {
-    select: mockSelect.mockReturnThis(),
-    insert: mockInsert.mockReturnThis(),
-    update: mockUpdate.mockReturnThis(),
-    eq: mockEq.mockReturnThis(),
-    in: mockIn.mockReturnThis(),
-    or: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    lte: vi.fn().mockReturnThis(),
-    contains: vi.fn().mockReturnThis(),
-    order: mockOrder.mockReturnThis(),
-    range: mockRange.mockImplementation(() => Promise.resolve(resolveWith)),
-    single: mockSingle.mockImplementation(() => Promise.resolve(resolveWith)),
-    maybeSingle: vi.fn().mockImplementation(() => Promise.resolve(resolveWith)),
-    then: (resolve: (v: unknown) => void) => resolve(resolveWith),
-  };
-  // Make each method return the chain
-  for (const key of Object.keys(chain)) {
-    if (key === 'then' || key === 'range' || key === 'single' || key === 'maybeSingle') continue;
-    (chain as Record<string, unknown>)[key] = vi.fn().mockReturnValue(chain);
+  const chain: Record<string, any> = {};
+  const methods = ['select', 'insert', 'update', 'eq', 'in', 'or', 'gte', 'lte', 'contains', 'order', 'range', 'single', 'maybeSingle', 'delete'];
+  for (const m of methods) {
+    chain[m] = vi.fn().mockReturnValue(chain);
   }
-  // Re-assign so outer refs work
+  chain.range = mockRange.mockImplementation(() => Promise.resolve(resolveWith));
+  chain.single = mockSingle.mockImplementation(() => Promise.resolve(resolveWith));
+  chain.maybeSingle = vi.fn().mockImplementation(() => Promise.resolve(resolveWith));
   chain.select = mockSelect.mockReturnValue(chain);
   chain.insert = mockInsert.mockReturnValue(chain);
   chain.update = mockUpdate.mockReturnValue(chain);
   chain.eq = mockEq.mockReturnValue(chain);
   chain.in = mockIn.mockReturnValue(chain);
   chain.order = mockOrder.mockReturnValue(chain);
-  chain.range = mockRange.mockImplementation(() => Promise.resolve(resolveWith));
-  chain.single = mockSingle.mockImplementation(() => Promise.resolve(resolveWith));
   return chain;
 }
 
@@ -59,7 +44,15 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-// Import services AFTER mocking
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
 import { fetchFilteredTickets, createTicket, updateTicket } from '../index';
 
 describe('tickets service', () => {

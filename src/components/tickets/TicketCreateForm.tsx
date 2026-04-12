@@ -158,7 +158,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
       || ensembles.find(e => e.id === selectedEnsembleId)?.name
       || null;
 
-    const ticketData: Database['public']['Tables']['tickets']['Insert'] = {
+    const ticketData: TicketInsert = {
       title, description: desc, priority, status: 'open',
       created_by: user.id,
       organization_id: selectedOrganization?.id || null,

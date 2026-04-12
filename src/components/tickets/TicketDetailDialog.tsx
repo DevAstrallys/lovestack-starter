@@ -98,7 +98,7 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
       )}
 
       {replyActivities.map((activity) => {
-        const meta = activity.metadata as any;
+        const meta = activity.metadata as Record<string, unknown> | null;
         const isInbound = meta?.direction === 'inbound';
 
         if (isInbound) {
@@ -250,7 +250,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
 
   if (!ticket) return null;
 
-  const location = ticket.location as Record<string, any> | null;
+  const location = ticket.location as TicketLocation | null;
   const locationName = location?.name || location?.element_name || null;
 
   const headerContent = (

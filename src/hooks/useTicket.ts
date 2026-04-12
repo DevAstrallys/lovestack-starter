@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchTicketById, fetchOrganizations } from '@/services/tickets';
-import { Ticket } from '@/hooks/useTickets';
+import type { Ticket } from '@/types';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('hook:ticket');
@@ -16,14 +16,15 @@ export function useTicket(id: string | undefined) {
       setLoading(true);
       setError(null);
       const data = await fetchTicketById(id);
-      const t: Ticket = {
+      const t = {
         ...data,
         attachments: Array.isArray(data.attachments)
           ? data.attachments
           : typeof data.attachments === 'string'
           ? JSON.parse(data.attachments)
           : [],
-      };
+        location: (typeof data.location === 'string' ? JSON.parse(data.location) : data.location) ?? null,
+      } as Ticket;
 
       // Enrich with org name
       if (t.organization_id) {

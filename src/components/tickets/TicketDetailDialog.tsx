@@ -9,7 +9,8 @@ import {
   Calendar, MapPin, Tag, User, Phone, Mail, 
   Image, Mic, Video, Paperclip, QrCode, Send, MessageSquare
 } from 'lucide-react';
-import { Ticket, useTicketActivities, TicketActivity } from '@/hooks/useTickets';
+import type { Ticket, TicketActivity } from '@/types';
+import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
 import type { TicketAttachment } from '@/types';
 import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
@@ -70,7 +71,7 @@ const getMediaIcon = (type: string) => {
 };
 
 function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: string }) {
-  const { activities, loading } = useTicketActivities(ticketId);
+  const { data: activities, isLoading: loading } = useTicketActivitiesQuery(ticketId);
 
   const replyActivities = (activities || [])
     .filter(a => a.activity_type === 'reply' || a.activity_type === 'message')
@@ -141,7 +142,7 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
 }
 
 function ActivityTimeline({ ticketId }: { ticketId: string }) {
-  const { activities, loading } = useTicketActivities(ticketId);
+  const { data: activities, isLoading: loading } = useTicketActivitiesQuery(ticketId);
   const nonReplyActivities = (activities || []).filter(a => a.activity_type !== 'reply');
 
   if (loading) return <p className="text-sm text-muted-foreground">Chargement…</p>;

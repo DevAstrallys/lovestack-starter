@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertTriangle, Flame, Droplets, ShieldAlert, Phone, Volume2 } from 'lucide-react';
-import { Ticket } from '@/hooks/useTickets';
+import type { Ticket } from '@/types';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('component:emergency-button');

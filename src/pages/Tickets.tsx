@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, AlertCircle, Search, List, Columns } from 'lucide-react';
@@ -11,8 +12,8 @@ import { TicketsPortfolio } from '@/components/tickets/TicketsPortfolio';
 import { TicketQuickFilters } from '@/components/tickets/TicketQuickFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
-import { useTickets, TicketFilters as ITicketFilters, Ticket } from '@/hooks/useTickets';
-import type { TicketStatus } from '@/types';
+import { useTicketsQuery, useUpdateTicket } from '@/hooks/useTicketsQuery';
+import type { TicketFilters as ITicketFilters, Ticket, TicketStatus } from '@/types';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
@@ -36,6 +37,7 @@ interface Ensemble {
 export const Tickets = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { selectedOrganization, loading: orgLoading, isplatformAdmin } = useOrganization();
   const { canViewAllOrgTickets, canViewOwnOnly, canViewAssignedOnly, canManageTicket, loading: roleLoading } = useUserTicketRole();
@@ -94,8 +96,11 @@ export const Tickets = () => {
     ...(canViewOwnOnly && user ? { createdBy: user.id } : {}),
     ...(canViewAssignedOnly && user ? { assignedTo: user.id } : {}),
   };
-    
-  const { tickets, loading, totalCount, refresh, updateTicket } = useTickets(ticketFilters);
+
+  const { data, isLoading: loading } = useTicketsQuery(ticketFilters);
+  const updateTicketMutation = useUpdateTicket();
+  const tickets = data?.tickets ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
   // Filter tickets by selected ensemble (client-side for instant feedback)
   const displayedTickets = selectedEnsembleId
@@ -113,7 +118,7 @@ export const Tickets = () => {
     }
     try {
       const oldStatus = ticket?.status || 'open';
-      await updateTicket(ticketId, { status: newStatus });
+      await updateTicketMutation.mutateAsync({ id: ticketId, updates: { status: newStatus } });
       toast.success('Statut mis à jour');
 
       // Send notification to reporter
@@ -242,8 +247,8 @@ export const Tickets = () => {
               <TicketCreateForm 
                 onSuccess={() => {
                   setIsCreateDialogOpen(false);
-                  refresh();
-                }} 
+                  queryClient.invalidateQueries({ queryKey: ['tickets'] });
+                }}
               />
             </DialogContent>
           </Dialog>

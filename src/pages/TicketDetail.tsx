@@ -13,7 +13,7 @@ import {
   Wrench, Send, FileText, Clock, Bell, BellOff,
 } from 'lucide-react';
 import { useTicket } from '@/hooks/useTicket';
-import { useTicketActivities } from '@/hooks/useTickets';
+import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
 import type { TicketStatus, TicketAttachment } from '@/types';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,7 +45,7 @@ export function TicketDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { ticket, loading, error, refresh } = useTicket(id);
-  const { activities, loading: activitiesLoading, refresh: refreshActivities } = useTicketActivities(id || '');
+  const { data: activities, isLoading: activitiesLoading, refetch: refreshActivities } = useTicketActivitiesQuery(id || '');
   const { canManageTicket, canAddPrivateNote, canMarkDuplicate, canDispatch } = useUserTicketRole();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());

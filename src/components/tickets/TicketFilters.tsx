@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { X, Filter, RotateCcw } from 'lucide-react';
-import { TicketFilters as ITicketFilters } from '@/hooks/useTickets';
+import type { TicketFilters as ITicketFilters } from '@/types';
 import type { TicketStatus, TicketPriority } from '@/types';
 import { useLocations } from '@/hooks/useLocations';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
@@ -24,7 +24,7 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
     actions, 
     getFilteredCategories, 
     getFilteredObjects 
-  } = useTaxonomy(filters.locationId);
+  } = useTaxonomy(filters.locationElementId);
 
   const handleFilterChange = (key: keyof ITicketFilters, value: string | string[] | { start: string; end: string } | number | undefined) => {
     onFiltersChange({
@@ -64,7 +64,7 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
     }, 0);
   };
 
-  const categories = filters.locationId ? getFilteredCategories('') : [];
+  const categories = filters.locationElementId ? getFilteredCategories('') : [];
   const objects = filters.categoryId ? getFilteredObjects(filters.categoryId) : [];
 
   return (
@@ -161,8 +161,8 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
         <div className="space-y-2">
           <Label className="text-xs font-medium">Lieu</Label>
           <Select 
-            value={filters.locationId || 'all'} 
-            onValueChange={(value) => handleFilterChange('locationId', value === 'all' ? undefined : value)}
+            value={filters.locationElementId || 'all'} 
+            onValueChange={(value) => handleFilterChange('locationElementId', value === 'all' ? undefined : value)}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Sélectionner un lieu" />
@@ -184,7 +184,7 @@ export function TicketFilters({ filters, onFiltersChange, onReset }: TicketFilte
           <Select 
             value={filters.categoryId || 'all'} 
             onValueChange={(value) => handleFilterChange('categoryId', value === 'all' ? undefined : value)}
-            disabled={!filters.locationId}
+            disabled={!filters.locationElementId}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="Sélectionner une catégorie" />

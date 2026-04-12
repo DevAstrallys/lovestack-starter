@@ -77,6 +77,10 @@ export interface Ticket {
   last_interaction_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Enriched at runtime — not stored in DB */
+  building_name?: string;
+  /** Enriched at runtime — not stored in DB */
+  organization_name?: string;
 }
 
 // ── Ticket Activity ──────────────────────────────────────────────────

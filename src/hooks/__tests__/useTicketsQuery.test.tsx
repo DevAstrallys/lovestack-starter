@@ -87,7 +87,7 @@ describe('useTicketsQuery', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(mockFetchOrganizations).toHaveBeenCalledWith(['org-1']);
-    expect((result.current.data?.tickets[0] as Record<string, unknown>).organization_name).toBe('Résidence Soleil');
+    expect((result.current.data?.tickets[0] as unknown as Record<string, unknown>).organization_name).toBe('Résidence Soleil');
   });
 
   it('passe les filtres de statut au service', async () => {

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createChainMock } from '@/test/mocks/supabase';
 
-const mockSupabase = {
+const mockSupabase = vi.hoisted(() => ({
   from: vi.fn(),
-};
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase,

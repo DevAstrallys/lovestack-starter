@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit, Trash2, QrCode } from 'lucide-react';
 import { LocationElement } from './types';
+import type { LocationData } from '@/types';
 
 interface ElementsCardGridProps {
   elements: LocationElement[];
@@ -15,7 +16,7 @@ interface ElementsCardGridProps {
 export const ElementsCardGrid: React.FC<ElementsCardGridProps> = ({ elements, onEdit, onDelete, onGenerateQR }) => (
   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
     {elements.map((element) => {
-      const locationData = element.location_data as any;
+      const locationData = element.location_data as LocationData | null;
       const hasAddress = locationData?.address || locationData?.city || locationData?.zipCode;
 
       return (

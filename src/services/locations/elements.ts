@@ -23,9 +23,10 @@ interface TagRow {
   id: string;
   name: string;
   color: string;
+  organization_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
-
-interface ElementTagJoin {
   location_tags: TagRow;
 }
 

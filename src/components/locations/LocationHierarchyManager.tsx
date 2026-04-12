@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
-/** Minimal tag shape used for display — compatible with full LocationTag */
+/** Minimal tag shape for display — compatible with the full LocationTag type */
 interface DisplayTag {
   id: string;
   name: string;

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('component:users-management');
-import { supabase } from '@/integrations/supabase/client';
-import { updateUserEmail, deleteUser } from '@/services/admin';
+import { updateUserEmail, deleteUser, addMembershipFull, toggleMembershipStatus } from '@/services/admin';
+import { fetchProfilesWithMemberships, fetchRoles as fetchRolesService } from '@/services/users';
+import { fetchActiveOrganizations } from '@/services/organizations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -62,8 +63,8 @@ interface UserWithMemberships extends Profile {
 export const UsersManagement = () => {
   const { selectedOrganization } = useOrganization();
   const [users, setUsers] = useState<UserWithMemberships[]>([]);
-  const [organizations, setOrganizations] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
+  const [roles, setRoles] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserWithMemberships | null>(null);
@@ -87,23 +88,7 @@ export const UsersManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          memberships (
-            id,
-            organization_id,
-            role_id,
-            is_active,
-            can_validate_user_requests,
-            organizations (name),
-            roles (code, label)
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await fetchProfilesWithMemberships();
       setUsers((data || []) as unknown as UserWithMemberships[]);
     } catch (error) {
       toast.error('Erreur lors du chargement des utilisateurs');
@@ -115,12 +100,7 @@ export const UsersManagement = () => {
 
   const fetchOrganizations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .eq('is_active', true);
-      
-      if (error) throw error;
+      const data = await fetchActiveOrganizations();
       setOrganizations(data || []);
     } catch (error) {
       log.error('Error fetching organizations', { error });
@@ -129,11 +109,7 @@ export const UsersManagement = () => {
 
   const fetchRoles = async () => {
     try {
-      const { data, error } = await supabase
-        .from('roles')
-        .select('*');
-      
-      if (error) throw error;
+      const data = await fetchRolesService();
       setRoles(data || []);
     } catch (error) {
       log.error('Error fetching roles', { error });

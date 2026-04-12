@@ -125,7 +125,7 @@ describe('tickets service', () => {
 
   describe('updateTicket', () => {
     it('calls update with correct id and fields', async () => {
-      const updates = { status: 'resolved' };
+      const updates = { status: 'resolved' as const };
       const updatedTicket = [{ id: 'ticket-1', status: 'resolved' }];
       const chain = chainable({ data: updatedTicket, error: null });
       mockFrom.mockReturnValue(chain);

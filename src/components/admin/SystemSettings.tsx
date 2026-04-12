@@ -30,7 +30,7 @@ export const SystemSettings = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSystemStats();
+    fetchStats();
   }, []);
 
   const fetchStats = async () => {

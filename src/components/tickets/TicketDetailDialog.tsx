@@ -142,7 +142,7 @@ function ConversationThread({ ticket, ticketId }: { ticket: Ticket; ticketId: st
 }
 
 function ActivityTimeline({ ticketId }: { ticketId: string }) {
-  const { activities, loading } = useTicketActivities(ticketId);
+  const { data: activities, isLoading: loading } = useTicketActivitiesQuery(ticketId);
   const nonReplyActivities = (activities || []).filter(a => a.activity_type !== 'reply');
 
   if (loading) return <p className="text-sm text-muted-foreground">Chargement…</p>;

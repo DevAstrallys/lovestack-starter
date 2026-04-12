@@ -294,7 +294,7 @@ export const RolesPermissions = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleRolePermission(role.id, permission.id)}
+                              onClick={() => handleToggleRolePermission(role.id, permission.id)}
                             >
                               {hasPermission(role.id, permission.id) ? (
                                 <CheckSquare className="h-5 w-5 text-green-600" />

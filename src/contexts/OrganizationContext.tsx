@@ -10,6 +10,9 @@ interface Organization {
   name: string;
   description: string | null;
   is_active: boolean;
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
 }
 
 interface OrganizationContextType {

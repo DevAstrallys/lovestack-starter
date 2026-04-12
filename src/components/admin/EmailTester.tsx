@@ -8,6 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendTestEmail } from '@/services/notifications';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('component:email-tester');
 
 export const EmailTester = () => {
   const [email, setEmail] = useState('');

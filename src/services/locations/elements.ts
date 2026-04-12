@@ -153,6 +153,7 @@ export async function fetchElements(organizationId: string) {
 
   return (data || []).map((element: ElementWithJoinedTags) => ({
     ...element,
+    location_data: element.location_data as Record<string, unknown> | null,
     tags: element.location_element_tags?.map((et: ElementTagJoin) => et.location_tags) || [],
   }));
 }

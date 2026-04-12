@@ -12,8 +12,7 @@ import {
   QrCode, Image, Mic, Video, Paperclip, Copy, Link2, Tag,
   Wrench, Send, FileText, Clock, Bell, BellOff,
 } from 'lucide-react';
-import { useTicket } from '@/hooks/useTicket';
-import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
+import { useTicketQuery, useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
 import type { TicketStatus, TicketPriority, TicketAttachment, TicketActivityMeta, TicketLocation } from '@/types';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,7 +43,8 @@ export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { ticket, loading, error, refresh } = useTicket(id);
+  const { data: ticket, isLoading: loading, error: ticketError, refetch: refresh } = useTicketQuery(id);
+  const error = ticketError ? (ticketError instanceof Error ? ticketError.message : 'Erreur') : null;
   const { data: activities, isLoading: activitiesLoading, refetch: refreshActivities } = useTicketActivitiesQuery(id || '');
   const { canManageTicket, canAddPrivateNote, canMarkDuplicate, canDispatch } = useUserTicketRole();
   const [refreshKey, setRefreshKey] = useState(0);

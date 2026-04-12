@@ -24,7 +24,7 @@ const Locations = lazy(() => import('./pages/Locations').then(m => ({ default: m
 const Users = lazy(() => import('./pages/Users').then(m => ({ default: m.Users })));
 const Tickets = lazy(() => import('./pages/Tickets').then(m => ({ default: m.Tickets })));
 const TicketDetail = lazy(() => import('./pages/TicketDetail').then(m => ({ default: m.TicketDetail })));
-const TicketTracking = lazy(() => import('./pages/TicketTracking'));
+const TicketTracking = lazy(() => import('./pages/TicketTracking').then(m => ({ default: m.TicketTracking })));
 const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
 
 const queryClient = new QueryClient();

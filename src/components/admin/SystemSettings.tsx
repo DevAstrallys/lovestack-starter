@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchSystemStats as fetchSystemStatsService } from '@/services/system';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,37 +30,17 @@ export const SystemSettings = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSystemStats();
+    fetchStats();
   }, []);
 
-  const fetchSystemStats = async () => {
+  const fetchStats = async () => {
     try {
-      // Fetch total users
-      const { count: usersCount } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact' });
-
-      // Fetch total organizations
-      const { count: organizationsCount } = await supabase
-        .from('organizations')
-        .select('id', { count: 'exact' });
-
-      // Fetch total tickets
-      const { count: ticketsCount } = await supabase
-        .from('tickets')
-        .select('id', { count: 'exact' });
-
-      // Fetch active users (users with active memberships)
-      const { count: activeUsersCount } = await supabase
-        .from('memberships')
-        .select('user_id', { count: 'exact' })
-        .eq('is_active', true);
-
+      const stats = await fetchSystemStatsService();
       setStats({
-        totalUsers: usersCount || 0,
-        totalOrganizations: organizationsCount || 0,
-        totalTickets: ticketsCount || 0,
-        activeUsers: activeUsersCount || 0
+        totalUsers: stats.usersCount,
+        totalOrganizations: stats.organizationsCount,
+        totalTickets: stats.ticketsCount,
+        activeUsers: stats.activeUsersCount
       });
     } catch (error) {
       log.error('Error fetching stats', { error });
@@ -287,7 +267,7 @@ export const SystemSettings = () => {
             
             <Button 
               variant="outline"
-              onClick={fetchSystemStats}
+              onClick={fetchStats}
               className="flex items-center space-x-2"
             >
               <Activity className="h-4 w-4" />

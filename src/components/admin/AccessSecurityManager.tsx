@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { createLogger } from '@/lib/logger';
-import { fetchRoles as fetchRolesService } from '@/services/users';
-import { createMembership, createLocationMembership } from '@/services/admin';
-import { fetchMembershipsWithDetails, fetchLocationMembershipsWithDetails } from '@/services/users';
+import { toggleMembershipStatus, createMembership, createLocationMembership } from '@/services/admin';
+import { fetchRoles as fetchRolesService, fetchMembershipsWithDetails, fetchLocationMembershipsWithDetails } from '@/services/users';
+import { fetchAuditLogs } from '@/services/system';
 import { fetchEnsemblesWithRelations, fetchGroupsByOrganization, fetchElementsByOrganization } from '@/services/locations';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +78,7 @@ export const AccessSecurityManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired' | 'expiring'>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; entity: string; created_at: string; data: unknown }[]>([]);
   const [activeSubTab, setActiveSubTab] = useState('members');
 
   // Add form state
@@ -159,14 +158,9 @@ export const AccessSecurityManager = () => {
       ];
       setLocations(locs);
 
-      // Fetch audit logs — TODO: migrate to service layer
-      const { data: logs } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .in('entity', ['membership', 'location_membership'])
-        .order('created_at', { ascending: false })
-        .limit(50);
-      setAuditLogs(logs || []);
+      // Fetch audit logs via service
+      const logs = await fetchAuditLogs({ entities: ['membership', 'location_membership'], limit: 50 });
+      setAuditLogs(logs);
 
     } catch (err) {
       log.error('Error fetching access data', { error: err });
@@ -258,15 +252,10 @@ export const AccessSecurityManager = () => {
     }
   };
 
-  // TODO: migrer toggleAccess vers service admin
   const toggleAccess = async (member: MemberAccess) => {
     try {
-      const table = member.source === 'membership' ? 'memberships' : 'location_memberships';
-      const { error } = await supabase
-        .from(table)
-        .update({ is_active: !member.is_active })
-        .eq('id', member.id);
-      if (error) throw error;
+      const table = member.source === 'membership' ? 'memberships' as const : 'location_memberships' as const;
+      await toggleMembershipStatus(table, member.id, !member.is_active);
       toast.success(member.is_active ? 'Accès révoqué' : 'Accès réactivé');
       fetchData();
     } catch (err) {

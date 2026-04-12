@@ -20,7 +20,7 @@ import {
   Monitor
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+// Email templates are currently managed with mock data — no supabase import needed
 
 interface EmailTemplate {
   id: string;

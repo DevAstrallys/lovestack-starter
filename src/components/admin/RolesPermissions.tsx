@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRoles as fetchAllRolesService, fetchPermissions as fetchPermissionsService, fetchRolePermissions as fetchRolePermissionsService, toggleRolePermission as toggleRolePermissionService } from '@/services/roles';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -81,33 +81,9 @@ export const RolesPermissions = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('roles')
-        .select('*')
-        .order('code');
-
-      if (rolesError) throw rolesError;
-
-      // Fetch permissions
-      const { data: permissionsData, error: permissionsError } = await supabase
-        .from('permissions')
-        .select('*')
-        .order('code');
-
-      if (permissionsError) throw permissionsError;
-
-      // Fetch role-permissions mapping
-      const { data: rolePermissionsData, error: rpError } = await supabase
-        .from('role_permissions')
-        .select(`
-          role_id,
-          permission_id,
-          roles (id, code, label, is_platform_scope, created_at),
-          permissions (id, code, label)
-        `);
-
-      if (rpError) throw rpError;
+      const rolesData = await fetchAllRolesService();
+      const permissionsData = await fetchPermissionsService();
+      const rolePermissionsData = await fetchRolePermissionsService();
 
       const hierarchicalRoles = buildRoleHierarchy((rolesData || []) as unknown as Role[]);
       setRoles(hierarchicalRoles);
@@ -137,30 +113,11 @@ export const RolesPermissions = () => {
     });
   };
 
-  const toggleRolePermission = async (roleId: string, permissionId: string) => {
+  const handleToggleRolePermission = async (roleId: string, permissionId: string) => {
     try {
       const exists = hasPermission(roleId, permissionId);
-      
-      if (exists) {
-        // Remove permission
-        const { error } = await supabase
-          .from('role_permissions')
-          .delete()
-          .eq('role_id', roleId)
-          .eq('permission_id', permissionId);
-        
-        if (error) throw error;
-        toast.success('Permission retirée');
-      } else {
-        // Add permission
-        const { error } = await supabase
-          .from('role_permissions')
-          .insert({ role_id: roleId, permission_id: permissionId });
-        
-        if (error) throw error;
-        toast.success('Permission ajoutée');
-      }
-      
+      await toggleRolePermissionService(roleId, permissionId, exists);
+      toast.success(exists ? 'Permission retirée' : 'Permission ajoutée');
       fetchData();
     } catch (error) {
       toast.error('Erreur lors de la modification de la permission');
@@ -337,7 +294,7 @@ export const RolesPermissions = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleRolePermission(role.id, permission.id)}
+                              onClick={() => handleToggleRolePermission(role.id, permission.id)}
                             >
                               {hasPermission(role.id, permission.id) ? (
                                 <CheckSquare className="h-5 w-5 text-green-600" />

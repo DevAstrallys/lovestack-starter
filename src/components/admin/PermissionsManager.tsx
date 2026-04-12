@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('component:permissions-manager');
-import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRoles, fetchPermissions as fetchPermissionsService, fetchRolePermissions as fetchRolePermissionsService, toggleRolePermission as toggleRolePermissionService } from '@/services/roles';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,31 +73,11 @@ export const PermissionsManager = () => {
     try {
       setLoading(true);
 
-      // Fetch roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('roles')
-        .select('id, code, label, is_platform_scope, parent_id, is_active')
-        .eq('is_active', true)
-        .order('code');
+      const rolesData = await fetchAllRoles();
+      const permissionsData = await fetchPermissionsService();
+      const rolePermissionsData = await fetchRolePermissionsService();
 
-      if (rolesError) throw rolesError;
-
-      // Fetch permissions
-      const { data: permissionsData, error: permissionsError } = await supabase
-        .from('permissions')
-        .select('id, code, label')
-        .order('code');
-
-      if (permissionsError) throw permissionsError;
-
-      // Fetch role-permissions mapping
-      const { data: rolePermissionsData, error: rpError } = await supabase
-        .from('role_permissions')
-        .select('role_id, permission_id');
-
-      if (rpError) throw rpError;
-
-      setRoles((rolesData || []) as unknown as Role[]);
+      setRoles((rolesData || []).filter((r: Record<string, unknown>) => r.is_active) as unknown as Role[]);
       setPermissions((permissionsData || []) as unknown as Permission[]);
       setRolePermissions(rolePermissionsData || []);
     } catch (error) {
@@ -255,21 +235,9 @@ export const PermissionsManager = () => {
         );
 
         if (hasPermissionValue && !existingRelation) {
-          // Add permission
-          const { error } = await supabase
-            .from('role_permissions')
-            .insert({ role_id: roleId, permission_id: permissionId });
-          
-          if (error) throw error;
+          await toggleRolePermissionService(roleId, permissionId, false);
         } else if (!hasPermissionValue && existingRelation) {
-          // Remove permission
-          const { error } = await supabase
-            .from('role_permissions')
-            .delete()
-            .eq('role_id', roleId)
-            .eq('permission_id', permissionId);
-          
-          if (error) throw error;
+          await toggleRolePermissionService(roleId, permissionId, true);
         }
       }
 

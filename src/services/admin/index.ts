@@ -120,3 +120,63 @@ export async function createLocationMembership(params: CreateLocationMembershipP
     throw err;
   }
 }
+
+/** Toggle membership active status. */
+export async function toggleMembershipStatus(
+  table: 'memberships' | 'location_memberships',
+  id: string,
+  isActive: boolean,
+) {
+  try {
+    const { error } = await supabase
+      .from(table)
+      .update({ is_active: isActive })
+      .eq('id', id);
+    if (error) throw error;
+    log.info('Membership status toggled', { table, id, isActive });
+  } catch (err) {
+    log.error('Toggle membership status failed', { table, id, error: err });
+    throw err;
+  }
+}
+
+/** Add a membership with all fields. */
+export async function addMembershipFull(params: {
+  user_id: string;
+  organization_id: string;
+  role_id: string;
+  is_active?: boolean;
+  can_validate_user_requests?: boolean;
+}) {
+  try {
+    const { error } = await supabase.from('memberships').insert({
+      user_id: params.user_id,
+      organization_id: params.organization_id,
+      role_id: params.role_id,
+      is_active: params.is_active ?? true,
+      can_validate_user_requests: params.can_validate_user_requests ?? false,
+    });
+    if (error) throw error;
+    log.info('Full membership created', { userId: params.user_id, roleId: params.role_id });
+  } catch (err) {
+    log.error('Add full membership failed', { error: err });
+    throw err;
+  }
+}
+
+/** Create a membership for an admin on a new organization. */
+export async function createAdminMembership(userId: string, organizationId: string, roleId: string) {
+  try {
+    const { error } = await supabase.from('memberships').insert({
+      user_id: userId,
+      organization_id: organizationId,
+      role_id: roleId,
+      is_active: true,
+    });
+    if (error) throw error;
+    log.info('Admin membership created', { userId, organizationId, roleId });
+  } catch (err) {
+    log.error('Create admin membership failed', { error: err });
+    throw err;
+  }
+}

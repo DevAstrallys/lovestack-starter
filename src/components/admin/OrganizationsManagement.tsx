@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client'; // TODO: migrate remaining supabase calls to service layer
-import { createUser } from '@/services/admin';
+import { createUser, createAdminMembership } from '@/services/admin';
+import { fetchAllOrganizations, fetchOrgAdmin, createOrganization, updateOrganization, toggleOrganizationStatus, searchProfiles, findAdminOrgRoleId } from '@/services/organizations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -94,32 +94,11 @@ export const OrganizationsManagement = () => {
 
   const fetchOrganizations = async () => {
     try {
-      const { data: orgs, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const orgs = await fetchAllOrganizations();
 
       const orgsWithAdmin: OrgWithAdmin[] = [];
-      for (const org of orgs || []) {
-        const { data: membership } = await supabase
-          .from('memberships')
-          .select('user_id, roles!inner(code)')
-          .eq('organization_id', org.id)
-          .eq('is_active', true)
-          .like('roles.code', '%admin%')
-          .limit(1);
-
-        let adminName: string | null = null;
-        if (membership && membership.length > 0) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', membership[0].user_id)
-            .single();
-          adminName = profile?.full_name || null;
-        }
+      for (const org of orgs) {
+        const adminName = await fetchOrgAdmin(org.id);
         orgsWithAdmin.push({ ...org, admin_name: adminName });
       }
 
@@ -141,13 +120,7 @@ export const OrganizationsManagement = () => {
     }
     setSearchingAdmin(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .ilike('full_name', `%${query}%`)
-        .limit(10);
-
-      if (error) throw error;
+      const data = await searchProfiles(query);
       setAdminResults(data || []);
       setShowResults(true);
       setSearchDone(true);
@@ -224,61 +197,28 @@ export const OrganizationsManagement = () => {
     
     try {
       if (editingOrg) {
-        const { error } = await supabase
-          .from('organizations')
-          .update({
-            name: formData.name, description: formData.description,
-            address: formData.address, zip_code: formData.zip_code,
-            city: formData.city, country: formData.country,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingOrg.id);
-
-        if (error) throw error;
+        await updateOrganization(editingOrg.id, {
+          name: formData.name, description: formData.description,
+          address: formData.address, zip_code: formData.zip_code,
+          city: formData.city, country: formData.country,
+          updated_at: new Date().toISOString()
+        });
         toast({ title: "Organisation mise à jour", description: "L'organisation a été mise à jour avec succès" });
       } else {
-        const { data: newOrg, error } = await supabase
-          .from('organizations')
-          .insert({
-            name: formData.name, description: formData.description,
-            address: formData.address, zip_code: formData.zip_code,
-            city: formData.city, country: formData.country
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
+        const newOrg = await createOrganization({
+          name: formData.name, description: formData.description,
+          address: formData.address, zip_code: formData.zip_code,
+          city: formData.city, country: formData.country
+        });
 
         if (selectedAdmin && newOrg) {
           try {
-            let { data: role } = await supabase
-              .from('roles')
-              .select('id')
-              .eq('code', 'admin_org')
-              .single();
-
-            if (!role) {
-              const { data: fallback } = await supabase
-                .from('roles')
-                .select('id')
-                .eq('is_platform_scope', false)
-                .ilike('code', '%admin%')
-                .limit(1);
-              role = fallback?.[0] || null;
-            }
-
-            if (role) {
-              const { error: memberError } = await supabase
-                .from('memberships')
-                .insert({
-                  user_id: selectedAdmin.id,
-                  organization_id: newOrg.id,
-                  role_id: role.id,
-                  is_active: true
-                });
-
-              if (memberError) {
-                log.error('Failed to create admin membership', { error: memberError });
+            const roleId = await findAdminOrgRoleId();
+            if (roleId) {
+              try {
+                await createAdminMembership(selectedAdmin.id, newOrg.id, roleId);
+              } catch (memberErr) {
+                log.error('Failed to create admin membership', { error: memberErr });
                 toast({ title: "Attention", description: "Organisation créée mais l'attribution du rôle admin a échoué", variant: "destructive" });
               }
             }
@@ -314,12 +254,7 @@ export const OrganizationsManagement = () => {
 
   const handleToggleStatus = async (org: Organization) => {
     try {
-      const { error } = await supabase
-        .from('organizations')
-        .update({ is_active: !org.is_active, updated_at: new Date().toISOString() })
-        .eq('id', org.id);
-
-      if (error) throw error;
+      await toggleOrganizationStatus(org.id, !org.is_active);
       toast({ title: "Statut mis à jour", description: `L'organisation a été ${!org.is_active ? 'activée' : 'désactivée'}` });
       fetchOrganizations();
     } catch (error) {

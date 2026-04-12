@@ -250,7 +250,7 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
   if (!ticket) return null;
 
   const location = ticket.location as TicketLocation | null;
-  const locationName = location?.name || location?.element_name || null;
+  const locationName = location?.element_name || null;
 
   const headerContent = (
     <>

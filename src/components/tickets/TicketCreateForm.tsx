@@ -21,7 +21,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useTaxonomy } from '@/hooks/useTaxonomy';
 import DOMPurify from 'dompurify';
 import { createLogger } from '@/lib/logger';
-import type { Database } from '@/integrations/supabase/types';
+import type { TicketInsert } from '@/services/tickets';
 
 
 import {

@@ -7,7 +7,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 const log = createLogger('service:tickets');
 
-type TicketInsert = Database['public']['Tables']['tickets']['Insert'];
+export type TicketInsert = Database['public']['Tables']['tickets']['Insert'];
 type TicketUpdate = Database['public']['Tables']['tickets']['Update'];
 type ActivityInsert = Database['public']['Tables']['ticket_activities']['Insert'];
 

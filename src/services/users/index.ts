@@ -224,3 +224,29 @@ export async function fetchProfileSummary(userId: string) {
     return null;
   }
 }
+
+/** Fetch all profiles with their memberships (admin view). */
+export async function fetchProfilesWithMemberships() {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(`
+        *,
+        memberships (
+          id,
+          organization_id,
+          role_id,
+          is_active,
+          can_validate_user_requests,
+          organizations (name),
+          roles (code, label)
+        )
+      `)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    log.error("Failed to fetch profiles with memberships", { error: err });
+    throw err;
+  }
+}

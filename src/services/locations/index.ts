@@ -6,8 +6,17 @@ import { createLogger } from '@/lib/logger';
 import type { Database } from '@/integrations/supabase/types';
 
 type EnsembleRow = Database['public']['Tables']['location_ensembles']['Row'];
+type EnsembleInsert = Database['public']['Tables']['location_ensembles']['Insert'];
+type EnsembleUpdate = Database['public']['Tables']['location_ensembles']['Update'];
 type GroupRow = Database['public']['Tables']['location_groups']['Row'];
+type GroupInsert = Database['public']['Tables']['location_groups']['Insert'];
+type GroupUpdate = Database['public']['Tables']['location_groups']['Update'];
 type ElementRow = Database['public']['Tables']['location_elements']['Row'];
+type ElementUpdate = Database['public']['Tables']['location_elements']['Update'];
+type EnsembleTagInsert = Database['public']['Tables']['location_ensemble_tags']['Insert'];
+type GroupTagInsert = Database['public']['Tables']['location_group_tags']['Insert'];
+type TagInsert = Database['public']['Tables']['location_tags']['Insert'];
+type QRCodeInsert = Database['public']['Tables']['qr_codes']['Insert'];
 
 interface GroupTagJoin { group_id: string; location_tags: { id: string; name: string; color: string } }
 interface EnsembleTagJoin { ensemble_id: string; location_tags: { id: string; name: string; color: string } }
@@ -82,7 +91,7 @@ export async function createQRCode(payload: QRCodeCreatePayload) {
     });
 
     // 2. Insert the new QR code
-    const insertData: Record<string, unknown> = {
+    const insertData: QRCodeInsert = {
       display_label: payload.display_label,
       target_slug: payload.target_slug,
       organization_id: payload.organization_id,
@@ -90,8 +99,8 @@ export async function createQRCode(payload: QRCodeCreatePayload) {
       location_element_id: payload.location_element_id ?? null,
       location_group_id: payload.location_group_id ?? null,
       location_ensemble_id: payload.location_ensemble_id ?? null,
-      form_config: payload.form_config ?? {},
-      location: payload.location ?? null,
+      form_config: (payload.form_config ?? {}) as Database['public']['Tables']['qr_codes']['Insert']['form_config'],
+      location: (payload.location ?? null) as Database['public']['Tables']['qr_codes']['Insert']['location'],
       version: 1,
       is_active: true,
       last_regenerated_at: new Date().toISOString(),
@@ -99,7 +108,7 @@ export async function createQRCode(payload: QRCodeCreatePayload) {
 
     const { data, error } = await supabase
       .from('qr_codes')
-      .insert(insertData as any)
+      .insert(insertData)
       .select()
       .single();
 
@@ -426,41 +435,48 @@ export async function saveEnsemble(params: {
   selectedTags: string[];
 }) {
   try {
-    const ensembleData = {
-      name: params.name,
-      description: params.description,
-      organization_id: params.organization_id,
-    };
-
     let ensembleId: string;
 
     if (params.id) {
+      const ensembleData: EnsembleUpdate = {
+        name: params.name,
+        description: params.description,
+        organization_id: params.organization_id,
+      };
       const { error } = await supabase
         .from('location_ensembles')
-        .update(ensembleData as any)
+        .update(ensembleData)
         .eq('id', params.id);
       if (error) throw error;
       ensembleId = params.id;
     } else {
+      const ensembleData: EnsembleInsert = {
+        name: params.name,
+        description: params.description,
+        organization_id: params.organization_id,
+      };
       const { data, error } = await supabase
         .from('location_ensembles')
-        .insert(ensembleData as any)
+        .insert(ensembleData)
         .select()
         .maybeSingle();
       if (error) throw error;
-      ensembleId = (data as any).id;
+      if (!data) throw new Error('No data returned from ensemble insert');
+      ensembleId = data.id;
     }
 
     // Update group assignments
+    const detachUpdate: GroupUpdate = { parent_id: null };
     await supabase
       .from('location_groups')
-      .update({ parent_id: null } as any)
+      .update(detachUpdate)
       .eq('parent_id', ensembleId);
 
     if (params.selectedGroups.length > 0) {
+      const attachUpdate: GroupUpdate = { parent_id: ensembleId };
       const { error: groupError } = await supabase
         .from('location_groups')
-        .update({ parent_id: ensembleId } as any)
+        .update(attachUpdate)
         .in('id', params.selectedGroups);
       if (groupError) throw groupError;
     }
@@ -472,13 +488,13 @@ export async function saveEnsemble(params: {
       .eq('ensemble_id', ensembleId);
 
     if (params.selectedTags.length > 0) {
-      const tagInserts = params.selectedTags.map(tagId => ({
+      const tagInserts: EnsembleTagInsert[] = params.selectedTags.map(tagId => ({
         ensemble_id: ensembleId,
         tag_id: tagId,
       }));
       const { error: tagError } = await supabase
         .from('location_ensemble_tags')
-        .insert(tagInserts as any);
+        .insert(tagInserts);
       if (tagError) throw tagError;
     }
 
@@ -569,41 +585,48 @@ export async function saveGroup(params: {
   selectedTags: string[];
 }) {
   try {
-    const groupData = {
-      name: params.name,
-      description: params.description,
-      organization_id: params.organization_id,
-    };
-
     let groupId: string;
 
     if (params.id) {
+      const groupData: GroupUpdate = {
+        name: params.name,
+        description: params.description,
+        organization_id: params.organization_id,
+      };
       const { error } = await supabase
         .from('location_groups')
-        .update(groupData as any)
+        .update(groupData)
         .eq('id', params.id);
       if (error) throw error;
       groupId = params.id;
     } else {
+      const groupData: GroupInsert = {
+        name: params.name,
+        description: params.description,
+        organization_id: params.organization_id,
+      };
       const { data, error } = await supabase
         .from('location_groups')
-        .insert(groupData as any)
+        .insert(groupData)
         .select()
         .maybeSingle();
       if (error) throw error;
-      groupId = (data as any).id;
+      if (!data) throw new Error('No data returned from group insert');
+      groupId = data.id;
     }
 
     // Update element assignments
+    const detachUpdate: ElementUpdate = { parent_id: null };
     await supabase
       .from('location_elements')
-      .update({ parent_id: null } as any)
+      .update(detachUpdate)
       .eq('parent_id', groupId);
 
     if (params.selectedElements.length > 0) {
+      const attachUpdate: ElementUpdate = { parent_id: groupId };
       const { error: elementError } = await supabase
         .from('location_elements')
-        .update({ parent_id: groupId } as any)
+        .update(attachUpdate)
         .in('id', params.selectedElements);
       if (elementError) throw elementError;
     }
@@ -615,13 +638,13 @@ export async function saveGroup(params: {
       .eq('group_id', groupId);
 
     if (params.selectedTags.length > 0) {
-      const tagInserts = params.selectedTags.map(tagId => ({
+      const tagInserts: GroupTagInsert[] = params.selectedTags.map(tagId => ({
         group_id: groupId,
         tag_id: tagId,
       }));
       const { error: tagError } = await supabase
         .from('location_group_tags')
-        .insert(tagInserts as any);
+        .insert(tagInserts);
       if (tagError) throw tagError;
     }
 
@@ -676,13 +699,18 @@ export async function fetchLocationTags(organizationId: string) {
  */
 export async function createLocationTag(params: { name: string; color: string; organization_id: string }) {
   try {
+    const tagData: TagInsert = {
+      name: params.name,
+      color: params.color,
+      organization_id: params.organization_id,
+    };
     const { data, error } = await supabase
       .from('location_tags')
-      .insert(params as any)
+      .insert(tagData)
       .select()
       .maybeSingle();
     if (error) throw error;
-    log.info('Location tag created', { id: (data as any)?.id });
+    log.info('Location tag created', { id: data?.id });
     return data;
   } catch (err) {
     log.error('Failed to create location tag', { error: err });

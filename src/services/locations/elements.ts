@@ -19,6 +19,31 @@ interface ElementData {
   location_data?: Json | null;
 }
 
+interface TagRow {
+  id: string;
+  name: string;
+  color: string;
+  organization_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ElementTagJoin {
+  location_tags: TagRow;
+}
+
+interface ElementWithJoinedTags {
+  id: string;
+  name: string;
+  description: string | null;
+  parent_id: string | null;
+  organization_id: string | null;
+  location_data: Json | null;
+  created_at: string;
+  updated_at: string;
+  location_element_tags: ElementTagJoin[];
+}
+
 /**
  * Create or update a location element.
  * Returns the created/updated element ID.
@@ -129,9 +154,10 @@ export async function fetchElements(organizationId: string) {
 
   if (error) throw error;
 
-  return (data || []).map((element: any) => ({
+  return (data || []).map((element: ElementWithJoinedTags) => ({
     ...element,
-    tags: element.location_element_tags?.map((et: any) => et.location_tags) || [],
+    location_data: element.location_data as Record<string, unknown> | null,
+    tags: element.location_element_tags?.map((et: ElementTagJoin) => et.location_tags) || [],
   }));
 }
 

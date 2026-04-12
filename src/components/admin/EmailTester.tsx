@@ -53,11 +53,11 @@ export const EmailTester = () => {
         title: "Email envoyé !",
         description: "L'email de test a été envoyé avec succès",
       });
-    } catch (error: any) {
-      console.error('Unexpected error:', error);
+    } catch (error: unknown) {
+      log.error('Unexpected error sending test email', { error });
       setLastResult({ 
         success: false, 
-        message: `Erreur inattendue: ${error.message}` 
+        message: `Erreur inattendue: ${error instanceof Error ? error.message : 'Erreur inconnue'}` 
       });
       toast({
         title: "Erreur",

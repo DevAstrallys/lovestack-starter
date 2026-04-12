@@ -52,7 +52,7 @@ export function UserCompanyAffiliations({ userId, userName }: Props) {
     try {
       const data = await fetchCompanyUsersByUserId(userId);
       setAffiliations(
-        (data || []).map((d: any) => ({
+        (data || []).map((d: { id: string; company_id: string; role: string | null; companies: Record<string, unknown> }) => ({
           id: d.id,
           company_id: d.company_id,
           role: d.role,

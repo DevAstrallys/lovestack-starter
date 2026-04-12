@@ -559,7 +559,7 @@ export const AccessSecurityManager = () => {
                   {roles.map(r => (
                     <SelectItem key={r.id} value={r.id}>
                       <span className="flex items-center gap-2">
-                        {(r.label as any)?.fr || r.code}
+                        {(r.label as Record<string, string>)?.fr || r.code}
                         {TEMPORAL_ROLES.includes(r.code) && (
                           <Badge variant="secondary" className="text-[10px] px-1.5 py-0">temporaire</Badge>
                         )}

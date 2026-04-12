@@ -43,7 +43,7 @@ interface User {
 interface Role {
   id: string;
   code: string;
-  label: any;
+  label: Record<string, string>;
 }
 
 interface LocationUsersManagementProps {

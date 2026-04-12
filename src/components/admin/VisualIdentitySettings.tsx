@@ -23,7 +23,7 @@ export const VisualIdentitySettings = () => {
 
   useEffect(() => {
     if (selectedOrganization) {
-      const org = selectedOrganization as any;
+      const org = selectedOrganization;
       setPrimaryColor(org.primary_color || '#1e293b');
       setSecondaryColor(org.secondary_color || '#f1f5f9');
       setLogoPreview(org.logo_url || null);
@@ -46,7 +46,7 @@ export const VisualIdentitySettings = () => {
     setSaving(true);
 
     try {
-      let logoUrl = (selectedOrganization as any).logo_url || null;
+      let logoUrl = selectedOrganization.logo_url || null;
 
       // Upload logo if changed
       if (logoFile) {
@@ -69,7 +69,7 @@ export const VisualIdentitySettings = () => {
         secondary_color: secondaryColor,
         logo_url: logoUrl,
       };
-      setSelectedOrganization(updatedOrg as any);
+      setSelectedOrganization(updatedOrg);
 
       toast.success('Identité visuelle mise à jour');
       setLogoFile(null);

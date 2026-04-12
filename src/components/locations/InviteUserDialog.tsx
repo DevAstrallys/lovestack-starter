@@ -82,7 +82,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
     },
   });
 
-  const buildRoleHierarchy = (roles: any[]): Role[] => {
+  const buildRoleHierarchy = (roles: Array<{ id: string; code: string; parent_id: string | null; label: Record<string, string>; children?: Role[] }>): Role[] => {
     const roleMap = new Map();
     const rootRoles: Role[] = [];
 
@@ -136,7 +136,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
     }]);
   };
 
-  const updateUserRole = (id: string, field: keyof UserRole, value: any) => {
+  const updateUserRole = (id: string, field: keyof UserRole, value: string | null) => {
     setUserRoles(prev => prev.map(role => 
       role.id === id ? { ...role, [field]: value } : role
     ));

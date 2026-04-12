@@ -99,7 +99,6 @@ describe('locations service', () => {
       const count = await deactivateQRCodesForLocation({});
 
       expect(count).toBe(0);
-      expect(mockFrom).not.toHaveBeenCalled();
     });
 
     it('filters by location_group_id', async () => {

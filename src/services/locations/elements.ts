@@ -27,6 +27,8 @@ interface TagRow {
   created_at: string;
   updated_at: string;
 }
+
+interface ElementTagJoin {
   location_tags: TagRow;
 }
 

@@ -78,9 +78,9 @@ export function TicketLanding() {
     try {
       await signInWithEmail(loginEmail, loginPassword);
       navigate(`/ticket-form/${slug}/form?mode=connected`, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('Login failed', { error: err });
-      toast({ title: 'Connexion échouée', description: err?.message || 'Vérifiez vos identifiants', variant: 'destructive' });
+      toast({ title: 'Connexion échouée', description: err instanceof Error ? err.message : 'Vérifiez vos identifiants', variant: 'destructive' });
     } finally {
       setLoginLoading(false);
     }
@@ -138,9 +138,9 @@ export function TicketLanding() {
 
       setAccessSubmitted(true);
       log.info('Access request submitted', { orgId: qrCode?.organization_id });
-    } catch (err: any) {
+    } catch (err: unknown) {
       log.error('Access request failed', { error: err });
-      toast({ title: 'Erreur', description: err?.message || 'Impossible d\'envoyer la demande', variant: 'destructive' });
+      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Impossible d\'envoyer la demande', variant: 'destructive' });
     } finally {
       setAccessLoading(false);
     }

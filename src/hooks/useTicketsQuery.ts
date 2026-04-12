@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchFilteredTickets,
   fetchTicketActivities,
+  fetchTicketById,
   addTicketActivity,
   updateTicket as updateTicketService,
   createTicket as createTicketService,

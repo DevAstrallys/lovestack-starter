@@ -27,7 +27,9 @@ export const PROFILE_ROLES = [
 
 export interface UploadedFile {
   name: string;
+  /** Local preview URL (blob:) — only valid in the current browser tab, never persisted. */
   url: string;
   type: string;
+  /** Path in the private `ticket-attachments` bucket — this is what gets persisted. */
   storagePath: string;
 }

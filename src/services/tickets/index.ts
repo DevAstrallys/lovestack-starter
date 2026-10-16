@@ -266,20 +266,6 @@ export async function fetchOrganizations(ids: string[]) {
   }
 }
 
-export async function uploadTicketAttachment(ticketId: string, file: File) {
-  try {
-    const path = `${ticketId}/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from('ticket-attachments').upload(path, file);
-    if (error) throw error;
-    const { data: urlData } = supabase.storage.from('ticket-attachments').getPublicUrl(path);
-    log.info('Attachment uploaded', { ticketId, fileName: file.name });
-    return { publicUrl: urlData.publicUrl, fileName: file.name };
-  } catch (err) {
-    log.error('Failed to upload attachment', { ticketId, error: err });
-    throw err;
-  }
-}
-
 /**
  * Fetch an active QR code by its target slug, enriched with location names.
  * Uses the qr_codes_public view (no RLS) so anonymous/guest users can access it.

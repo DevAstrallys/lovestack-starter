@@ -30,12 +30,19 @@ export interface TicketMeta {
   [key: string]: unknown;
 }
 
-/** Single attachment entry stored in tickets.attachments JSON array */
+/**
+ * Single attachment entry stored in tickets.attachments JSON array.
+ * Field names match what is actually persisted in the database (snake_case).
+ * Files live in the PRIVATE `ticket-attachments` bucket: display them through
+ * signed URLs (see `useAttachmentUrls`), never through `url`.
+ */
 export interface TicketAttachment {
   name: string;
-  url: string;
   type: string;
-  storagePath: string;
+  /** Path inside the `ticket-attachments` bucket. */
+  storage_path?: string;
+  /** @deprecated Legacy public URL written before Oct 2026. Read-only, used only to recover the path. */
+  url?: string;
 }
 
 // ── Main Ticket entity ───────────────────────────────────────────────

@@ -13,6 +13,7 @@ import {
   Wrench, Send, FileText, Clock, Bell, BellOff,
 } from 'lucide-react';
 import { useTicketQuery, useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
+import { useAttachmentUrls } from '@/hooks/useAttachmentUrls';
 import type { TicketStatus, TicketPriority, TicketAttachment, TicketActivityMeta, TicketLocation } from '@/types';
 import { useUserTicketRole } from '@/hooks/useUserTicketRole';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +52,7 @@ export function TicketDetail() {
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const { urls: attachmentUrls } = useAttachmentUrls(ticket?.attachments);
 
   // Check follow status on mount
   React.useEffect(() => {
@@ -344,14 +346,15 @@ export function TicketDetail() {
                       {ticket.attachments.map((att: TicketAttachment, i: number) => (
                         <a
                           key={i}
-                          href={att.url}
+                          href={attachmentUrls[i]}
                           target="_blank"
                           rel="noopener noreferrer"
+                          aria-disabled={!attachmentUrls[i]}
                           className="block rounded-lg overflow-hidden border hover:shadow-lg transition-shadow group aspect-[4/3]"
                         >
-                          {att.type === 'image' ? (
+                          {att.type === 'image' && attachmentUrls[i] ? (
                             <img
-                              src={att.url}
+                              src={attachmentUrls[i]}
                               alt={att.name || `Photo ${i + 1}`}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                               loading="lazy"

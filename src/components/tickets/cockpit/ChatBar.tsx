@@ -4,7 +4,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Send, Smile, ImagePlus, Paperclip, Lock, Globe } from 'lucide-react';
 import type { Ticket } from '@/types';
-import { addTicketActivity, updateTicket, uploadTicketAttachment } from '@/services/tickets';
+import { addTicketActivity, updateTicket } from '@/services/tickets';
+import { uploadTicketChatAttachment } from '@/services/storage';
 import { sendEmail } from '@/services/notifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -98,14 +99,14 @@ export function ChatBar({ ticket, onSent, canAddPrivateNote = false }: ChatBarPr
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { publicUrl, fileName } = await uploadTicketAttachment(ticket.id, file);
+      const { path, fileName } = await uploadTicketChatAttachment(ticket.id, file);
       
       await addTicketActivity({
         ticket_id: ticket.id,
         actor_id: user?.id || null,
         activity_type: 'message',
         content: `📎 ${fileName}`,
-        metadata: { direction: 'outbound', attachment_url: publicUrl, file_name: fileName },
+        metadata: { direction: 'outbound', attachment_path: path, file_name: fileName },
       });
       toast.success('Fichier envoyé');
       onSent?.();

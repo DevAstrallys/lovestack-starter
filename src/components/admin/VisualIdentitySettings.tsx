@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { updateOrganization } from '@/services/organizations';
-import { uploadFile } from '@/services/storage';
+import { uploadOrganizationLogo } from '@/services/storage';
 import { createLogger } from '@/lib/logger';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
@@ -50,9 +50,7 @@ export const VisualIdentitySettings = () => {
 
       // Upload logo if changed
       if (logoFile) {
-        const ext = logoFile.name.split('.').pop();
-        const path = `org-logos/${selectedOrganization.id}/logo.${ext}`;
-        const result = await uploadFile('ticket-attachments', path, logoFile);
+        const result = await uploadOrganizationLogo(selectedOrganization.id, logoFile);
         logoUrl = result.publicUrl;
       }
 
@@ -180,7 +178,7 @@ export const VisualIdentitySettings = () => {
           <CardHeader>
             <CardTitle>Logo</CardTitle>
             <CardDescription>
-              Uploadez le logo de votre organisation (PNG, JPG, SVG — max 2 Mo)
+              Uploadez le logo de votre organisation (PNG, JPG ou WebP — max 2 Mo)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -201,7 +199,7 @@ export const VisualIdentitySettings = () => {
                 <Input
                   id="logo-upload"
                   type="file"
-                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={handleLogoChange}
                 />
               </div>

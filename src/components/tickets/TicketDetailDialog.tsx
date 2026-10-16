@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Ticket, TicketActivity, TicketAttachment, TicketLocation } from '@/types';
 import { useTicketActivitiesQuery } from '@/hooks/useTicketsQuery';
+import { useAttachmentUrls } from '@/hooks/useAttachmentUrls';
 import { TICKET_STATUSES, TICKET_PRIORITIES, formatTicketDisplayTitle } from '@/utils/ticketUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -246,6 +247,7 @@ function ReplyForm({ ticket, onSent }: { ticket: Ticket; onSent?: () => void }) 
 
 export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailDialogProps) {
   const [refreshKey, setRefreshKey] = useState(0);
+  const { urls: attachmentUrls } = useAttachmentUrls(ticket?.attachments);
 
   if (!ticket) return null;
 
@@ -315,13 +317,14 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
             {ticket.attachments.map((att: TicketAttachment, i: number) => (
               <a
                 key={i}
-                href={att.url}
+                href={attachmentUrls[i]}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-disabled={!attachmentUrls[i]}
                 className="block rounded-md border border-border overflow-hidden active:scale-95 transition-transform"
               >
-                {att.type === 'image' ? (
-                  <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
+                {att.type === 'image' && attachmentUrls[i] ? (
+                  <img src={attachmentUrls[i]} alt={att.name} className="w-full h-20 object-cover" />
                 ) : (
                   <div className="flex items-center justify-center h-20 bg-muted">
                     {getMediaIcon(att.type)}

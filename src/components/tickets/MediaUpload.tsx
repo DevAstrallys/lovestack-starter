@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, Mic, Video, X, Loader2 } from 'lucide-react';
-import { uploadFile } from '@/services/storage';
+import { uploadTicketMedia, MAX_ATTACHMENT_SIZE_BYTES } from '@/services/storage';
 import { createLogger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,7 +25,7 @@ const ACCEPT_MAP = {
   video: 'video/mp4,video/webm,video/quicktime',
 };
 
-const MAX_SIZE_MB = 20;
+const MAX_SIZE_MB = MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024);
 
 export function MediaUpload({ files, onFilesChange }: MediaUploadProps) {
   const { toast } = useToast();
@@ -42,16 +42,14 @@ export function MediaUpload({ files, onFilesChange }: MediaUploadProps) {
 
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop() || 'bin';
-      const path = `${crypto.randomUUID()}.${ext}`;
-
-      const result = await uploadFile('ticket-attachments', path, file, { contentType: file.type });
+      const { path } = await uploadTicketMedia(file);
 
       onFilesChange([...files, {
         name: file.name,
-        url: result.publicUrl,
+        // Local preview only — the bucket is private.
+        url: URL.createObjectURL(file),
         type,
-        storagePath: result.path,
+        storagePath: path,
       }]);
     } catch (err) {
       log.error('Upload error', { error: err });

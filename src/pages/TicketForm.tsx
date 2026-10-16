@@ -309,7 +309,7 @@ export function TicketForm() {
       reporter_email: email || null,
       reporter_phone: phone || null,
       location: locationPayload,
-      attachments: media.uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
+      attachments: media.uploadedFiles.map(f => ({ name: f.name, type: f.type, storage_path: f.storagePath })),
       meta: {
         qr_code_id: qrCode?.id, reporter_role: profileRole, urgency_level: tax.urgency,
         notification_channel: notifChannel === 'app' ? 'email' : notifChannel,

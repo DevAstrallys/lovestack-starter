@@ -175,7 +175,7 @@ export const TicketCreateForm = ({ onSuccess }: TicketCreateFormProps) => {
         ensemble_id: selectedEnsembleId || null,
         name: locationName,
       },
-      attachments: media.uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, storage_path: f.storagePath })),
+      attachments: media.uploadedFiles.map(f => ({ name: f.name, type: f.type, storage_path: f.storagePath })),
       meta: {
         reporter_role: profileRole, urgency_level: tax.urgency,
         notification_channel: notifChannel,

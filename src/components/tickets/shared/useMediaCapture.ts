@@ -6,13 +6,13 @@
  */
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { createLogger } from '@/lib/logger';
-import { uploadFile as uploadToStorage } from '@/services/storage';
+import { uploadTicketMedia, MAX_ATTACHMENT_SIZE_BYTES } from '@/services/storage';
 import { useToast } from '@/hooks/use-toast';
 import type { UploadedFile } from './constants';
 
 const log = createLogger('hook:useMediaCapture');
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+const MAX_FILE_SIZE = MAX_ATTACHMENT_SIZE_BYTES;
 
 export function useMediaCapture() {
   const { toast } = useToast();
@@ -34,6 +34,8 @@ export function useMediaCapture() {
   const videoStreamRef = useRef<MediaStream | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  // Local preview URLs (blob:) — the bucket is private, previews never hit the server
+  const previewUrlsRef = useRef<string[]>([]);
 
   // --- Cleanup on unmount ---
   useEffect(() => {
@@ -43,6 +45,8 @@ export function useMediaCapture() {
       audioStreamRef.current?.getTracks().forEach((t) => t.stop());
       videoStreamRef.current?.getTracks().forEach((t) => t.stop());
       cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+      previewUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      previewUrlsRef.current = [];
     };
   }, []);
 
@@ -55,14 +59,12 @@ export function useMediaCapture() {
       }
       setUploading(true);
       try {
-        const result = await uploadToStorage(
-          'ticket-attachments',
-          `${crypto.randomUUID()}.${file.name.split('.').pop() || 'bin'}`,
-          file,
-        );
+        const { path } = await uploadTicketMedia(file);
+        const previewUrl = URL.createObjectURL(file);
+        previewUrlsRef.current.push(previewUrl);
         setUploadedFiles((prev) => [
           ...prev,
-          { name: file.name, url: result.publicUrl, type: fileType, storagePath: result.path },
+          { name: file.name, url: previewUrl, type: fileType, storagePath: path },
         ]);
         log.info('File uploaded', { fileName: file.name, fileType });
       } catch (err) {
@@ -86,7 +88,14 @@ export function useMediaCapture() {
   );
 
   const removeFile = useCallback((index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFiles((prev) => {
+      const removed = prev[index];
+      if (removed?.url.startsWith('blob:')) {
+        URL.revokeObjectURL(removed.url);
+        previewUrlsRef.current = previewUrlsRef.current.filter((u) => u !== removed.url);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   }, []);
 
   // --- Camera ---
